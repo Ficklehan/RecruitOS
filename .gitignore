@@ -12,3 +12,8 @@ venv/
 .vscode/
 .idea/
 *.log
+target/
+.vite/
+*.jar
+*.jar.original
+*.class
