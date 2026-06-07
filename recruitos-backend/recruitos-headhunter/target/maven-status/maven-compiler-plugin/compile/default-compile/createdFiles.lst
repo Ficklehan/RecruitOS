@@ -1,0 +1,15 @@
+com/recruitos/headhunter/entity/HeadhunterRecommendation.class
+com/recruitos/headhunter/dto/VendorCreateDTO.class
+com/recruitos/headhunter/dto/RecommendationCreateDTO.class
+com/recruitos/headhunter/mapper/HeadhunterRecommendationMapper.class
+com/recruitos/headhunter/dto/VendorQueryDTO.class
+com/recruitos/headhunter/service/VendorService.class
+com/recruitos/headhunter/service/RecommendationService.class
+com/recruitos/headhunter/controller/RecommendationController.class
+com/recruitos/headhunter/HeadhunterApplication.class
+com/recruitos/headhunter/dto/RecommendationQueryDTO.class
+com/recruitos/headhunter/dto/VendorVO.class
+com/recruitos/headhunter/controller/VendorController.class
+com/recruitos/headhunter/dto/RecommendationVO.class
+com/recruitos/headhunter/entity/HeadhunterVendor.class
+com/recruitos/headhunter/mapper/HeadhunterVendorMapper.class

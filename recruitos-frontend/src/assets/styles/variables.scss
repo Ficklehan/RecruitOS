@@ -1,0 +1,84 @@
+// 设计系统 — RecruitOS
+// 暖蓝主色调，轻盈扁平，呼吸感
+
+// ── 色彩 ──────────────────────────────────
+// 主色：偏暖的蓝，不像纯电蓝那么"科技味"
+$primary-color: #3B82F6;
+$primary-light: #93C5FD;    // 浅蓝，用于 hover 背景、tag 底色
+$primary-lighter: #EFF6FF;  // 极淡蓝，用于选中行、激活态底色
+$primary-dark: #1D4ED8;     // 深蓝，用于 pressed 态、渐变终点
+
+$success-color: #059669;    // 偏深的翠绿，不刺眼
+$success-lighter: #D1FAE5;  // 成功态淡底色
+$warning-color: #D97706;    // 暖琥珀，不是廉价的亮橙
+$warning-lighter: #FEF3C7;  // 警告态淡底色
+$danger-color: #DC2626;     // 沉稳的红，不荧光
+$danger-lighter: #FEE2E2;   // 危险态淡底色
+$info-color: #6B7280;       // 中性灰，带一点蓝调
+
+// ── 背景层级 ──────────────────────────────
+$bg-page: #F8FAFC;          // 页面底色，极淡蓝灰
+$bg-card: #FFFFFF;          // 卡片
+$bg-elevated: #FFFFFF;      // 弹层、下拉
+$bg-muted: #F1F5F9;         // 表头、侧栏 hover 等次要背景
+$bg-sidebar: #FFFFFF;       // 白色侧栏
+
+// ── 侧栏 ─────────────────────────────────
+$sidebar-bg: #FFFFFF;
+$sidebar-active-bg: $primary-lighter;  // 淡蓝底
+$sidebar-active-bar: $primary-color;   // 左侧蓝色指示条
+$sidebar-hover-bg: #F8FAFC;
+$sidebar-text: #475569;     // 菜单文字，不是纯黑
+$sidebar-text-active: $primary-color;
+$sidebar-border: #F1F5F9;   // 右侧分隔线
+
+// ── 头部 ─────────────────────────────────
+$header-bg: #FFFFFF;
+$header-border: #E2E8F0;
+$header-height: 56px;
+$topnav-height: 52px;
+$sub-sidebar-width: 200px;
+
+// ── 文字层级 ──────────────────────────────
+$text-primary: #0F172A;     // 标题，近黑但有蓝调
+$text-regular: #334155;     // 正文
+$text-secondary: #64748B;   // 辅助信息
+$text-placeholder: #94A3B8; // 占位符
+$text-disabled: #CBD5E1;    // 禁用态
+
+// ── 边框 ─────────────────────────────────
+$border-color: #E2E8F0;
+$border-color-light: #F1F5F9;
+
+// ── 圆角 ─────────────────────────────────
+$border-radius: 10px;        // 卡片、弹窗
+$border-radius-sm: 6px;      // 按钮、输入框、tag
+$border-radius-lg: 14px;     // 大卡片、特殊容器
+$border-radius-full: 9999px; // 胶囊形
+
+// ── 阴影 — 不要那种"一看就是 AI 写的"的均匀大阴影 ──
+// 自然的阴影应该偏上、偏小、带一点颜色
+$shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+$shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+$shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
+$shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.06), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+
+// 带主色的阴影，用于 hover 强调（这个细节让设计有"手工感"）
+$shadow-primary: 0 4px 14px -2px rgba(59, 130, 246, 0.15);
+
+// ── 间距 ─────────────────────────────────
+$spacing-xs: 4px;
+$spacing-sm: 8px;
+$spacing-md: 12px;
+$spacing-lg: 16px;
+$spacing-xl: 24px;
+$spacing-2xl: 32px;
+
+// ── 侧栏尺寸 ─────────────────────────────
+$sidebar-width: 240px;
+$sidebar-collapsed-width: 68px;
+
+// ── 动效 ─────────────────────────────────
+$transition-fast: 0.15s ease;
+$transition-base: 0.2s ease;
+$transition-slow: 0.3s ease;

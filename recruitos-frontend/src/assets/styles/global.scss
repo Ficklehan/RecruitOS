@@ -1,0 +1,363 @@
+@import './variables.scss';
+
+/* ── Reset ─────────────────────────────── */
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #app {
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, 'Noto Sans SC', sans-serif,
+    'Apple Color Emoji', 'Segoe UI Emoji';
+  color: $text-regular;
+  background-color: $bg-page;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+a {
+  color: $primary-color;
+  text-decoration: none;
+  transition: color $transition-fast;
+  &:hover {
+    color: $primary-dark;
+  }
+}
+
+/* ── Element Plus 覆写 ─────────────────── */
+// 按钮：去掉厚重感，用更轻的圆角和字重
+.el-button {
+  border-radius: $border-radius-sm !important;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  transition: all $transition-base;
+
+  &--primary {
+    box-shadow: none;
+    &:hover {
+      box-shadow: $shadow-primary;
+    }
+  }
+
+  // 默认按钮不要那么灰
+  &:not(.is-disabled):not(.el-button--primary):not(.el-button--success):not(.el-button--warning):not(.el-button--danger):not(.el-button--info) {
+    border-color: $border-color;
+    color: $text-regular;
+    &:hover {
+      border-color: $primary-light;
+      color: $primary-color;
+      background-color: $primary-lighter;
+    }
+  }
+}
+
+// 卡片：无边框
+.el-card {
+  border-radius: $border-radius !important;
+  border: none !important;
+  box-shadow: none !important;
+  background: $bg-card;
+
+  .el-card__header {
+    border-bottom: 1px solid $border-color-light;
+    padding: 16px 20px;
+  }
+
+  .el-card__body {
+    padding: 20px;
+  }
+}
+
+// 弹窗
+.el-dialog {
+  border-radius: $border-radius-lg !important;
+  box-shadow: $shadow-lg;
+  overflow: hidden;
+
+  .el-dialog__header {
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid $border-color-light;
+    margin-right: 0;
+  }
+
+  .el-dialog__title {
+    font-size: 16px;
+    font-weight: 600;
+    color: $text-primary;
+  }
+
+  .el-dialog__body {
+    padding: 24px;
+  }
+
+  .el-dialog__footer {
+    padding: 16px 24px;
+    border-top: 1px solid $border-color-light;
+  }
+}
+
+// 输入框
+.el-input__wrapper {
+  border-radius: $border-radius-sm !important;
+  box-shadow: 0 0 0 1px $border-color inset !important;
+  transition: box-shadow $transition-base;
+
+  &:hover {
+    box-shadow: 0 0 0 1px $text-placeholder inset !important;
+  }
+
+  &.is-focus {
+    box-shadow: 0 0 0 1px $primary-color inset !important;
+  }
+}
+
+.el-select .el-input__wrapper {
+  border-radius: $border-radius-sm !important;
+}
+
+// 表格：无框线、轻盈扁平
+.el-table {
+  border-radius: 0 !important;
+  overflow: hidden;
+
+  // 去掉所有框线
+  &::before,
+  &::after,
+  &__border {
+    display: none !important;
+  }
+
+  th.el-table__cell {
+    background-color: transparent !important;
+    color: $text-placeholder;
+    font-weight: 500;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    border-bottom: none !important;
+    padding: 10px 0;
+  }
+
+  td.el-table__cell {
+    border-bottom: none !important;
+    color: $text-regular;
+    padding: 12px 0;
+  }
+
+  // 行 hover 用极淡底色
+  tr:hover > td.el-table__cell {
+    background-color: $primary-lighter !important;
+  }
+
+  // 去掉 stripe
+  &--striped .el-table__body tr.el-table__row--striped td.el-table__cell {
+    background-color: transparent !important;
+  }
+
+  // 去掉外边框
+  .el-table__inner-wrapper::before,
+  .el-table__inner-wrapper::after {
+    display: none !important;
+  }
+
+  // 列之间的分隔也去掉
+  td.el-table__cell.is-leaf,
+  th.el-table__cell.is-leaf {
+    border-bottom: none !important;
+  }
+
+  // 用极细的行底部分隔代替框线
+  .el-table__row > td.el-table__cell {
+    box-shadow: inset 0 -1px 0 $border-color-light;
+  }
+
+  // 最后一行不要底部分隔
+  .el-table__row:last-child > td.el-table__cell {
+    box-shadow: none;
+  }
+
+  // 表头底部分隔
+  thead th.el-table__cell {
+    box-shadow: inset 0 -1px 0 $border-color-light;
+  }
+}
+
+// el-descriptions：去掉框线
+.el-descriptions {
+  .el-descriptions__table {
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+  }
+
+  .el-descriptions__cell {
+    border: none !important;
+    padding: 8px 0 !important;
+  }
+
+  &.is-bordered {
+    .el-descriptions__table {
+      border: none !important;
+    }
+
+    .el-descriptions__cell {
+      border: none !important;
+    }
+  }
+}
+
+.el-menu {
+  border-right: none !important;
+}
+
+.el-breadcrumb {
+  font-size: 13px;
+  color: $text-secondary;
+}
+
+.el-tag {
+  border-radius: $border-radius-full !important;
+  border: none !important;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+
+  &--info {
+    background-color: $bg-muted;
+    color: $text-secondary;
+  }
+}
+
+.el-pagination {
+  margin-top: 16px;
+  justify-content: flex-end;
+}
+
+// Tabs
+.el-tabs__item {
+  font-weight: 500;
+  color: $text-secondary;
+  &.is-active {
+    color: $primary-color;
+    font-weight: 600;
+  }
+}
+
+.el-tabs__active-bar {
+  background-color: $primary-color;
+  border-radius: 2px;
+}
+
+// Drawer
+.el-drawer__header {
+  border-bottom: 1px solid $border-color-light;
+  padding: 16px 20px;
+  margin-bottom: 0;
+}
+
+.el-drawer__body {
+  padding: 20px;
+}
+
+/* ── 工具类 ────────────────────────────── */
+.flex { display: flex; }
+.flex-center { display: flex; align-items: center; justify-content: center; }
+.flex-between { display: flex; align-items: center; justify-content: space-between; }
+.flex-1 { flex: 1; }
+.flex-col { display: flex; flex-direction: column; }
+.items-center { align-items: center; }
+.gap-4 { gap: 4px; }
+.gap-8 { gap: 8px; }
+.gap-12 { gap: 12px; }
+.gap-16 { gap: 16px; }
+.gap-20 { gap: 20px; }
+.gap-24 { gap: 24px; }
+
+.text-primary { color: $primary-color; }
+.text-success { color: $success-color; }
+.text-warning { color: $warning-color; }
+.text-danger { color: $danger-color; }
+.text-info { color: $info-color; }
+.text-secondary { color: $text-secondary; }
+.text-center { text-align: center; }
+.text-right { text-align: right; }
+.font-medium { font-weight: 500; }
+.font-semibold { font-weight: 600; }
+
+.mt-8 { margin-top: 8px; }
+.mt-12 { margin-top: 12px; }
+.mt-16 { margin-top: 16px; }
+.mt-20 { margin-top: 20px; }
+.mt-24 { margin-top: 24px; }
+.mb-8 { margin-bottom: 8px; }
+.mb-12 { margin-bottom: 12px; }
+.mb-16 { margin-bottom: 16px; }
+.mb-20 { margin-bottom: 20px; }
+.mb-24 { margin-bottom: 24px; }
+.ml-8 { margin-left: 8px; }
+.ml-12 { margin-left: 12px; }
+.ml-16 { margin-left: 16px; }
+.mr-8 { margin-right: 8px; }
+.mr-12 { margin-right: 12px; }
+.mr-16 { margin-right: 16px; }
+.p-16 { padding: 16px; }
+.p-20 { padding: 20px; }
+.p-24 { padding: 24px; }
+
+/* ── 页面通用结构 ──────────────────────── */
+.page-container {
+  padding: $spacing-xl;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: $spacing-xl;
+
+  .page-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: $text-primary;
+    line-height: 1.3;
+  }
+
+  .page-subtitle {
+    font-size: 13px;
+    color: $text-secondary;
+    margin-top: 2px;
+  }
+}
+
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+  margin-bottom: $spacing-lg;
+  padding: $spacing-lg $spacing-xl;
+  background: $bg-card;
+  border-radius: $border-radius;
+}
+
+.data-card {
+  background: $bg-card;
+  border-radius: $border-radius;
+  padding: $spacing-xl;
+}
+
+/* ── 选中行链接样式 ────────────────────── */
+.title-link {
+  color: $primary-color;
+  cursor: pointer;
+  font-weight: 500;
+  transition: color $transition-fast;
+
+  &:hover {
+    color: $primary-dark;
+  }
+}
