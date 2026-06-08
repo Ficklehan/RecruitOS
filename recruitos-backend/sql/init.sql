@@ -2,6 +2,7 @@
 -- RecruitOS 数据库初始化脚本
 -- Database: recruit_os
 -- MySQL 8.0+
+-- 导入：mysql --default-character-set=utf8mb4 -uroot -p < init.sql
 -- ============================================================
 
 CREATE DATABASE IF NOT EXISTS `recruit_os` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -88,6 +89,7 @@ CREATE TABLE `sys_user_role` (
     `scope_type` VARCHAR(16) DEFAULT 'ALL' COMMENT 'ALL/ORG/SPECIFIC',
     `scope_ids` JSON DEFAULT NULL COMMENT '权限范围关联的组织/岗位ID列表',
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_user_role` (`user_id`, `role_id`),
     INDEX `idx_tenant` (`tenant_id`)
@@ -116,6 +118,7 @@ CREATE TABLE `sys_role_permission` (
     `role_id` BIGINT NOT NULL,
     `permission_id` BIGINT NOT NULL,
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_role_perm` (`role_id`, `permission_id`),
     INDEX `idx_tenant` (`tenant_id`)
@@ -343,6 +346,7 @@ CREATE TABLE `interview_slot` (
     `slot_end` DATETIME NOT NULL,
     `is_selected` TINYINT DEFAULT 0,
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     INDEX `idx_interview` (`interview_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='面试候选时间表';
@@ -475,6 +479,7 @@ CREATE TABLE `conversation_message` (
     `read_at` DATETIME DEFAULT NULL,
     `replied_at` DATETIME DEFAULT NULL,
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     INDEX `idx_conversation` (`conversation_id`),
     INDEX `idx_tenant` (`tenant_id`)
@@ -489,6 +494,7 @@ CREATE TABLE `safety_log` (
     `action` VARCHAR(16) NOT NULL COMMENT 'PASS/BLOCK/ESCALATE',
     `detail` JSON DEFAULT NULL,
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     INDEX `idx_tenant_type` (`tenant_id`, `check_type`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='安全审查日志表';
@@ -510,6 +516,7 @@ CREATE TABLE `evolution_signal` (
     `ab_group` VARCHAR(8) DEFAULT NULL COMMENT 'A/B分组: TREATMENT/CONTROL',
     `applied_at` DATETIME DEFAULT NULL,
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     INDEX `idx_job_level` (`tenant_id`, `job_id`, `signal_level`),
     INDEX `idx_status` (`tenant_id`, `status`)
@@ -524,6 +531,7 @@ CREATE TABLE `job_weight_snapshot` (
     `health_score` DECIMAL(5,2) DEFAULT NULL COMMENT '模型健康度评分',
     `signal_id` BIGINT DEFAULT NULL COMMENT '关联信号ID',
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     INDEX `idx_job` (`job_id`),
     INDEX `idx_tenant` (`tenant_id`)
@@ -536,6 +544,7 @@ CREATE TABLE `job_covariance_matrix` (
     `matrix_data` JSON NOT NULL COMMENT '协方差矩阵数据',
     `version` INT DEFAULT 1,
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     INDEX `idx_job` (`job_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='岗位协方差矩阵表';
@@ -627,19 +636,43 @@ CREATE TABLE `referral` (
     `id` BIGINT NOT NULL AUTO_INCREMENT,
     `tenant_id` BIGINT NOT NULL,
     `referrer_id` BIGINT NOT NULL COMMENT '推荐人员工ID',
+    `referrer_name` VARCHAR(64) DEFAULT NULL COMMENT '推荐人姓名',
     `candidate_id` BIGINT NOT NULL,
+    `candidate_name` VARCHAR(64) DEFAULT NULL COMMENT '候选人姓名',
     `job_id` BIGINT NOT NULL,
+    `job_title` VARCHAR(128) DEFAULT NULL COMMENT '岗位名称',
     `status` VARCHAR(16) DEFAULT 'SUBMITTED' COMMENT 'SUBMITTED/SCREENING/INTERVIEWING/HIRED/REJECTED',
     `reward_amount` DECIMAL(12,2) DEFAULT NULL COMMENT '奖励金额',
     `reward_status` VARCHAR(16) DEFAULT NULL COMMENT 'PENDING/APPROVED/PAID',
     `reward_paid_at` DATETIME DEFAULT NULL,
     `remark` VARCHAR(256) DEFAULT NULL,
+    `created_by` BIGINT DEFAULT NULL COMMENT '创建人',
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     INDEX `idx_tenant_referrer` (`tenant_id`, `referrer_id`),
     INDEX `idx_candidate` (`candidate_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='内推表';
+
+CREATE TABLE `referral_reward` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT,
+    `tenant_id` BIGINT NOT NULL,
+    `referral_id` BIGINT NOT NULL,
+    `referrer_id` BIGINT NOT NULL,
+    `referrer_name` VARCHAR(64) DEFAULT NULL,
+    `reward_type` VARCHAR(16) DEFAULT 'CASH' COMMENT 'CASH/GIFT/OTHER',
+    `reward_amount` DECIMAL(12,2) DEFAULT NULL,
+    `status` VARCHAR(16) DEFAULT 'PENDING' COMMENT 'PENDING/APPROVED/PAID/CANCELLED',
+    `approved_by` BIGINT DEFAULT NULL,
+    `approved_at` DATETIME DEFAULT NULL,
+    `paid_at` DATETIME DEFAULT NULL,
+    `remark` VARCHAR(256) DEFAULT NULL,
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    INDEX `idx_tenant_referral` (`tenant_id`, `referral_id`),
+    INDEX `idx_tenant_status` (`tenant_id`, `status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='内推奖励表';
 
 -- ============================================================
 -- 11. 猎头管理
@@ -735,6 +768,7 @@ CREATE TABLE `notification` (
     `is_read` TINYINT DEFAULT 0,
     `read_at` DATETIME DEFAULT NULL,
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     INDEX `idx_user_read` (`tenant_id`, `user_id`, `is_read`),
     INDEX `idx_created` (`tenant_id`, `created_at`)

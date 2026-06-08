@@ -16,6 +16,9 @@ public class AgentTask extends BaseEntity {
     /** Task type: SEARCH / CONTACT / FOLLOWUP / SCHEDULE */
     private String taskType;
 
+    /** Parent sourcing campaign */
+    private Long campaignId;
+
     /** Associated job ID */
     private Long jobId;
 
@@ -63,6 +66,14 @@ public class AgentTask extends BaseEntity {
 
     public void setTaskType(String taskType) {
         this.taskType = taskType;
+    }
+
+    public Long getCampaignId() {
+        return campaignId;
+    }
+
+    public void setCampaignId(Long campaignId) {
+        this.campaignId = campaignId;
     }
 
     public Long getJobId() {

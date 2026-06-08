@@ -7,6 +7,7 @@ import com.recruitos.agent.entity.AgentBehaviorLog;
 import com.recruitos.agent.entity.AgentTask;
 import com.recruitos.agent.mapper.AgentBehaviorLogMapper;
 import com.recruitos.agent.mapper.AgentTaskMapper;
+import com.recruitos.agent.mapper.JobPositionReadMapper;
 import com.recruitos.common.exception.BizException;
 import com.recruitos.common.result.PageResult;
 import com.recruitos.common.tenant.TenantContext;
@@ -30,11 +31,24 @@ public class AgentTaskService {
     @Resource
     private AgentBehaviorLogMapper behaviorLogMapper;
 
+    @Resource
+    private JobPositionReadMapper jobPositionReadMapper;
+
+    @Resource
+    private SourcingCampaignService sourcingCampaignService;
+
     /**
      * Create a new agent task
      */
     public AgentTaskVO createTask(AgentTaskCreateDTO dto) {
         Long tenantId = TenantContext.getTenantId();
+
+        if (dto.getJobId() != null) {
+            String jobStatus = jobPositionReadMapper.selectStatus(dto.getJobId(), tenantId);
+            if (!"ACTIVE".equals(jobStatus)) {
+                throw new BizException("Agent task requires an ACTIVE job position");
+            }
+        }
 
         AgentTask task = new AgentTask();
         task.setTenantId(tenantId);
@@ -97,6 +111,11 @@ public class AgentTaskService {
 
         task.setStatus("PAUSED");
         taskMapper.updateById(task);
+        try {
+            sourcingCampaignService.pauseAllRunning();
+        } catch (Exception ignored) {
+            // best-effort: stop background RPA when user stops agent task
+        }
 
         return convertToVO(task, false);
     }

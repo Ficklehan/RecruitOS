@@ -38,6 +38,16 @@ public class CandidateVO implements Serializable {
     /** Associated job list */
     private List<CandidateJobVO> jobs;
 
+    /** Latest resume id for talent pool link */
+    private Long resumeId;
+
+    /** 选定岗位下的匹配（人才库必选岗位） */
+    private BigDecimal matchScore;
+    private String matchDetail;
+    private Long contextJobId;
+    /** 选定岗位下的招聘进展阶段 */
+    private String pipelineStage;
+
     // Getters and Setters
 
     public Long getId() {
@@ -214,5 +224,45 @@ public class CandidateVO implements Serializable {
 
     public void setJobs(List<CandidateJobVO> jobs) {
         this.jobs = jobs;
+    }
+
+    public Long getResumeId() {
+        return resumeId;
+    }
+
+    public void setResumeId(Long resumeId) {
+        this.resumeId = resumeId;
+    }
+
+    public BigDecimal getMatchScore() {
+        return matchScore;
+    }
+
+    public void setMatchScore(BigDecimal matchScore) {
+        this.matchScore = matchScore;
+    }
+
+    public String getMatchDetail() {
+        return matchDetail;
+    }
+
+    public void setMatchDetail(String matchDetail) {
+        this.matchDetail = matchDetail;
+    }
+
+    public Long getContextJobId() {
+        return contextJobId;
+    }
+
+    public void setContextJobId(Long contextJobId) {
+        this.contextJobId = contextJobId;
+    }
+
+    public String getPipelineStage() {
+        return pipelineStage;
+    }
+
+    public void setPipelineStage(String pipelineStage) {
+        this.pipelineStage = pipelineStage;
     }
 }

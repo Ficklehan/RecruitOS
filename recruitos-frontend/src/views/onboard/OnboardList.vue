@@ -63,11 +63,16 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="260" fixed="right">
           <template #default="{ row }">
-            <el-button type="primary" link size="small" @click="handleView(row)">查看</el-button>
-            <el-button type="warning" link size="small" @click="handleTask(row)">任务</el-button>
-            <el-button type="primary" link size="small" @click="handleEdit(row)">编辑</el-button>
+            <el-button type="primary" link size="small" @click="handleTask(row)">任务</el-button>
+            <el-button
+              v-if="row.status !== 'COMPLETED'"
+              type="success"
+              link
+              size="small"
+              @click="handleComplete(row)"
+            >完成入职</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -133,7 +138,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { Search, Plus, RefreshRight } from '@element-plus/icons-vue'
-import { getOnboardList, createOnboard, updateOnboard } from '@/api/modules/onboard'
+import { getOnboardList, createOnboard, updateOnboardStatus } from '@/api/modules/onboard'
 
 const router = useRouter()
 
@@ -200,14 +205,20 @@ async function loadData() {
     pageSize: queryParams.pageSize,
   }
   if (queryParams.keyword) params.keyword = queryParams.keyword
-  if (queryParams.status) params.status = queryParams.status
+  if (queryParams.status) params.onboardStatus = queryParams.status
   if (queryParams.date && queryParams.date.length === 2) {
     params.startDate = queryParams.date[0]
     params.endDate = queryParams.date[1]
   }
   const res = await getOnboardList(params)
-  onboardList.value = res.data.records || res.data.list || res.data || []
-  total.value = res.data.total || onboardList.value.length
+  const rows = res.data?.list || res.data?.records || res.data || []
+  onboardList.value = rows.map((row: any) => ({
+    ...row,
+    status: row.onboardStatus || row.status,
+    hrManager: row.hrName || row.hrManager,
+    onboardDate: row.onboardDate || '',
+  }))
+  total.value = res.data?.total || onboardList.value.length
 }
 
 function handleSearch() {
@@ -237,23 +248,14 @@ function handleCreate() {
   dialogVisible.value = true
 }
 
-function handleView(row: any) {
-  ElMessage.info(`查看入职详情: ${row.candidateName}`)
-}
-
 function handleTask(row: any) {
   router.push(`/onboard/task?id=${row.id}`)
 }
 
-function handleEdit(row: any) {
-  dialogType.value = 'edit'
-  currentEditId.value = row.id
-  formData.candidateName = row.candidateName
-  formData.jobTitle = row.jobTitle
-  formData.onboardDate = row.onboardDate
-  formData.hrManager = row.hrManager
-  formData.remark = row.remark || ''
-  dialogVisible.value = true
+async function handleComplete(row: any) {
+  await updateOnboardStatus(row.id, 'COMPLETED')
+  ElMessage.success('入职已完成，编制已回写')
+  loadData()
 }
 
 async function handleSubmit() {
@@ -266,16 +268,11 @@ async function handleSubmit() {
           candidateName: formData.candidateName,
           jobTitle: formData.jobTitle,
           onboardDate: formData.onboardDate,
-          hrManager: formData.hrManager,
+          hrName: formData.hrManager,
           remark: formData.remark,
         }
-        if (dialogType.value === 'create') {
-          await createOnboard(payload)
-          ElMessage.success('创建成功')
-        } else {
-          await updateOnboard(currentEditId.value!, payload)
-          ElMessage.success('更新成功')
-        }
+        await createOnboard(payload)
+        ElMessage.success('创建成功')
         dialogVisible.value = false
         loadData()
       } catch {

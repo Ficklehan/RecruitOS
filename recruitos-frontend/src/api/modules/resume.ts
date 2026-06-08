@@ -4,18 +4,14 @@ import request from '../request'
 export function uploadResume(file: File) {
   const formData = new FormData()
   formData.append('file', file)
-  return request.post('/api/resume/upload', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  })
+  return request.post('/api/resume/upload', formData)
 }
 
 // 批量上传简历
 export function batchUploadResumes(files: File[]) {
   const formData = new FormData()
   files.forEach(f => formData.append('files', f))
-  return request.post('/api/resume/batch-upload', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  })
+  return request.post('/api/resume/batch-upload', formData)
 }
 
 // 简历列表

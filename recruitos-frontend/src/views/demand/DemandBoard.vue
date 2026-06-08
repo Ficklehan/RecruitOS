@@ -2,7 +2,10 @@
   <div class="page-container">
     <!-- 页面头部 -->
     <div class="page-header">
-      <h2 class="page-title">需求看板</h2>
+      <div>
+        <h2 class="page-title">招聘需求看板</h2>
+        <p class="page-subtitle">总览招聘需求审批与执行进度</p>
+      </div>
       <el-button @click="handleRefresh">
         <el-icon><Refresh /></el-icon>
         刷新
@@ -12,7 +15,7 @@
     <!-- 统计卡片 -->
     <div class="stat-cards">
       <StatCard
-        label="总需求数"
+        label="招聘需求总数"
         :value="boardStats.total"
         icon="Document"
         color="#3B82F6"
@@ -106,6 +109,7 @@ import { ref, reactive, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import * as echarts from 'echarts'
 import { Refresh, CircleCheck } from '@element-plus/icons-vue'
 import StatCard from '@/components/StatCard.vue'
+import { demandStatusLabel } from '@/constants/businessLabels'
 import { getDemandBoard } from '@/api/modules/demand'
 
 // 统计数据
@@ -137,11 +141,7 @@ function getStatusType(status: string) {
 }
 
 function getStatusLabel(status: string) {
-  const map: Record<string, string> = {
-    DRAFT: '草稿', PENDING: '审批中', APPROVED: '已通过', REJECTED: '已驳回',
-    JOB_CREATED: '已建岗', RECRUITING: '招聘中', COMPLETED: '已完成', CLOSED: '已关闭',
-  }
-  return map[status] || status
+  return demandStatusLabel(status)
 }
 
 // 初始化漏斗图

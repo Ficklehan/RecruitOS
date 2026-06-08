@@ -12,7 +12,7 @@
         </el-button>
         <el-button type="primary" @click="handleImportPool">
           <el-icon><FolderAdd /></el-icon>
-          导入人才库
+          加入人才库
         </el-button>
       </div>
     </div>
@@ -112,12 +112,11 @@
         <!-- AI分析卡片 -->
         <div class="detail-card">
           <h4 class="card-title">AI 分析</h4>
-          <div class="ai-score">
-            <div class="score-circle" :style="{ borderColor: getScoreColor(resume.matchScore) }">
-              <span class="score-value">{{ resume.matchScore || '-' }}</span>
-              <span class="score-label">匹配度</span>
-            </div>
-          </div>
+          <MatchVerdict
+            :match-score="resume.matchScore"
+            :match-detail="resume.matchDetail"
+            mode="full"
+          />
           <div v-if="resume.aiInsights" class="ai-insights">
             <div class="insight-item">
               <el-icon color="#059669"><CircleCheck /></el-icon>
@@ -134,13 +133,18 @@
           </el-button>
         </div>
 
-        <!-- 推荐岗位 -->
+        <!-- 推荐在招职位 -->
         <div class="detail-card">
-          <h4 class="card-title">推荐岗位</h4>
+          <h4 class="card-title">推荐在招职位</h4>
           <div v-for="job in resume.recommendedJobs" :key="job.id" class="recommend-job">
             <div class="job-info">
               <div class="job-title">{{ job.title }}</div>
-              <div class="job-match">匹配度 {{ job.matchScore }}%</div>
+              <MatchVerdict
+                :match-score="job.matchScore"
+                :match-detail="job.matchDetail"
+                mode="compact"
+                :show-score="false"
+              />
             </div>
             <el-button type="primary" link size="small">推荐</el-button>
           </div>
@@ -152,7 +156,7 @@
           <h4 class="card-title">状态管理</h4>
           <el-select v-model="resume.status" style="width: 100%" @change="handleStatusChange">
             <el-option label="新简历" value="NEW" />
-            <el-option label="待筛选" value="PENDING" />
+            <el-option label="待初筛" value="PENDING" />
             <el-option label="已通过" value="PASSED" />
             <el-option label="已淘汰" value="REJECTED" />
             <el-option label="已入职" value="ONBOARD" />
@@ -168,6 +172,7 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ArrowLeft, FolderAdd, CircleCheck, Warning, MagicStick } from '@element-plus/icons-vue'
+import MatchVerdict from '@/components/match/MatchVerdict.vue'
 import { getResumeDetail, parseResume, importToTalentPool, updateResume } from '@/api/modules/resume'
 
 const route = useRoute()

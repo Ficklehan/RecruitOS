@@ -1,0 +1,20 @@
+package com.recruitos.common.config;
+
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
+import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilderCustomizer;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+/**
+ * Serialize Long IDs as strings so JavaScript clients do not lose snowflake precision.
+ */
+@Configuration
+public class JacksonConfig {
+
+    @Bean
+    public Jackson2ObjectMapperBuilderCustomizer longToStringCustomizer() {
+        return builder -> builder
+                .serializerByType(Long.class, ToStringSerializer.instance)
+                .serializerByType(Long.TYPE, ToStringSerializer.instance);
+    }
+}

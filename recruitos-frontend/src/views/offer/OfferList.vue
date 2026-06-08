@@ -2,10 +2,13 @@
   <div class="page-container">
     <!-- 页面头部 -->
     <div class="page-header">
-      <h2 class="page-title">Offer列表</h2>
+      <div>
+        <h2 class="page-title">录用通知</h2>
+        <p class="page-subtitle">管理候选人录用通知（Offer）的发送与审批状态</p>
+      </div>
       <el-button type="primary" @click="handleCreate">
         <el-icon><Plus /></el-icon>
-        创建Offer
+        创建录用通知
       </el-button>
     </div>
 
@@ -13,13 +16,13 @@
     <div class="filter-bar">
       <el-input
         v-model="queryParams.keyword"
-        placeholder="搜索候选人/岗位"
+        placeholder="搜索候选人 / 在招职位"
         :prefix-icon="Search"
         clearable
         style="width: 240px"
         @keyup.enter="handleSearch"
       />
-      <el-select v-model="queryParams.status" placeholder="Offer状态" clearable style="width: 140px">
+      <el-select v-model="queryParams.status" placeholder="通知状态" clearable style="width: 140px">
         <el-option label="全部" value="" />
         <el-option label="待审批" value="PENDING" />
         <el-option label="已通过" value="APPROVED" />
@@ -54,7 +57,7 @@
             <span class="title-link">{{ row.candidateName }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="jobTitle" label="岗位" min-width="160" show-overflow-tooltip />
+        <el-table-column prop="jobTitle" label="在招职位" min-width="160" show-overflow-tooltip />
         <el-table-column prop="department" label="部门" width="120" />
         <el-table-column prop="salary" label="薪资" width="120" align="center" />
         <el-table-column prop="status" label="状态" width="100" align="center">
@@ -96,8 +99,8 @@
         <el-form-item label="候选人" prop="candidateName">
           <el-input v-model="formData.candidateName" placeholder="请输入候选人姓名" />
         </el-form-item>
-        <el-form-item label="岗位" prop="jobTitle">
-          <el-input v-model="formData.jobTitle" placeholder="请输入岗位名称" />
+        <el-form-item label="在招职位" prop="jobTitle">
+          <el-input v-model="formData.jobTitle" placeholder="请输入职位名称" />
         </el-form-item>
         <el-form-item label="部门" prop="department">
           <el-input v-model="formData.department" placeholder="请输入所属部门" />
@@ -124,10 +127,14 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { Search, Plus, RefreshRight } from '@element-plus/icons-vue'
+import { offerStatusLabel } from '@/constants/businessLabels'
 import { getOfferList, createOffer } from '@/api/modules/offer'
+
+const router = useRouter()
 
 // 查询参数
 const queryParams = reactive({
@@ -148,7 +155,7 @@ const submitLoading = ref(false)
 const formRef = ref<FormInstance>()
 const currentEditId = ref<number | null>(null)
 
-const dialogTitle = computed(() => dialogType.value === 'create' ? '创建Offer' : '编辑Offer')
+const dialogTitle = computed(() => dialogType.value === 'create' ? '创建录用通知' : '编辑录用通知')
 
 const formData = reactive({
   candidateName: '',
@@ -160,7 +167,7 @@ const formData = reactive({
 
 const formRules: FormRules = {
   candidateName: [{ required: true, message: '请输入候选人姓名', trigger: 'blur' }],
-  jobTitle: [{ required: true, message: '请输入岗位名称', trigger: 'blur' }],
+  jobTitle: [{ required: true, message: '请输入职位名称', trigger: 'blur' }],
   department: [{ required: true, message: '请输入所属部门', trigger: 'blur' }],
   salary: [{ required: true, message: '请输入薪资', trigger: 'blur' }],
 }
@@ -180,16 +187,7 @@ function getStatusType(status: string): string {
 }
 
 function getStatusLabel(status: string): string {
-  const map: Record<string, string> = {
-    DRAFT: '草稿',
-    PENDING: '待审批',
-    APPROVED: '已通过',
-    SENT: '已发送',
-    ACCEPTED: '已接受',
-    REJECTED: '已拒绝',
-    EXPIRED: '已过期',
-  }
-  return map[status] || status
+  return offerStatusLabel(status)
 }
 
 // 加载数据
@@ -227,7 +225,7 @@ function handleCreate() {
 }
 
 function handleView(row: any) {
-  ElMessage.info(`查看Offer: ${row.candidateName} - ${row.jobTitle}`)
+  router.push(`/pipeline/offers/${row.id}`)
 }
 
 function handleEdit(row: any) {

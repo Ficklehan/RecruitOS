@@ -72,3 +72,14 @@ knife4j:
 logging:
   level:
     com.recruitos: debug
+
+recruitos:
+  agent:
+    rpa:
+      enabled: true
+      headless: false
+      fallback-simulated: false
+      session-dir: ./data/rpa-sessions
+      login-timeout-seconds: 300
+      action-timeout-ms: 45000
+      slow-mo-ms: 80

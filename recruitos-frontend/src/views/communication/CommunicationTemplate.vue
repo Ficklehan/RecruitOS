@@ -141,9 +141,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { Plus, Search, Edit, Delete } from '@element-plus/icons-vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
+import { getTemplateList, createTemplate, updateTemplate, deleteTemplate } from '@/api/modules/communication'
 
 interface Template {
   id: number
@@ -172,69 +173,32 @@ const typeLabelMap: Record<string, string> = {
 
 const variables = ['{candidateName}', '{positionName}', '{companyName}', '{interviewTime}']
 
-// Mock data
-const templates = ref<Template[]>([
-  {
-    id: 1,
-    name: '面试邀请-短信',
-    type: 'SMS',
-    content: '{candidateName}您好，{companyName}诚邀您参加{positionName}岗位的面试，请于{interviewTime}准时到场。',
-    variant: 'A',
-    usageCount: 328,
-    successRate: 92,
-    enabled: true,
-  },
-  {
-    id: 2,
-    name: '面试提醒-短信',
-    type: 'SMS',
-    content: '{candidateName}您好，提醒您明天{interviewTime}有面试安排，请准时参加。',
-    variant: '',
-    usageCount: 215,
-    successRate: 88,
-    enabled: true,
-  },
-  {
-    id: 3,
-    name: 'offer通知-邮件',
-    type: 'EMAIL',
-    content: '尊敬的{candidateName}，恭喜您通过{companyName}的面试，我们诚挚邀请您加入{positionName}岗位。',
-    variant: 'A',
-    usageCount: 156,
-    successRate: 75,
-    enabled: true,
-  },
-  {
-    id: 4,
-    name: '感谢信-邮件',
-    type: 'EMAIL',
-    content: '尊敬的{candidateName}，感谢您对{companyName}{positionName}岗位的关注，我们会尽快反馈面试结果。',
-    variant: 'B',
-    usageCount: 89,
-    successRate: 68,
-    enabled: false,
-  },
-  {
-    id: 5,
-    name: '初筛沟通-企微',
-    type: 'WECHAT',
-    content: '您好{candidateName}，我是{companyName}HR，看到您的简历非常感兴趣，方便聊一下{positionName}岗位吗？',
-    variant: '',
-    usageCount: 542,
-    successRate: 85,
-    enabled: true,
-  },
-  {
-    id: 6,
-    name: '面试邀约-飞书',
-    type: 'FEISHU',
-    content: '{candidateName}您好，{companyName}通过飞书向您发送面试邀约，岗位：{positionName}，时间：{interviewTime}。',
-    variant: '',
-    usageCount: 67,
-    successRate: 90,
-    enabled: true,
-  },
-])
+const templates = ref<Template[]>([])
+
+function mapTemplate(row: any): Template {
+  return {
+    id: row.id,
+    name: row.templateName || row.name,
+    type: row.templateType || row.type,
+    content: row.content || '',
+    variant: row.abTestGroup || row.variant || '',
+    usageCount: row.usageCount || 0,
+    successRate: Number(row.successRate) || 0,
+    enabled: row.status === 'ACTIVE' || row.enabled === true,
+  }
+}
+
+async function loadTemplates() {
+  try {
+    const res: any = await getTemplateList({ pageNum: 1, pageSize: 200 })
+    const list = res.data?.list || res.data?.records || res.data || []
+    templates.value = (Array.isArray(list) ? list : []).map(mapTemplate)
+  } catch {
+    templates.value = []
+  }
+}
+
+onMounted(loadTemplates)
 
 // Filters
 const filters = reactive({
@@ -298,44 +262,53 @@ function insertVariable(v: string) {
   form.content += v
 }
 
-function handleSubmit() {
-  formRef.value?.validate((valid) => {
-    if (!valid) return
+async function handleSubmit() {
+  const valid = await formRef.value?.validate().catch(() => false)
+  if (!valid) return
+  const payload = {
+    templateName: form.name,
+    templateType: form.type,
+    content: form.content,
+    status: form.enabled ? 'ACTIVE' : 'INACTIVE',
+  }
+  try {
     if (isEditing.value && editingId !== null) {
-      const idx = templates.value.findIndex((t) => t.id === editingId)
-      if (idx !== -1) {
-        Object.assign(templates.value[idx], {
-          name: form.name,
-          type: form.type,
-          content: form.content,
-          enabled: form.enabled,
-        })
-      }
+      await updateTemplate(editingId, payload)
       ElMessage.success('模板已更新')
     } else {
-      templates.value.push({
-        id: Date.now(),
-        name: form.name,
-        type: form.type as Template['type'],
-        content: form.content,
-        variant: '',
-        usageCount: 0,
-        successRate: 0,
-        enabled: form.enabled,
-      })
+      await createTemplate(payload)
       ElMessage.success('模板已创建')
     }
     dialogVisible.value = false
-  })
+    loadTemplates()
+  } catch {
+    ElMessage.error('保存失败')
+  }
 }
 
-function handleStatusChange(row: Template) {
-  ElMessage.success(`模板「${row.name}」已${row.enabled ? '启用' : '停用'}`)
+async function handleStatusChange(row: Template) {
+  try {
+    await updateTemplate(row.id, {
+      templateName: row.name,
+      templateType: row.type,
+      content: row.content,
+      status: row.enabled ? 'ACTIVE' : 'INACTIVE',
+    })
+    ElMessage.success(`模板「${row.name}」已${row.enabled ? '启用' : '停用'}`)
+  } catch {
+    row.enabled = !row.enabled
+    ElMessage.error('状态更新失败')
+  }
 }
 
-function handleDelete(row: Template) {
-  templates.value = templates.value.filter((t) => t.id !== row.id)
-  ElMessage.success('模板已删除')
+async function handleDelete(row: Template) {
+  try {
+    await deleteTemplate(row.id)
+    ElMessage.success('模板已删除')
+    loadTemplates()
+  } catch {
+    ElMessage.error('删除失败')
+  }
 }
 </script>
 

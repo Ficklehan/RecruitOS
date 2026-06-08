@@ -44,6 +44,13 @@ public class AgentTaskController {
         return R.ok(vo);
     }
 
+    @ApiOperation("Stop a task (alias of pause)")
+    @PostMapping("/{id}/stop")
+    public R<AgentTaskVO> stopTask(@PathVariable Long id) {
+        AgentTaskVO vo = agentTaskService.pauseTask(id);
+        return R.ok(vo);
+    }
+
     @ApiOperation("Resume a paused task")
     @PostMapping("/{id}/resume")
     public R<AgentTaskVO> resumeTask(@PathVariable Long id) {

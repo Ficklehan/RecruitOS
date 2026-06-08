@@ -7,7 +7,7 @@
           <el-icon><ArrowLeft /></el-icon>
           返回
         </el-button>
-        <h2 class="page-title">{{ detail.title || '需求详情' }}</h2>
+        <h2 class="page-title">{{ detail.title || '招聘需求详情' }}</h2>
         <el-tag :type="getStatusType(detail.status)" size="large" disable-transitions>
           {{ getStatusLabel(detail.status) }}
         </el-tag>
@@ -29,12 +29,19 @@
           提交审批
         </el-button>
         <el-button
+          v-if="detail.status === 'APPROVED' || detail.status === 'JOB_CREATED'"
+          type="success"
+          @click="handleCreateJob"
+        >
+          创建在招职位
+        </el-button>
+        <el-button
           v-if="detail.status !== 'CLOSED' && detail.status !== 'COMPLETED'"
           type="danger"
           @click="handleClose"
         >
           <el-icon><Close /></el-icon>
-          关闭
+          关闭需求
         </el-button>
       </div>
     </div>
@@ -53,7 +60,7 @@
             <span class="info-value">{{ detail.orgId || '-' }}</span>
           </div>
           <div class="info-item">
-            <span class="info-label">岗位级别</span>
+            <span class="info-label">职级</span>
             <span class="info-value">{{ detail.jobLevel || '-' }}</span>
           </div>
           <div class="info-item">
@@ -105,7 +112,7 @@
 
     <!-- 岗位职责卡片 -->
     <div class="info-card">
-      <h3 class="card-title">岗位职责</h3>
+      <h3 class="card-title">职位描述</h3>
       <div class="card-content">
         <pre class="text-block">{{ detail.jobDuty || '暂无内容' }}</pre>
       </div>
@@ -202,6 +209,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, Edit, Promotion, Close, User, ChatLineSquare } from '@element-plus/icons-vue'
+import { demandStatusLabel } from '@/constants/businessLabels'
 import { getDemandDetail, submitDemand, closeDemand } from '@/api/modules/demand'
 
 const router = useRouter()
@@ -250,11 +258,14 @@ function getStatusType(status: string) {
 }
 
 function getStatusLabel(status: string) {
-  const map: Record<string, string> = {
-    DRAFT: '草稿', PENDING: '审批中', APPROVED: '已通过', REJECTED: '已驳回',
-    JOB_CREATED: '已建岗', RECRUITING: '招聘中', COMPLETED: '已完成', CLOSED: '已关闭',
-  }
-  return map[status] || status
+  return demandStatusLabel(status)
+}
+
+function handleCreateJob() {
+  router.push({
+    path: '/planning/jobs/create',
+    query: { demandNo: detail.value.demandNo || '', demandId: String(demandId) },
+  })
 }
 
 function getUrgencyType(level: string) {
@@ -307,7 +318,7 @@ async function loadDetail() {
 }
 
 function handleEdit() {
-  router.push(`/position/demand/create?id=${demandId}`)
+  router.push(`/planning/demands/create?id=${demandId}`)
 }
 
 async function handleSubmit() {
@@ -341,7 +352,7 @@ async function handleClose() {
 }
 
 function goBack() {
-  router.push('/position/demand')
+  router.push('/planning/demands')
 }
 
 onMounted(() => {

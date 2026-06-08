@@ -46,7 +46,7 @@
             <div class="feature-icon">
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M13.3 4.3L6 11.6 2.7 8.3" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </div>
-            <span>多平台 Agent 自动化招聘</span>
+            <span>Boss、猎聘等渠道一体化招聘</span>
           </div>
         </div>
       </div>
@@ -224,7 +224,7 @@ async function handleLogin() {
           localStorage.setItem('rememberedUser', loginForm.username)
         }
         ElMessage.success('登录成功')
-        router.push('/dashboard')
+        router.push('/')
       }
     } catch (error) {
       // 错误已在 store 中处理

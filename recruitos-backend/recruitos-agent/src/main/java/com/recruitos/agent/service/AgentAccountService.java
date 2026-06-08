@@ -7,8 +7,12 @@ import com.recruitos.agent.dto.AgentAccountQueryDTO;
 import com.recruitos.agent.dto.AgentAccountVO;
 import com.recruitos.agent.entity.AgentAccount;
 import com.recruitos.agent.entity.AgentBehaviorLog;
+import com.recruitos.agent.entity.RecruitmentChannel;
 import com.recruitos.agent.mapper.AgentAccountMapper;
 import com.recruitos.agent.mapper.AgentBehaviorLogMapper;
+import com.recruitos.agent.mapper.RecruitmentChannelMapper;
+import com.recruitos.agent.rpa.RpaCredential;
+import com.recruitos.agent.rpa.RpaCredentialParser;
 import com.recruitos.common.exception.BizException;
 import com.recruitos.common.result.PageResult;
 import com.recruitos.common.tenant.TenantContext;
@@ -19,6 +23,7 @@ import javax.annotation.Resource;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -33,15 +38,29 @@ public class AgentAccountService {
     @Resource
     private AgentBehaviorLogMapper behaviorLogMapper;
 
+    @Resource
+    private RpaCredentialParser credentialParser;
+
+    @Resource
+    private RecruitmentChannelService channelService;
+
+    @Resource
+    private RecruitmentChannelMapper channelMapper;
+
+    @Resource
+    private AgentAutomationGuard automationGuard;
+
     /**
      * Create a new agent account
      */
     public AgentAccountVO createAccount(AgentAccountCreateDTO dto) {
         Long tenantId = TenantContext.getTenantId();
+        RecruitmentChannel channel = resolveChannelForWrite(dto, tenantId);
 
         AgentAccount account = new AgentAccount();
         account.setTenantId(tenantId);
-        account.setPlatform(dto.getPlatform());
+        account.setChannelId(channel.getId());
+        account.setPlatform(channel.getPlatformCode() != null ? channel.getPlatformCode() : dto.getPlatform());
         account.setAccountName(dto.getAccountName());
         account.setAccountId(dto.getAccountId());
         account.setStatus(dto.getStatus() != null ? dto.getStatus() : "ACTIVE");
@@ -49,6 +68,7 @@ public class AgentAccountService {
         account.setDailyLimit(dto.getDailyLimit());
         account.setUsedToday(0);
         account.setRemark(dto.getRemark());
+        account.setEncryptedCredential(buildCredentialJson(dto));
         account.setCreatedBy(null); // Will be set by auth context
         accountMapper.insert(account);
 
@@ -69,8 +89,13 @@ public class AgentAccountService {
             throw new BizException("Access denied");
         }
 
-        if (StringUtils.hasText(dto.getPlatform())) {
+        if (dto.getChannelId() != null) {
+            RecruitmentChannel channel = channelService.requireChannelForAccount(dto.getChannelId(), tenantId);
+            account.setChannelId(channel.getId());
+            account.setPlatform(channel.getPlatformCode());
+        } else if (StringUtils.hasText(dto.getPlatform())) {
             account.setPlatform(dto.getPlatform());
+            syncChannelByPlatform(account, tenantId);
         }
         if (StringUtils.hasText(dto.getAccountName())) {
             account.setAccountName(dto.getAccountName());
@@ -79,7 +104,7 @@ public class AgentAccountService {
             account.setAccountId(dto.getAccountId());
         }
         if (StringUtils.hasText(dto.getStatus())) {
-            account.setStatus(dto.getStatus());
+            account.setStatus(automationGuard.normalizeAccountStatus(dto.getStatus()));
         }
         if (dto.getDailyLimit() != null) {
             account.setDailyLimit(dto.getDailyLimit());
@@ -87,8 +112,14 @@ public class AgentAccountService {
         if (dto.getRemark() != null) {
             account.setRemark(dto.getRemark());
         }
+        if (dto.getAuthMode() != null || dto.getLoginPhone() != null || dto.getLoginPassword() != null) {
+            account.setEncryptedCredential(buildCredentialJson(dto));
+        }
 
         accountMapper.updateById(account);
+        if (!automationGuard.isAccountRunnable(account)) {
+            automationGuard.onAccountDisabled(account.getId());
+        }
         return convertToVO(account);
     }
 
@@ -101,8 +132,12 @@ public class AgentAccountService {
         Page<AgentAccount> page = new Page<>(query.getPageNum(), query.getPageSize());
 
         LambdaQueryWrapper<AgentAccount> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(AgentAccount::getTenantId, tenantId);
+        wrapper.eq(AgentAccount::getTenantId, tenantId)
+                .in(AgentAccount::getPlatform, Arrays.asList("BOSS", "LIEPIN"));
 
+        if (query.getChannelId() != null) {
+            wrapper.eq(AgentAccount::getChannelId, query.getChannelId());
+        }
         if (StringUtils.hasText(query.getPlatform())) {
             wrapper.eq(AgentAccount::getPlatform, query.getPlatform());
         }
@@ -156,8 +191,11 @@ public class AgentAccountService {
             throw new BizException("Access denied");
         }
 
-        account.setStatus(status);
+        account.setStatus(automationGuard.normalizeAccountStatus(status));
         accountMapper.updateById(account);
+        if (!automationGuard.isAccountRunnable(account)) {
+            automationGuard.onAccountDisabled(account.getId());
+        }
 
         return convertToVO(account);
     }
@@ -205,13 +243,68 @@ public class AgentAccountService {
         return convertToVO(account);
     }
 
+    private String buildCredentialJson(AgentAccountCreateDTO dto) {
+        RpaCredential cred = new RpaCredential();
+        cred.setAuthMode(StringUtils.hasText(dto.getAuthMode()) ? dto.getAuthMode() : "manual");
+        cred.setPhone(dto.getLoginPhone());
+        cred.setPassword(dto.getLoginPassword());
+        return credentialParser.toJson(cred);
+    }
+
     /**
      * Convert AgentAccount entity to AgentAccountVO
      */
+    private RecruitmentChannel resolveChannelForWrite(AgentAccountCreateDTO dto, Long tenantId) {
+        if (dto.getChannelId() != null) {
+            return channelService.requireChannelForAccount(dto.getChannelId(), tenantId);
+        }
+        if (!StringUtils.hasText(dto.getPlatform())) {
+            throw new BizException("请选择所属渠道或平台");
+        }
+        channelService.ensureDefaultChannels(tenantId);
+        LambdaQueryWrapper<RecruitmentChannel> w = new LambdaQueryWrapper<>();
+        w.eq(RecruitmentChannel::getTenantId, tenantId)
+                .eq(RecruitmentChannel::getPlatformCode, dto.getPlatform().trim().toUpperCase())
+                .eq(RecruitmentChannel::getChannelType, "PLATFORM")
+                .last("LIMIT 1");
+        RecruitmentChannel channel = channelMapper.selectOne(w);
+        if (channel == null) {
+            throw new BizException("当前仅支持 Boss直聘(BOSS) 与 猎聘(LIEPIN)，请先在渠道管理中启用");
+        }
+        if (!Arrays.asList("BOSS", "LIEPIN").contains(channel.getPlatformCode())) {
+            throw new BizException("当前仅支持 Boss直聘 与 猎聘 平台账号");
+        }
+        return channel;
+    }
+
+    private void syncChannelByPlatform(AgentAccount account, Long tenantId) {
+        if (!StringUtils.hasText(account.getPlatform())) {
+            return;
+        }
+        channelService.ensureDefaultChannels(tenantId);
+        LambdaQueryWrapper<RecruitmentChannel> w = new LambdaQueryWrapper<>();
+        w.eq(RecruitmentChannel::getTenantId, tenantId)
+                .eq(RecruitmentChannel::getPlatformCode, account.getPlatform())
+                .eq(RecruitmentChannel::getChannelType, "PLATFORM")
+                .last("LIMIT 1");
+        RecruitmentChannel channel = channelMapper.selectOne(w);
+        if (channel != null) {
+            account.setChannelId(channel.getId());
+        }
+    }
+
     private AgentAccountVO convertToVO(AgentAccount account) {
         AgentAccountVO vo = new AgentAccountVO();
         vo.setId(account.getId());
         vo.setTenantId(account.getTenantId());
+        vo.setChannelId(account.getChannelId());
+        if (account.getChannelId() != null) {
+            RecruitmentChannel ch = channelMapper.selectById(account.getChannelId());
+            if (ch != null) {
+                vo.setChannelName(ch.getChannelName());
+                vo.setChannelCode(ch.getChannelCode());
+            }
+        }
         vo.setPlatform(account.getPlatform());
         vo.setAccountName(account.getAccountName());
         vo.setAccountId(account.getAccountId());

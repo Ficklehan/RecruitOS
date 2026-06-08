@@ -63,6 +63,9 @@ public class UserService {
             map.put("status", user.getStatus());
             map.put("lastLoginAt", user.getLastLoginAt());
             map.put("createdAt", user.getCreatedAt());
+            List<SysRole> roles = getUserRoles(user.getId());
+            map.put("roles", roles.stream().map(SysRole::getRoleName).collect(Collectors.toList()));
+            map.put("roleIds", roles.stream().map(SysRole::getId).collect(Collectors.toList()));
             // Filter by roleId if specified
             if (roleId != null) {
                 List<SysUserRole> userRoles = sysUserRoleMapper.selectList(

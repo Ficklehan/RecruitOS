@@ -17,6 +17,9 @@ public class CandidateJobVO implements Serializable {
     private BigDecimal matchScore;
     private String matchDetail;
     private String screeningStatus;
+    private String pipelineStage;
+    private String interviewSubStage;
+    private String rejectionReasonCode;
     private Long screenerId;
     private String screenerComment;
     private LocalDateTime createdAt;
@@ -77,6 +80,30 @@ public class CandidateJobVO implements Serializable {
 
     public void setScreeningStatus(String screeningStatus) {
         this.screeningStatus = screeningStatus;
+    }
+
+    public String getPipelineStage() {
+        return pipelineStage;
+    }
+
+    public void setPipelineStage(String pipelineStage) {
+        this.pipelineStage = pipelineStage;
+    }
+
+    public String getInterviewSubStage() {
+        return interviewSubStage;
+    }
+
+    public void setInterviewSubStage(String interviewSubStage) {
+        this.interviewSubStage = interviewSubStage;
+    }
+
+    public String getRejectionReasonCode() {
+        return rejectionReasonCode;
+    }
+
+    public void setRejectionReasonCode(String rejectionReasonCode) {
+        this.rejectionReasonCode = rejectionReasonCode;
     }
 
     public Long getScreenerId() {

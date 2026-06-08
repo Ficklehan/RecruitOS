@@ -48,8 +48,9 @@ public class OrgService {
     private List<Organization> buildTree(List<Organization> allOrgs, Long parentId) {
         List<Organization> tree = new ArrayList<>();
         for (Organization org : allOrgs) {
-            if (parentId.equals(org.getParentId())) {
-                List<Organization> children = buildTree(allOrgs, org.getId());
+            Long pid = org.getParentId() == null ? 0L : org.getParentId();
+            if (parentId.equals(pid)) {
+                org.setChildren(buildTree(allOrgs, org.getId()));
                 tree.add(org);
             }
         }

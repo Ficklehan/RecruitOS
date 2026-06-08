@@ -11,7 +11,7 @@
           <el-icon :size="24"><Document /></el-icon>
         </div>
         <div class="stat-info">
-          <div class="stat-value">1,286</div>
+          <div class="stat-value">{{ safetyStats.todayTotal }}</div>
           <div class="stat-label">今日审查数</div>
         </div>
       </div>
@@ -20,7 +20,7 @@
           <el-icon :size="24"><CircleClose /></el-icon>
         </div>
         <div class="stat-info">
-          <div class="stat-value">23</div>
+          <div class="stat-value">{{ safetyStats.blocked }}</div>
           <div class="stat-label">拦截数</div>
         </div>
       </div>
@@ -29,7 +29,7 @@
           <el-icon :size="24"><Warning /></el-icon>
         </div>
         <div class="stat-info">
-          <div class="stat-value">47</div>
+          <div class="stat-value">{{ safetyStats.warned }}</div>
           <div class="stat-label">告警数</div>
         </div>
       </div>
@@ -38,7 +38,7 @@
           <el-icon :size="24"><CircleCheck /></el-icon>
         </div>
         <div class="stat-info">
-          <div class="stat-value">94.5%</div>
+          <div class="stat-value">{{ safetyStats.passRate }}%</div>
           <div class="stat-label">通过率</div>
         </div>
       </div>
@@ -166,9 +166,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { Document, CircleClose, Warning, CircleCheck, View, RefreshRight } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import { getSafetyLogList, getSafetyStats, reviewSafetyLog } from '@/api/modules/communication'
 
 type CheckType = 'KEYWORD' | 'AI' | 'SENSITIVE'
 type Result = 'PASS' | 'BLOCK' | 'WARN'
@@ -226,129 +227,51 @@ const riskLabelMap: Record<RiskLevel, string> = {
   HIGH: '高',
 }
 
-// Mock data
-const records = ref<SafetyRecord[]>([
-  {
-    id: 1,
-    conversationId: 'CONV-20260606-001',
-    checkType: 'KEYWORD',
-    result: 'BLOCK',
-    matchedContent: '您的银行账户信息需要核实，请提供银行卡号',
-    matchedKeywords: ['银行卡号', '银行账户'],
-    riskLevel: 'HIGH',
-    rule: '金融信息索取规则',
-    sender: '候选人-张三',
-    receiver: 'AI助手',
-    action: '消息已拦截',
-    checkTime: '2026-06-06 14:32:15',
-    remark: '疑似钓鱼信息',
-  },
-  {
-    id: 2,
-    conversationId: 'CONV-20260606-002',
-    checkType: 'AI',
-    result: 'WARN',
-    matchedContent: '这个岗位的薪资待遇和具体工作内容能详细说一下吗',
-    matchedKeywords: ['薪资'],
-    riskLevel: 'MEDIUM',
-    rule: 'AI语义分析-敏感话题',
-    sender: '候选人-李四',
-    receiver: 'HR-王经理',
-    action: '已标记告警',
-    checkTime: '2026-06-06 14:18:42',
-    remark: '涉及薪资话题，建议谨慎回复',
-  },
-  {
-    id: 3,
-    conversationId: 'CONV-20260606-003',
-    checkType: 'SENSITIVE',
-    result: 'BLOCK',
-    matchedContent: '我们公司可以帮你办假学历，不用担心背景调查',
-    matchedKeywords: ['假学历', '背景调查'],
-    riskLevel: 'HIGH',
-    rule: '欺诈信息规则',
-    sender: '未知用户',
-    receiver: '候选人-王五',
-    action: '消息已拦截并举报',
-    checkTime: '2026-06-06 13:55:08',
-    remark: '严重违规内容',
-  },
-  {
-    id: 4,
-    conversationId: 'CONV-20260606-004',
-    checkType: 'KEYWORD',
-    result: 'PASS',
-    matchedContent: '',
+const records = ref<SafetyRecord[]>([])
+const safetyStats = reactive({
+  todayTotal: 0,
+  blocked: 0,
+  warned: 0,
+  passRate: '0',
+})
+
+function mapSafetyRow(row: any): SafetyRecord {
+  return {
+    id: row.id,
+    conversationId: String(row.conversationId || ''),
+    checkType: row.checkType as CheckType,
+    result: (row.checkResult || row.result || 'PASS') as Result,
+    matchedContent: row.matchedContent || '',
     matchedKeywords: [],
-    riskLevel: '',
-    rule: '',
-    sender: 'HR-赵经理',
-    receiver: '候选人-赵六',
-    action: '已放行',
-    checkTime: '2026-06-06 13:40:33',
-    remark: '',
-  },
-  {
-    id: 5,
-    conversationId: 'CONV-20260606-005',
-    checkType: 'AI',
-    result: 'PASS',
-    matchedContent: '',
-    matchedKeywords: [],
-    riskLevel: '',
-    rule: '',
-    sender: 'AI助手',
-    receiver: '候选人-孙七',
-    action: '已放行',
-    checkTime: '2026-06-06 12:28:19',
-    remark: '',
-  },
-  {
-    id: 6,
-    conversationId: 'CONV-20260606-006',
-    checkType: 'SENSITIVE',
-    result: 'WARN',
-    matchedContent: '你们公司加班严重吗？996吗？',
-    matchedKeywords: ['996', '加班'],
-    riskLevel: 'LOW',
-    rule: '敏感话题规则',
-    sender: '候选人-周八',
-    receiver: 'HR-钱经理',
-    action: '已标记告警',
-    checkTime: '2026-06-06 11:15:50',
-    remark: '涉及工作制度话题',
-  },
-  {
-    id: 7,
-    conversationId: 'CONV-20260606-007',
-    checkType: 'KEYWORD',
-    result: 'PASS',
-    matchedContent: '',
-    matchedKeywords: [],
-    riskLevel: '',
-    rule: '',
-    sender: 'HR-吴经理',
-    receiver: '候选人-吴九',
-    action: '已放行',
-    checkTime: '2026-06-06 10:45:22',
-    remark: '',
-  },
-  {
-    id: 8,
-    conversationId: 'CONV-20260606-008',
-    checkType: 'AI',
-    result: 'BLOCK',
-    matchedContent: '你把其他候选人的简历发给我看看，我帮你参考一下',
-    matchedKeywords: ['其他候选人', '简历'],
-    riskLevel: 'HIGH',
-    rule: 'AI语义分析-隐私泄露',
-    sender: '候选人-郑十',
-    receiver: 'HR-冯经理',
-    action: '消息已拦截',
-    checkTime: '2026-06-06 09:30:11',
-    remark: '涉嫌试图获取其他候选人隐私信息',
-  },
-])
+    riskLevel: (row.riskLevel || '') as RiskLevel | '',
+    rule: row.rule || '',
+    sender: row.sender || '-',
+    receiver: row.receiver || '-',
+    action: row.action || '-',
+    checkTime: row.checkedAt || row.checkTime || row.createdAt || '',
+    remark: row.remark || '',
+  }
+}
+
+async function loadSafetyData() {
+  try {
+    const [listRes, statsRes] = await Promise.all([
+      getSafetyLogList({ pageNum: 1, pageSize: 100 }),
+      getSafetyStats(),
+    ])
+    const list = listRes.data?.list || listRes.data?.records || []
+    records.value = list.map(mapSafetyRow)
+    const s = statsRes.data || {}
+    safetyStats.todayTotal = s.todayTotal || s.totalToday || records.value.length
+    safetyStats.blocked = s.blocked || s.blockCount || 0
+    safetyStats.warned = s.warned || s.warnCount || 0
+    safetyStats.passRate = String(s.passRate ?? s.passRatePercent ?? 0)
+  } catch {
+    records.value = []
+  }
+}
+
+onMounted(loadSafetyData)
 
 // Filters
 const filters = reactive({
@@ -383,8 +306,14 @@ function openDrawer(row: SafetyRecord) {
   drawerVisible.value = true
 }
 
-function handleReview(row: SafetyRecord) {
-  ElMessage.info(`正在复审会话 ${row.conversationId}...`)
+async function handleReview(row: SafetyRecord) {
+  try {
+    await reviewSafetyLog(row.id, 'APPROVE')
+    ElMessage.success('复审完成')
+    loadSafetyData()
+  } catch {
+    ElMessage.error('复审失败')
+  }
 }
 
 function highlightKeywords(content: string, keywords: string[]): string {

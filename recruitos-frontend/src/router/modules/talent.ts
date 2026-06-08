@@ -47,9 +47,7 @@ const talentRoutes: RouteRecordRaw[] = [
       },
       {
         path: 'channel/account',
-        name: 'TalentChannelAccount',
-        component: () => import('@/views/agent/AgentAccount.vue'),
-        meta: { title: '平台账号', icon: 'Monitor', hidden: true },
+        redirect: to => ({ path: '/talent/channels', query: to.query }),
       },
       {
         path: 'channel/log',

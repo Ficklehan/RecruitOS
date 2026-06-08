@@ -24,9 +24,9 @@ import Breadcrumb from './Breadcrumb.vue'
 
 const route = useRoute()
 
-// dashboard 页面不需要侧栏
 const hasSidebar = computed(() => {
-  return route.path !== '/dashboard' && !route.path.startsWith('/dashboard')
+  const top = route.path.split('/')[1]
+  return top && top !== 'login' && !route.path.startsWith('/platform')
 })
 </script>
 

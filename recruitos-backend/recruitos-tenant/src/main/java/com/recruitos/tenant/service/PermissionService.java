@@ -44,7 +44,9 @@ public class PermissionService {
     private List<SysPermission> buildTree(List<SysPermission> allPerms, Long parentId) {
         List<SysPermission> tree = new ArrayList<>();
         for (SysPermission perm : allPerms) {
-            if (parentId.equals(perm.getParentId())) {
+            Long pid = perm.getParentId() == null ? 0L : perm.getParentId();
+            if (parentId.equals(pid)) {
+                perm.setChildren(buildTree(allPerms, perm.getId()));
                 tree.add(perm);
             }
         }

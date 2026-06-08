@@ -1,0 +1,95 @@
+package com.recruitos.agent.service;
+
+import com.recruitos.agent.entity.AgentAccount;
+import com.recruitos.agent.mapper.AgentAccountMapper;
+import com.recruitos.agent.platform.RpaPlatformBridge;
+import com.recruitos.agent.rpa.PlaywrightManager;
+import com.recruitos.agent.rpa.RpaProperties;
+import com.recruitos.agent.rpa.RpaSessionStorage;
+import com.recruitos.common.exception.BizException;
+import com.recruitos.common.tenant.TenantContext;
+import org.springframework.stereotype.Service;
+
+import javax.annotation.Resource;
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
+
+@Service
+public class RpaLoginService {
+
+    @Resource
+    private AgentAccountMapper accountMapper;
+    @Resource
+    private RpaPlatformBridge rpaBridge;
+    @Resource
+    private RpaProperties rpaProperties;
+    @Resource
+    private RpaSessionStorage sessionStorage;
+    @Resource
+    private PlaywrightManager playwrightManager;
+
+    public Map<String, Object> interactiveLogin(Long accountId) {
+        if (!rpaProperties.isEnabled()) {
+            throw new BizException("RPA 未启用，请在配置中设置 recruitos.agent.rpa.enabled=true");
+        }
+        AgentAccount account = requireAccount(accountId);
+        rpaBridge.login(account);
+        account.setLastActiveAt(LocalDateTime.now());
+        accountMapper.updateById(account);
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("accountId", accountId);
+        result.put("platform", account.getPlatform());
+        result.put("sessionSaved", sessionStorage.hasSession(account));
+        result.put("message", "平台登录成功，会话已保存");
+        return result;
+    }
+
+    public Map<String, Object> testSession(Long accountId) {
+        AgentAccount account = requireAccount(accountId);
+        Map<String, Object> result = new HashMap<>();
+        result.put("accountId", accountId);
+        result.put("platform", account.getPlatform());
+        result.put("sessionExists", sessionStorage.hasSession(account));
+        result.put("rpaEnabled", rpaProperties.isEnabled());
+        if (rpaProperties.isEnabled()) {
+            try {
+                rpaBridge.login(account);
+                result.put("loggedIn", true);
+                result.put("message", "会话有效");
+            } catch (Exception e) {
+                result.put("loggedIn", false);
+                result.put("message", e.getMessage());
+            }
+        }
+        return result;
+    }
+
+    public void logoutSession(Long accountId) {
+        AgentAccount account = requireAccount(accountId);
+        playwrightManager.closeContext(accountId);
+        sessionStorage.deleteSession(account);
+    }
+
+    public Map<String, Object> status() {
+        Map<String, Object> m = new HashMap<>();
+        m.put("enabled", rpaProperties.isEnabled());
+        m.put("headless", rpaProperties.isHeadless());
+        m.put("fallbackSimulated", rpaProperties.isFallbackSimulated());
+        m.put("sessionDir", rpaProperties.getSessionDir());
+        return m;
+    }
+
+    private AgentAccount requireAccount(Long accountId) {
+        Long tenantId = TenantContext.getTenantId();
+        AgentAccount account = accountMapper.selectById(accountId);
+        if (account == null || !account.getTenantId().equals(tenantId)) {
+            throw new BizException("账号不存在");
+        }
+        if (!"BOSS".equalsIgnoreCase(account.getPlatform()) && !"LIEPIN".equalsIgnoreCase(account.getPlatform())) {
+            throw new BizException("当前仅支持 BOSS / LIEPIN 真实 RPA");
+        }
+        return account;
+    }
+}

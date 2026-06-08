@@ -30,7 +30,7 @@
       </div>
 
       <!-- 表格 -->
-      <el-table :data="userList" stripe>
+      <el-table :data="userList" stripe v-loading="loading">
         <el-table-column prop="username" label="用户名" width="120" />
         <el-table-column prop="realName" label="姓名" width="100" />
         <el-table-column prop="email" label="邮箱" min-width="200" />
@@ -129,14 +129,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { onMounted, ref, reactive, watch } from 'vue'
 import { Search } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { getUserList, assignUserRoles, resetUserPassword } from '@/api/modules/user'
+import { getRoleList } from '@/api/modules/role'
 
 const formRef = ref<FormInstance>()
 const dialogVisible = ref(false)
 const isEdit = ref(false)
+const loading = ref(false)
+const currentUserId = ref<number | null>(null)
 
 const searchForm = reactive({
   keyword: '',
@@ -146,23 +150,11 @@ const searchForm = reactive({
 const pagination = reactive({
   page: 1,
   pageSize: 20,
-  total: 50,
+  total: 0,
 })
 
-const userList = ref([
-  { id: 1, username: 'admin', realName: '管理员', email: 'admin@recruitos.com', phone: '13800000001', roles: ['超级管理员'], status: 'active', lastLogin: '2024-03-15 10:30:00' },
-  { id: 2, username: 'zhangsan', realName: '张三', email: 'zhangsan@recruitos.com', phone: '13800000002', roles: ['HR管理员'], status: 'active', lastLogin: '2024-03-15 09:00:00' },
-  { id: 3, username: 'lisi', realName: '李四', email: 'lisi@recruitos.com', phone: '13800000003', roles: ['面试官'], status: 'active', lastLogin: '2024-03-14 16:00:00' },
-  { id: 4, username: 'wangwu', realName: '王五', email: 'wangwu@recruitos.com', phone: '13800000004', roles: ['招聘专员'], status: 'inactive', lastLogin: '2024-03-10 14:00:00' },
-])
-
-const roleOptions = ref([
-  { id: 1, name: '超级管理员' },
-  { id: 2, name: 'HR管理员' },
-  { id: 3, name: '面试官' },
-  { id: 4, name: '招聘专员' },
-  { id: 5, name: '部门经理' },
-])
+const userList = ref<any[]>([])
+const roleOptions = ref<{ id: number; name: string }[]>([])
 
 const formData = reactive({
   username: '',
@@ -175,17 +167,57 @@ const formData = reactive({
 })
 
 const rules: FormRules = {
-  username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
-  realName: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
-  email: [{ required: true, message: '请输入邮箱', trigger: 'blur' }, { type: 'email', message: '请输入正确的邮箱', trigger: 'blur' }],
-  phone: [{ required: true, message: '请输入手机号', trigger: 'blur' }],
-  password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
   roleIds: [{ required: true, message: '请选择角色', trigger: 'change' }],
+}
+
+function mapStatus(status: number | string) {
+  if (status === 1 || status === 'active') return 'active'
+  return 'inactive'
+}
+
+function formatUser(row: any) {
+  return {
+    ...row,
+    status: mapStatus(row.status),
+    lastLogin: row.lastLoginAt || '-',
+  }
+}
+
+async function loadRoles() {
+  const res = await getRoleList()
+  roleOptions.value = (res.data || []).map((r: any) => ({
+    id: r.id,
+    name: r.roleName,
+  }))
+}
+
+async function loadUsers() {
+  loading.value = true
+  try {
+    const res = await getUserList({
+      pageNum: pagination.page,
+      pageSize: pagination.pageSize,
+    })
+    let list = (res.data?.list || []).map(formatUser)
+    if (searchForm.keyword) {
+      const kw = searchForm.keyword.toLowerCase()
+      list = list.filter((u: any) =>
+        [u.username, u.realName, u.phone].some((v: string) => v?.toLowerCase().includes(kw))
+      )
+    }
+    if (searchForm.status) {
+      list = list.filter((u: any) => u.status === searchForm.status)
+    }
+    userList.value = list
+    pagination.total = res.data?.total || list.length
+  } finally {
+    loading.value = false
+  }
 }
 
 function handleSearch() {
   pagination.page = 1
-  // TODO: 调用搜索接口
+  loadUsers()
 }
 
 function handleReset() {
@@ -195,63 +227,57 @@ function handleReset() {
 }
 
 function handleAdd() {
-  isEdit.value = false
-  dialogVisible.value = true
-  formData.username = ''
-  formData.realName = ''
-  formData.email = ''
-  formData.phone = ''
-  formData.password = ''
-  formData.roleIds = []
-  formData.status = 'active'
+  ElMessage.info('用户创建请通过注册或管理员后台开通，当前仅支持角色分配')
 }
 
 function handleEdit(row: any) {
   isEdit.value = true
+  currentUserId.value = row.id
   dialogVisible.value = true
   formData.username = row.username
   formData.realName = row.realName
   formData.email = row.email
   formData.phone = row.phone
-  formData.roleIds = [row.id] // 简化处理
+  formData.roleIds = row.roleIds || []
   formData.status = row.status
 }
 
 async function handleResetPwd(row: any) {
   try {
-    await ElMessageBox.confirm(`确定要重置用户「${row.realName}」的密码吗？`, '提示', {
+    const { value } = await ElMessageBox.prompt('请输入新密码（至少6位）', `重置「${row.realName}」密码`, {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
-      type: 'warning',
+      inputType: 'password',
+      inputValidator: (v) => (v && v.length >= 6) || '密码至少6位',
     })
+    await resetUserPassword(row.id, value)
     ElMessage.success('密码重置成功')
   } catch {
-    // 取消操作
+    // cancelled
   }
 }
 
-async function handleDelete(row: any) {
-  try {
-    await ElMessageBox.confirm(`确定要删除用户「${row.realName}」吗？`, '警告', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning',
-    })
-    ElMessage.success('删除成功')
-  } catch {
-    // 取消操作
-  }
+async function handleDelete() {
+  ElMessage.info('删除用户功能暂未开放')
 }
 
 async function handleSubmit() {
-  if (!formRef.value) return
-  await formRef.value.validate((valid) => {
-    if (valid) {
-      ElMessage.success(isEdit.value ? '编辑成功' : '新增成功')
-      dialogVisible.value = false
-    }
+  if (!formRef.value || !currentUserId.value) return
+  await formRef.value.validate(async (valid) => {
+    if (!valid) return
+    await assignUserRoles(currentUserId.value!, formData.roleIds)
+    ElMessage.success('角色已更新')
+    dialogVisible.value = false
+    loadUsers()
   })
 }
+
+watch(() => [pagination.page, pagination.pageSize], loadUsers)
+
+onMounted(async () => {
+  await loadRoles()
+  await loadUsers()
+})
 </script>
 
 <style lang="scss" scoped>

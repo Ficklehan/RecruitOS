@@ -49,8 +49,8 @@ export const useUserStore = defineStore('user', () => {
         return data
       }
       const { data } = await getCurrentUserApi()
-      userInfo.value = data.user
-      roles.value = data.roles || []
+      userInfo.value = data
+      roles.value = (data.roles || []).map((r: any) => r.roleCode || r)
       permissions.value = data.permissions || []
       return data
     } catch (error: any) {

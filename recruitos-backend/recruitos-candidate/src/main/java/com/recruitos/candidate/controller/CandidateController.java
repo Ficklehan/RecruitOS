@@ -75,8 +75,11 @@ public class CandidateController {
     @ApiOperation("Talent pool global search")
     @GetMapping("/talent-pool")
     public R<PageResult<CandidateVO>> getTalentPool(@RequestParam(required = false) String keyword,
-                                                     @RequestParam(required = false) String tags) {
-        PageResult<CandidateVO> result = candidateService.getTalentPool(keyword, tags);
+                                                     @RequestParam(required = false) String tags,
+                                                     @RequestParam(required = false) Long jobId,
+                                                     @RequestParam(defaultValue = "1") Integer pageNum,
+                                                     @RequestParam(defaultValue = "12") Integer pageSize) {
+        PageResult<CandidateVO> result = candidateService.getTalentPool(keyword, tags, jobId, pageNum, pageSize);
         return R.ok(result);
     }
 }

@@ -2,12 +2,23 @@
   <div class="page-container">
     <!-- 页面头部 -->
     <div class="page-header">
-      <h2 class="page-title">Agent列表</h2>
-      <el-button type="primary" @click="showCreateDialog = true">
+      <div>
+        <h2 class="page-title">自动招聘任务</h2>
+        <p class="page-subtitle">由在招职位的渠道招聘自动创建，无需手动建任务</p>
+      </div>
+      <el-button type="primary" @click="$router.push('/planning/jobs')">
         <el-icon><Plus /></el-icon>
-        新建Agent
+        去职位开始渠道招聘
       </el-button>
     </div>
+
+    <el-alert
+      type="info"
+      :closable="false"
+      show-icon
+      style="margin-bottom: 16px"
+      title="推荐流程：在招职位工作台 → 渠道招聘，选择平台并启动后系统自动执行发布职位、搜寻候选人、打招呼与加入候选人。"
+    />
 
     <!-- 统计卡片 -->
     <div class="stats-row">
@@ -77,7 +88,7 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="jobTitle" label="关联岗位" min-width="180" show-overflow-tooltip />
+        <el-table-column prop="jobTitle" label="在招职位" min-width="180" show-overflow-tooltip />
         <el-table-column prop="platform" label="平台" width="110" align="center">
           <template #default="{ row }">
             <el-tag :type="getPlatformTag(row.platform)" size="small" disable-transitions>
@@ -149,21 +160,53 @@
       />
     </div>
 
-    <!-- 新建任务对话框 -->
-    <el-dialog v-model="showCreateDialog" title="新建Agent任务" width="520px" destroy-on-close>
+    <!-- 任务详情 -->
+    <el-drawer v-model="detailVisible" title="任务详情" size="520px" destroy-on-close>
+      <template v-if="taskDetail">
+        <el-descriptions :column="1" border>
+          <el-descriptions-item label="任务类型">{{ getTaskTypeLabel(taskDetail.taskType) }}</el-descriptions-item>
+          <el-descriptions-item label="在招职位">{{ taskDetail.jobTitle || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="平台">{{ taskDetail.platform || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="状态">{{ getStatusLabel(taskDetail.status) }}</el-descriptions-item>
+          <el-descriptions-item label="进度">{{ taskDetail.completedCount }}/{{ taskDetail.targetCount }}</el-descriptions-item>
+          <el-descriptions-item label="开始时间">{{ taskDetail.startedAt || '-' }}</el-descriptions-item>
+          <el-descriptions-item v-if="taskDetail.errorMessage" label="错误">{{ taskDetail.errorMessage }}</el-descriptions-item>
+        </el-descriptions>
+        <h4 style="margin: 20px 0 12px">最近日志</h4>
+        <el-timeline v-if="taskDetail.recentLogs?.length">
+          <el-timeline-item
+            v-for="log in taskDetail.recentLogs"
+            :key="log.id"
+            :type="log.success ? 'success' : 'danger'"
+            :timestamp="log.createdAt"
+          >
+            {{ log.action || log.step }} — {{ log.message || (log.success ? '成功' : '失败') }}
+          </el-timeline-item>
+        </el-timeline>
+        <el-empty v-else description="暂无日志" />
+        <div v-if="taskDetail.jobId" style="margin-top: 16px">
+          <el-button type="primary" @click="$router.push({ path: `/planning/jobs/${taskDetail.jobId}`, query: { tab: 'sourcing' } })">
+            查看渠道招聘
+          </el-button>
+        </div>
+      </template>
+    </el-drawer>
+
+    <!-- 高级：手动建任务（一般不需要） -->
+    <el-dialog v-model="showCreateDialog" title="手动创建任务" width="520px" destroy-on-close>
       <el-form ref="createFormRef" :model="createForm" :rules="createRules" label-width="100px">
         <el-form-item label="任务类型" prop="taskType">
           <el-select v-model="createForm.taskType" placeholder="请选择任务类型" style="width: 100%">
             <el-option v-for="t in taskTypeOptions" :key="t.value" :label="t.label" :value="t.value" />
           </el-select>
         </el-form-item>
-        <el-form-item label="关联岗位" prop="jobId">
-          <el-select v-model="createForm.jobId" placeholder="请选择关联岗位" style="width: 100%">
+        <el-form-item label="在招职位" prop="jobId">
+          <el-select v-model="createForm.jobId" placeholder="请选择在招职位" style="width: 100%">
             <el-option v-for="j in jobOptions" :key="j.id" :label="j.title" :value="j.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="Agent账号" prop="agentAccountId">
-          <el-select v-model="createForm.agentAccountId" placeholder="请选择Agent账号" style="width: 100%">
+        <el-form-item label="招聘账号" prop="agentAccountId">
+          <el-select v-model="createForm.agentAccountId" placeholder="请选择招聘平台账号" style="width: 100%">
             <el-option v-for="a in accountOptions" :key="a.id" :label="a.name" :value="a.id" />
           </el-select>
         </el-form-item>
@@ -197,7 +240,10 @@ import {
   Search, Plus, RefreshRight, VideoPlay, VideoPause,
   CircleCheck, CircleClose, View,
 } from '@element-plus/icons-vue'
-import { getAgentTaskList, getAgentAccountList, createAgentTask } from '@/api/modules/agent'
+import {
+  getAgentTaskList, getAgentAccountList, createAgentTask,
+  startAgentTask, pauseAgentTask, resumeAgentTask, getAgentTaskDetail,
+} from '@/api/modules/agent'
 
 // 查询参数
 const queryParams = reactive({
@@ -210,6 +256,8 @@ const queryParams = reactive({
 
 const total = ref(0)
 const showCreateDialog = ref(false)
+const detailVisible = ref(false)
+const taskDetail = ref<any>(null)
 const createFormRef = ref<FormInstance>()
 
 // 选项
@@ -244,8 +292,8 @@ const createForm = reactive({
 
 const createRules: FormRules = {
   taskType: [{ required: true, message: '请选择任务类型', trigger: 'change' }],
-  jobId: [{ required: true, message: '请选择关联岗位', trigger: 'change' }],
-  agentAccountId: [{ required: true, message: '请选择Agent账号', trigger: 'change' }],
+  jobId: [{ required: true, message: '请选择在招职位', trigger: 'change' }],
+  agentAccountId: [{ required: true, message: '请选择招聘账号', trigger: 'change' }],
   priority: [{ required: true, message: '请选择优先级', trigger: 'change' }],
 }
 
@@ -322,6 +370,7 @@ function getProgressColor(status: string) {
 // 操作
 function handleSearch() {
   queryParams.pageNum = 1
+  loadData()
 }
 
 function handleReset() {
@@ -336,9 +385,15 @@ function handleStart(row: any) {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
     type: 'info',
-  }).then(() => {
-    row.status = 'RUNNING'
-    ElMessage.success('任务已启动')
+  }).then(async () => {
+    try {
+      const api = row.status === 'PAUSED' ? resumeAgentTask : startAgentTask
+      await api(row.id)
+      ElMessage.success('任务已启动')
+      loadData()
+    } catch {
+      ElMessage.error('启动失败')
+    }
   }).catch(() => {})
 }
 
@@ -347,14 +402,25 @@ function handlePause(row: any) {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
     type: 'warning',
-  }).then(() => {
-    row.status = 'PAUSED'
-    ElMessage.success('任务已暂停')
+  }).then(async () => {
+    try {
+      await pauseAgentTask(row.id)
+      ElMessage.success('任务已暂停')
+      loadData()
+    } catch {
+      ElMessage.error('暂停失败')
+    }
   }).catch(() => {})
 }
 
-function handleView(row: any) {
-  ElMessage.info(`查看任务 #${row.id} 详情（功能开发中）`)
+async function handleView(row: any) {
+  try {
+    const res: any = await getAgentTaskDetail(row.id)
+    taskDetail.value = res.data || res
+    detailVisible.value = true
+  } catch {
+    ElMessage.error('加载任务详情失败')
+  }
 }
 
 async function handleCreateSubmit() {

@@ -29,7 +29,7 @@
     <!-- 轮次切换 -->
     <div class="round-tabs">
       <el-tabs v-model="activeRound" @tab-change="handleRoundChange">
-        <el-tab-pane label="初面" name="FIRST" />
+        <el-tab-pane label="初面" name="INITIAL" />
         <el-tab-pane label="复试" name="SECOND" />
       </el-tabs>
     </div>
@@ -119,7 +119,7 @@
         </el-form-item>
         <el-form-item label="面试轮次" required>
           <el-select v-model="arrangeForm.round" style="width: 100%">
-            <el-option label="初面" value="FIRST" />
+            <el-option label="初面" value="INITIAL" />
             <el-option label="复试" value="SECOND" />
           </el-select>
         </el-form-item>
@@ -184,7 +184,7 @@ import { getJobList } from '@/api/modules/job'
 import { getUserList } from '@/api/modules/user'
 
 const router = useRouter()
-const activeRound = ref('FIRST')
+const activeRound = ref('INITIAL')
 
 const stats = reactive({ pending: 0, arranged: 0, inProgress: 0, completed: 0 })
 
@@ -206,7 +206,7 @@ const submitting = ref(false)
 const arrangeForm = reactive({
   candidateId: null as number | null,
   jobId: null as number | null,
-  round: 'FIRST',
+  round: 'INITIAL',
   interviewerId: null as number | null,
   format: 'ONLINE',
   scheduledTime: '',

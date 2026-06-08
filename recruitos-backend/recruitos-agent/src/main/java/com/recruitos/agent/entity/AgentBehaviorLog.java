@@ -29,7 +29,12 @@ public class AgentBehaviorLog implements Serializable {
     /** Associated agent account ID */
     private Long agentAccountId;
 
+    /** Legacy action column (init.sql) */
+    @TableField("action")
+    private String action;
+
     /** Action type: VIEW_PROFILE / SEND_MESSAGE / FOLLOW_UP / SCHEDULE_INTERVIEW / OTHER */
+  @TableField("action_type")
     private String actionType;
 
     /** Target person name */
@@ -42,7 +47,11 @@ public class AgentBehaviorLog implements Serializable {
     private String actionDetail;
 
     /** Is success: 0=failed, 1=success */
+    @TableField("is_success")
     private Integer isSuccess;
+
+    @TableField("success")
+    private Integer success;
 
     /** Error message if failed */
     private String errorMessage;
@@ -91,6 +100,14 @@ public class AgentBehaviorLog implements Serializable {
         this.agentAccountId = agentAccountId;
     }
 
+    public String getAction() {
+        return action;
+    }
+
+    public void setAction(String action) {
+        this.action = action;
+    }
+
     public String getActionType() {
         return actionType;
     }
@@ -129,6 +146,14 @@ public class AgentBehaviorLog implements Serializable {
 
     public void setIsSuccess(Integer isSuccess) {
         this.isSuccess = isSuccess;
+    }
+
+    public Integer getSuccess() {
+        return success;
+    }
+
+    public void setSuccess(Integer success) {
+        this.success = success;
     }
 
     public String getErrorMessage() {

@@ -4,7 +4,7 @@
     <div class="page-header">
       <div>
         <h2 class="page-title">面试日历</h2>
-        <p class="page-subtitle">查看和管理所有面试安排</p>
+        <p class="page-subtitle">按周/月查看面试场次，点击可进入候选人详情</p>
       </div>
       <div class="header-actions">
         <el-button @click="handleRefresh">
@@ -46,8 +46,18 @@
       </div>
     </div>
 
+    <EmptyStateCta
+      v-if="!loading && interviewList.length === 0"
+      title="暂无面试安排"
+      description="可在招聘进展中为候选人安排面试，或从今日待办进入"
+      :actions="[
+        { label: '去招聘进展', type: 'primary', onClick: () => router.push('/pipeline/board') },
+        { label: '查看今日待办', onClick: () => router.push('/workspace/today') },
+      ]"
+    />
+
     <!-- 周视图 -->
-    <div v-if="viewMode === 'week'" class="week-view">
+    <div v-else-if="viewMode === 'week'" class="week-view">
       <div class="week-header">
         <div class="time-gutter"></div>
         <div
@@ -117,6 +127,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import EmptyStateCta from '@/components/common/EmptyStateCta.vue'
 import { getInterviewList } from '@/api/modules/interview'
 
 const router = useRouter()
@@ -124,6 +135,11 @@ const router = useRouter()
 const viewMode = ref<'week' | 'month'>('week')
 const currentDate = ref(new Date())
 const interviewList = ref<any[]>([])
+const loading = ref(false)
+
+function interviewTime(event: { scheduledStartTime?: string; scheduledTime?: string }) {
+  return event.scheduledStartTime || event.scheduledTime || ''
+}
 
 const timeSlots = Array.from({ length: 12 }, (_, i) => `${String(i + 8).padStart(2, '0')}:00`)
 
@@ -169,7 +185,7 @@ const monthCells = computed(() => {
       day: i,
       isCurrentMonth: true,
       isToday: date.toDateString() === today.toDateString(),
-      events: interviewList.value.filter(e => e.scheduledTime?.startsWith(dateStr)),
+      events: interviewList.value.filter(e => interviewTime(e).startsWith(dateStr)),
     })
   }
 
@@ -192,12 +208,13 @@ const currentRange = computed(() => {
 })
 
 function getDayEvents(dateStr: string) {
-  return interviewList.value.filter(e => e.scheduledTime?.startsWith(dateStr))
+  return interviewList.value.filter(e => interviewTime(e).startsWith(dateStr))
 }
 
 function getEventTop(event: any) {
-  if (!event.scheduledTime) return '0px'
-  const h = new Date(event.scheduledTime).getHours()
+  const time = interviewTime(event)
+  if (!time) return '0px'
+  const h = new Date(time).getHours()
   return `${(h - 8) * 52}px`
 }
 
@@ -237,20 +254,29 @@ function handleRefresh() {
 }
 
 function handleArrange() {
-  router.push('/interview/board')
+  router.push('/pipeline/board')
 }
 
 function handleEventClick(event: any) {
-  ElMessage.info(`${event.candidateName} - ${event.jobTitle}`)
+  if (event.candidateId) {
+    const query: Record<string, string> = {}
+    if (event.jobId) query.jobId = String(event.jobId)
+    router.push({ path: `/pipeline/candidates/${event.candidateId}`, query })
+    return
+  }
+  ElMessage.info(`${event.candidateName} · ${event.jobTitle || '在招职位'}`)
 }
 
 async function loadData() {
+  loading.value = true
   try {
     const res: any = await getInterviewList({})
     const data = res.data || res
     interviewList.value = Array.isArray(data) ? data : data.records || []
   } catch {
     interviewList.value = []
+  } finally {
+    loading.value = false
   }
 }
 

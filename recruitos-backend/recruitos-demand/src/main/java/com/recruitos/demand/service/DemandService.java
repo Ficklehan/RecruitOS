@@ -13,6 +13,7 @@ import com.recruitos.demand.entity.ApprovalRecord;
 import com.recruitos.demand.entity.RecruitDemand;
 import com.recruitos.demand.mapper.ApprovalInstanceMapper;
 import com.recruitos.demand.mapper.ApprovalRecordMapper;
+import com.recruitos.demand.mapper.JobDraftMapper;
 import com.recruitos.demand.mapper.RecruitDemandMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,8 +42,13 @@ public class DemandService {
     @Resource
     private ApprovalRecordMapper approvalRecordMapper;
 
+    @Resource
+    private JobDraftMapper jobDraftMapper;
+
     /** Sequence counter for demand number generation (in-memory, resets on restart) */
     private final AtomicLong demandSeqCounter = new AtomicLong(0);
+
+    private final AtomicLong jobSeqCounter = new AtomicLong(0);
 
     /** Approval node names */
     private static final String NODE_HRBP = "HRBP审核";
@@ -270,9 +276,31 @@ public class DemandService {
         instance.setCurrentApproverId(null);
         approvalInstanceMapper.updateById(instance);
 
-        demand.setStatus("APPROVED");
+        demand.setStatus("JOB_CREATED");
         demand.setApprovedHeadCount(demand.getHeadCount());
         recruitDemandMapper.updateById(demand);
+
+        createJobDraftFromDemand(demand);
+    }
+
+    private void createJobDraftFromDemand(RecruitDemand demand) {
+        StringBuilder jd = new StringBuilder();
+        if (StringUtils.hasText(demand.getJobDuty())) {
+            jd.append("岗位职责：\n").append(demand.getJobDuty()).append("\n\n");
+        }
+        if (StringUtils.hasText(demand.getJobRequirement())) {
+            jd.append("任职要求：\n").append(demand.getJobRequirement());
+        }
+        String jobNo = "JOB-" + LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE)
+                + "-" + String.format("%04d", jobSeqCounter.incrementAndGet() % 10000);
+        jobDraftMapper.insertDraft(
+                demand.getTenantId(),
+                demand.getId(),
+                jobNo,
+                demand.getTitle(),
+                jd.toString(),
+                demand.getHeadCount()
+        );
     }
 
     /**

@@ -17,11 +17,11 @@
         <el-descriptions-item label="岗位">{{ interviewInfo.jobTitle }}</el-descriptions-item>
         <el-descriptions-item label="面试轮次">
           <el-tag
-            :type="interviewInfo.round === 'FIRST' ? 'primary' : 'success'"
+            :type="interviewInfo.round === 'INITIAL' ? 'primary' : 'success'"
             size="small"
             disable-transitions
           >
-            {{ interviewInfo.round === 'FIRST' ? '初面' : '复试' }}
+            {{ interviewInfo.round === 'INITIAL' ? '初面' : '复试' }}
           </el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="面试官">{{ interviewInfo.interviewerName }}</el-descriptions-item>
@@ -200,7 +200,7 @@ const interviewInfo = reactive({
   id: 0,
   candidateName: '',
   jobTitle: '',
-  round: 'FIRST',
+  round: 'INITIAL',
   interviewerName: '',
   scheduledTime: '',
   format: 'ONLINE',
@@ -314,7 +314,7 @@ async function loadInterviewInfo() {
       id: data.id,
       candidateName: data.candidateName,
       jobTitle: data.jobTitle,
-      round: data.round || 'FIRST',
+      round: data.round || 'INITIAL',
       interviewerName: data.interviewerName,
       scheduledTime: data.scheduledTime,
       format: data.format,

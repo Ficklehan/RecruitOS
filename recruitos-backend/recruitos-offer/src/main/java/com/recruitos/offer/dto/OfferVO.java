@@ -19,6 +19,10 @@ public class OfferVO implements Serializable {
     private String jobTitle;
     private String department;
     private BigDecimal salary;
+    private BigDecimal bonus;
+    private String level;
+    private java.time.LocalDate onboardDate;
+    private String bgCheckStatus;
     private String status;
     private Long approverId;
     private LocalDateTime approvedAt;
@@ -93,6 +97,38 @@ public class OfferVO implements Serializable {
 
     public void setSalary(BigDecimal salary) {
         this.salary = salary;
+    }
+
+    public BigDecimal getBonus() {
+        return bonus;
+    }
+
+    public void setBonus(BigDecimal bonus) {
+        this.bonus = bonus;
+    }
+
+    public String getLevel() {
+        return level;
+    }
+
+    public void setLevel(String level) {
+        this.level = level;
+    }
+
+    public java.time.LocalDate getOnboardDate() {
+        return onboardDate;
+    }
+
+    public void setOnboardDate(java.time.LocalDate onboardDate) {
+        this.onboardDate = onboardDate;
+    }
+
+    public String getBgCheckStatus() {
+        return bgCheckStatus;
+    }
+
+    public void setBgCheckStatus(String bgCheckStatus) {
+        this.bgCheckStatus = bgCheckStatus;
     }
 
     public String getStatus() {

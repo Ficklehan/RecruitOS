@@ -3,7 +3,7 @@
     <div class="page-header">
       <div>
         <h2 class="page-title">AI 自动化工作流</h2>
-        <p class="page-subtitle">一键从JD发起全链路：检索 → 打招呼 → 收简历 → 入库</p>
+        <p class="page-subtitle">从任职要求发起渠道招聘全链路：搜寻 → 打招呼 → 收简历 → 加入候选人</p>
       </div>
       <div class="header-actions">
         <el-button @click="handleRefresh">
@@ -62,7 +62,7 @@
         <div class="wf-header">
           <div class="wf-info">
             <h3 class="wf-title">{{ wf.name }}</h3>
-            <p class="wf-job">关联岗位：{{ wf.jobTitle }}</p>
+            <p class="wf-job">在招职位：{{ wf.jobTitle }}</p>
           </div>
           <div class="wf-status">
             <el-tag :type="wf.status === 'RUNNING' ? 'success' : wf.status === 'PAUSED' ? 'warning' : 'info'" size="small">
@@ -127,7 +127,7 @@
             </div>
             <div class="step-info">
               <div class="step-count">{{ wf.stats.imported }}</div>
-              <div class="step-label">已入库</div>
+              <div class="step-label">已加入候选人</div>
             </div>
           </div>
         </div>
@@ -163,16 +163,14 @@
         <el-form-item label="工作流名称" required>
           <el-input v-model="createForm.name" placeholder="如：高级前端-BOSS自动招聘" />
         </el-form-item>
-        <el-form-item label="关联岗位" required>
-          <el-select v-model="createForm.jobId" placeholder="选择已激活的岗位" style="width: 100%">
+        <el-form-item label="在招职位" required>
+          <el-select v-model="createForm.jobId" placeholder="选择招聘中的职位" style="width: 100%">
             <el-option v-for="job in jobOptions" :key="job.id" :label="job.title" :value="job.id" />
           </el-select>
         </el-form-item>
         <el-form-item label="检索平台" required>
           <el-checkbox-group v-model="createForm.platforms">
             <el-checkbox label="BOSS">Boss直聘</el-checkbox>
-            <el-checkbox label="LAGOU">拉勾</el-checkbox>
-            <el-checkbox label="ZHILIAN">智联招聘</el-checkbox>
             <el-checkbox label="LIEPIN">猎聘</el-checkbox>
           </el-checkbox-group>
         </el-form-item>
@@ -195,7 +193,7 @@
         </el-form-item>
         <el-form-item label="打招呼话术">
           <el-select v-model="createForm.templateId" placeholder="选择话术模板" style="width: 100%">
-            <el-option v-for="tpl in templateOptions" :key="tpl.id" :label="tpl.name" :value="tpl.id" />
+            <el-option v-for="tpl in templateOptions" :key="tpl.id" :label="tpl.templateName || tpl.name" :value="tpl.id" />
           </el-select>
         </el-form-item>
       </el-form>
@@ -230,7 +228,8 @@ const jdTags = ref<string[]>(['Vue.js', 'React', 'TypeScript', 'Node.js', 'Pytho
 const createForm = reactive({
   name: '',
   jobId: null as number | null,
-  platforms: ['BOSS'] as string[],
+  mode: 'SEMI_AUTO' as string,
+  platforms: ['BOSS', 'LIEPIN'] as string[],
   keywords: [] as string[],
   dailyLimit: 50,
   templateId: null as number | null,
@@ -252,7 +251,11 @@ const stats = computed(() => {
 })
 
 function goDetail(wf: any) {
-  router.push(`/ai-tools/workflow/${wf.id}`)
+  if (wf.jobId) {
+    router.push({ path: `/planning/jobs/${wf.jobId}`, query: { tab: 'sourcing' } })
+  } else {
+    router.push('/talent/channels/workflows')
+  }
 }
 
 async function handlePause(wf: any) {
@@ -284,6 +287,7 @@ async function handleCreate() {
     await createWorkflow({
       name: createForm.name,
       jobId: createForm.jobId,
+      mode: createForm.mode,
       platforms: createForm.platforms,
       keywords: createForm.keywords,
       dailyLimit: createForm.dailyLimit,

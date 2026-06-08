@@ -47,8 +47,8 @@ public class OnboardTask implements Serializable {
     @TableField("due_date")
     private LocalDate dueDate;
 
-    /** Task status: PENDING / IN_PROGRESS / COMPLETED / SKIPPED */
-    @TableField("task_status")
+    /** Task status: PENDING / IN_PROGRESS / DONE / SKIPPED */
+    @TableField("status")
     private String taskStatus;
 
     /** Remark */

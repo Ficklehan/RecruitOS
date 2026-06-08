@@ -9,7 +9,7 @@
     </div>
 
     <el-card>
-      <el-table :data="roleList" stripe>
+      <el-table :data="roleList" stripe v-loading="loading">
         <el-table-column prop="name" label="角色名称" width="180" />
         <el-table-column prop="code" label="角色编码" width="180" />
         <el-table-column prop="description" label="描述" min-width="200" />
@@ -94,68 +94,27 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { onMounted, ref, reactive, nextTick } from 'vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import {
+  getRoleList, createRole, updateRole, deleteRole,
+  getRolePermissions, assignRolePermissions,
+} from '@/api/modules/role'
+import { getPermissionTree } from '@/api/modules/permission'
 
 const formRef = ref<FormInstance>()
 const permTreeRef = ref()
 const dialogVisible = ref(false)
 const permissionDialogVisible = ref(false)
 const isEdit = ref(false)
+const loading = ref(false)
 const currentRole = ref<any>(null)
+const currentRoleId = ref<number | null>(null)
 const checkedKeys = ref<number[]>([])
 
-const roleList = ref([
-  { id: 1, name: '超级管理员', code: 'SUPER_ADMIN', description: '系统超级管理员，拥有所有权限', userCount: 2, status: 'active', createdAt: '2024-01-01 00:00:00' },
-  { id: 2, name: 'HR管理员', code: 'HR_ADMIN', description: 'HR部门管理员', userCount: 5, status: 'active', createdAt: '2024-01-15 10:00:00' },
-  { id: 3, name: '面试官', code: 'INTERVIEWER', description: '面试官角色', userCount: 20, status: 'active', createdAt: '2024-02-01 14:00:00' },
-  { id: 4, name: '招聘专员', code: 'RECRUITER', description: '招聘专员角色', userCount: 8, status: 'active', createdAt: '2024-02-15 09:00:00' },
-  { id: 5, name: '部门经理', code: 'DEPT_MANAGER', description: '部门经理角色', userCount: 10, status: 'inactive', createdAt: '2024-03-01 16:00:00' },
-])
-
-const permissionTree = ref([
-  {
-    id: 1,
-    name: '招聘需求',
-    children: [
-      { id: 11, name: '查看需求' },
-      { id: 12, name: '创建需求' },
-      { id: 13, name: '编辑需求' },
-      { id: 14, name: '删除需求' },
-      { id: 15, name: '审批需求' },
-    ],
-  },
-  {
-    id: 2,
-    name: '候选人管理',
-    children: [
-      { id: 21, name: '查看候选人' },
-      { id: 22, name: '创建候选人' },
-      { id: 23, name: '编辑候选人' },
-      { id: 24, name: '删除候选人' },
-    ],
-  },
-  {
-    id: 3,
-    name: '面试管理',
-    children: [
-      { id: 31, name: '查看面试' },
-      { id: 32, name: '安排面试' },
-      { id: 33, name: '评价面试' },
-    ],
-  },
-  {
-    id: 4,
-    name: '系统设置',
-    children: [
-      { id: 41, name: '租户设置' },
-      { id: 42, name: '组织管理' },
-      { id: 43, name: '角色管理' },
-      { id: 44, name: '用户管理' },
-    ],
-  },
-])
+const roleList = ref<any[]>([])
+const permissionTree = ref<any[]>([])
 
 const formData = reactive({
   name: '',
@@ -169,8 +128,43 @@ const rules: FormRules = {
   code: [{ required: true, message: '请输入角色编码', trigger: 'blur' }],
 }
 
+function mapPermTree(nodes: any[]): any[] {
+  return (nodes || []).map(n => ({
+    id: n.id,
+    name: n.permName,
+    children: mapPermTree(n.children),
+  }))
+}
+
+function mapRole(r: any) {
+  return {
+    ...r,
+    name: r.roleName,
+    code: r.roleCode,
+    status: r.status === 1 ? 'active' : 'inactive',
+    userCount: r.userCount ?? '-',
+    createdAt: r.createdAt || '-',
+  }
+}
+
+async function loadRoles() {
+  loading.value = true
+  try {
+    const res = await getRoleList()
+    roleList.value = (res.data || []).map(mapRole)
+  } finally {
+    loading.value = false
+  }
+}
+
+async function loadPermTree() {
+  const res = await getPermissionTree()
+  permissionTree.value = mapPermTree(res.data || [])
+}
+
 function handleAdd() {
   isEdit.value = false
+  currentRoleId.value = null
   dialogVisible.value = true
   formData.name = ''
   formData.code = ''
@@ -180,17 +174,21 @@ function handleAdd() {
 
 function handleEdit(row: any) {
   isEdit.value = true
+  currentRoleId.value = row.id
   dialogVisible.value = true
   formData.name = row.name
   formData.code = row.code
-  formData.description = row.description
+  formData.description = row.description || ''
   formData.status = row.status
 }
 
-function handlePermission(row: any) {
+async function handlePermission(row: any) {
   currentRole.value = row
-  checkedKeys.value = [11, 12, 13, 21, 22, 31] // 模拟已选权限
+  const res = await getRolePermissions(row.id)
+  checkedKeys.value = res.data || []
   permissionDialogVisible.value = true
+  await nextTick()
+  permTreeRef.value?.setCheckedKeys(checkedKeys.value)
 }
 
 async function handleDelete(row: any) {
@@ -200,28 +198,48 @@ async function handleDelete(row: any) {
       cancelButtonText: '取消',
       type: 'warning',
     })
+    await deleteRole(row.id)
     ElMessage.success('删除成功')
+    loadRoles()
   } catch {
-    // 取消操作
+    // cancelled
   }
 }
 
 async function handleSubmit() {
   if (!formRef.value) return
-  await formRef.value.validate((valid) => {
-    if (valid) {
-      ElMessage.success(isEdit.value ? '编辑成功' : '新增成功')
-      dialogVisible.value = false
+  await formRef.value.validate(async (valid) => {
+    if (!valid) return
+    const payload = {
+      roleName: formData.name,
+      roleCode: formData.code,
+      description: formData.description,
+      status: formData.status === 'active' ? 1 : 0,
     }
+    if (isEdit.value && currentRoleId.value) {
+      await updateRole(currentRoleId.value, payload)
+    } else {
+      await createRole(payload)
+    }
+    ElMessage.success(isEdit.value ? '编辑成功' : '新增成功')
+    dialogVisible.value = false
+    loadRoles()
   })
 }
 
-function handleSavePermission() {
+async function handleSavePermission() {
+  if (!currentRole.value) return
   const checked = permTreeRef.value?.getCheckedKeys(false) || []
-  console.log('保存权限:', checked)
+  const half = permTreeRef.value?.getHalfCheckedKeys() || []
+  await assignRolePermissions(currentRole.value.id, [...checked, ...half])
   ElMessage.success('权限保存成功')
   permissionDialogVisible.value = false
 }
+
+onMounted(async () => {
+  await loadPermTree()
+  await loadRoles()
+})
 </script>
 
 <style lang="scss" scoped>

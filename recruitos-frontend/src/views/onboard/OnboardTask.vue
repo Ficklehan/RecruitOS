@@ -1,5 +1,5 @@
 <template>
-  <div class="page-container">
+  <div class="page-container" v-loading="loading">
     <!-- 页面头部 -->
     <div class="page-header">
       <div class="header-left">
@@ -18,7 +18,7 @@
     <!-- 候选人信息卡片 -->
     <div class="candidate-card">
       <div class="candidate-main">
-        <div class="candidate-avatar">{{ candidateInfo.name.charAt(0) }}</div>
+        <div class="candidate-avatar">{{ candidateInfo.name?.charAt(0) || '?' }}</div>
         <div class="candidate-detail">
           <h3 class="candidate-name">{{ candidateInfo.name }}</h3>
           <div class="candidate-meta">
@@ -135,27 +135,38 @@ import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { ArrowLeft, Plus, User, Calendar, Briefcase } from '@element-plus/icons-vue'
+import {
+  getOnboardDetail,
+  getOnboardTasks,
+  createOnboardTask,
+  updateOnboardTaskStatus,
+} from '@/api/modules/onboard'
 
 const router = useRouter()
 const route = useRoute()
+const loading = ref(false)
+const onboardId = ref<number | null>(null)
 
-// 候选人信息
 const candidateInfo = reactive({
-  name: '张伟',
-  jobTitle: '高级前端工程师',
-  onboardDate: '2026-06-16',
-  status: 'CONFIRMED',
+  name: '',
+  jobTitle: '',
+  onboardDate: '',
+  status: 'PENDING',
 })
 
-// 任务列表
-const tasks = ref([
-  { id: 1, name: '签署劳动合同', type: 'DOC', assignee: '陈HR', dueDate: '2026-06-16', status: 'COMPLETED' },
-  { id: 2, name: '准备工位及办公设备', type: 'PREPARATION', assignee: 'IT运维组', dueDate: '2026-06-15', status: 'COMPLETED' },
-  { id: 3, name: '开通企业邮箱及内部系统账号', type: 'IT', assignee: 'IT支持', dueDate: '2026-06-16', status: 'IN_PROGRESS' },
-  { id: 4, name: '新员工入职培训', type: 'TRAINING', assignee: '培训组', dueDate: '2026-06-17', status: 'PENDING' },
-  { id: 5, name: '收集学历证明及离职证明', type: 'DOC', assignee: '陈HR', dueDate: '2026-06-20', status: 'PENDING' },
-  { id: 6, name: '安排导师及团队介绍', type: 'OTHER', assignee: '技术部-李经理', dueDate: '2026-06-16', status: 'PENDING' },
-])
+const tasks = ref<any[]>([])
+
+function mapTask(t: any) {
+  const raw = t.taskStatus || t.status
+  return {
+    ...t,
+    name: t.taskName || t.name,
+    type: t.taskType || t.type,
+    assignee: t.assigneeName || t.assignee,
+    dueDate: t.dueDate || '',
+    status: raw === 'DONE' ? 'COMPLETED' : raw,
+  }
+}
 
 // 添加任务对话框
 const addTaskDialogVisible = ref(false)
@@ -264,9 +275,11 @@ function handleToggleTask(task: any) {
       cancelButtonText: '取消',
       type: 'info',
     }
-  ).then(() => {
-    task.status = task.status === 'COMPLETED' ? 'PENDING' : 'COMPLETED'
-    ElMessage.success(task.status === 'COMPLETED' ? '任务已完成' : '任务已恢复')
+  ).then(async () => {
+    const next = task.status === 'COMPLETED' ? 'PENDING' : 'DONE'
+    await updateOnboardTaskStatus(task.id, next)
+    task.status = next
+    ElMessage.success(next === 'COMPLETED' ? '任务已完成' : '任务已恢复')
   }).catch(() => {})
 }
 
@@ -279,32 +292,52 @@ function handleAddTask() {
 }
 
 async function confirmAddTask() {
-  if (!taskFormRef.value) return
-  await taskFormRef.value.validate((valid) => {
-    if (valid) {
-      addTaskLoading.value = true
-      setTimeout(() => {
-        tasks.value.push({
-          id: Date.now(),
-          name: taskFormData.name,
-          type: taskFormData.type,
-          assignee: taskFormData.assignee,
-          dueDate: taskFormData.dueDate,
-          status: 'PENDING',
-        })
-        addTaskLoading.value = false
-        addTaskDialogVisible.value = false
-        ElMessage.success('任务添加成功')
-      }, 500)
+  if (!taskFormRef.value || !onboardId.value) return
+  await taskFormRef.value.validate(async (valid) => {
+    if (!valid) return
+    addTaskLoading.value = true
+    try {
+      await createOnboardTask({
+        onboardId: onboardId.value,
+        taskName: taskFormData.name,
+        taskType: taskFormData.type,
+        assigneeName: taskFormData.assignee,
+        dueDate: taskFormData.dueDate,
+      })
+      addTaskDialogVisible.value = false
+      ElMessage.success('任务添加成功')
+      await loadTasks()
+    } finally {
+      addTaskLoading.value = false
     }
   })
 }
 
-onMounted(() => {
-  // 可根据路由参数加载不同候选人的任务
-  const id = route.query.id
-  if (id) {
-    // 模拟根据 id 加载数据
+async function loadDetail() {
+  if (!onboardId.value) return
+  const res = await getOnboardDetail(onboardId.value)
+  const d = res.data
+  candidateInfo.name = d.candidateName || ''
+  candidateInfo.jobTitle = d.jobTitle || ''
+  candidateInfo.onboardDate = d.onboardDate || ''
+  candidateInfo.status = d.onboardStatus || d.status || 'PENDING'
+}
+
+async function loadTasks() {
+  if (!onboardId.value) return
+  const res = await getOnboardTasks(onboardId.value)
+  tasks.value = (res.data || []).map(mapTask)
+}
+
+onMounted(async () => {
+  const id = Number(route.query.id)
+  if (!id) return
+  onboardId.value = id
+  loading.value = true
+  try {
+    await Promise.all([loadDetail(), loadTasks()])
+  } finally {
+    loading.value = false
   }
 })
 </script>

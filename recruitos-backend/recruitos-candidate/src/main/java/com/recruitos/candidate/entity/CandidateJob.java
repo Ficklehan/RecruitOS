@@ -34,6 +34,18 @@ public class CandidateJob extends BaseEntity {
     /** Screener comment */
     private String screenerComment;
 
+    /** Pipeline stage */
+    private String pipelineStage;
+
+    /** Interview sub-stage within INTERVIEWING */
+    private String interviewSubStage;
+
+    private String rejectionReasonCode;
+
+    private String rejectionComment;
+
+    private Integer archivedToPool;
+
     // Getters and Setters
 
     public Long getCandidateId() {
@@ -90,5 +102,45 @@ public class CandidateJob extends BaseEntity {
 
     public void setScreenerComment(String screenerComment) {
         this.screenerComment = screenerComment;
+    }
+
+    public String getPipelineStage() {
+        return pipelineStage;
+    }
+
+    public void setPipelineStage(String pipelineStage) {
+        this.pipelineStage = pipelineStage;
+    }
+
+    public String getInterviewSubStage() {
+        return interviewSubStage;
+    }
+
+    public void setInterviewSubStage(String interviewSubStage) {
+        this.interviewSubStage = interviewSubStage;
+    }
+
+    public String getRejectionReasonCode() {
+        return rejectionReasonCode;
+    }
+
+    public void setRejectionReasonCode(String rejectionReasonCode) {
+        this.rejectionReasonCode = rejectionReasonCode;
+    }
+
+    public String getRejectionComment() {
+        return rejectionComment;
+    }
+
+    public void setRejectionComment(String rejectionComment) {
+        this.rejectionComment = rejectionComment;
+    }
+
+    public Integer getArchivedToPool() {
+        return archivedToPool;
+    }
+
+    public void setArchivedToPool(Integer archivedToPool) {
+        this.archivedToPool = archivedToPool;
     }
 }

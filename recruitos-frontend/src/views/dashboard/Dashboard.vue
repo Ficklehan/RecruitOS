@@ -71,7 +71,7 @@
       <div class="bento-card bento-activity">
         <div class="card-title-row">
           <span class="card-title">最近活动</span>
-          <el-button type="primary" link size="small">全部</el-button>
+          <el-button type="primary" link size="small" @click="$router.push('/workspace/inbox')">全部</el-button>
         </div>
         <div class="activity-list">
           <div v-for="(act, i) in recentActivities" :key="i" class="activity-row">
@@ -88,7 +88,7 @@
       <div class="bento-card bento-todo">
         <div class="card-title-row">
           <span class="card-title">待办事项</span>
-          <el-button type="primary" link size="small">全部</el-button>
+          <el-button type="primary" link size="small" @click="$router.push('/workspace/inbox')">全部</el-button>
         </div>
         <div class="todo-list">
           <div v-for="(t, i) in todoList" :key="i" class="todo-row">
@@ -103,7 +103,7 @@
       <div class="bento-card bento-funnel">
         <div class="card-title-row">
           <span class="card-title">招聘漏斗</span>
-          <el-button type="primary" link size="small" @click="$router.push('/analytics/funnel')">详情</el-button>
+          <el-button type="primary" link size="small" @click="$router.push('/insight/funnel')">详情</el-button>
         </div>
         <div class="funnel-mini">
           <div v-for="f in funnelPreview" :key="f.name" class="funnel-row">
@@ -120,8 +120,12 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, computed } from 'vue'
+import { reactive, computed, ref, onMounted } from 'vue'
 import { useUserStore } from '@/stores/user'
+import { loadInboxItems, loadTodayInterviews } from '@/api/modules/workspace'
+import { getFunnelData } from '@/api/modules/analytics'
+import { getTalentPool } from '@/api/modules/candidate'
+import { getMyNotifications } from '@/api/modules/notification'
 
 const userStore = useUserStore()
 const userName = computed(() => userStore.userInfo?.realName || '管理员')
@@ -141,52 +145,93 @@ const todayStr = computed(() => {
   return `${d.getMonth() + 1}月${d.getDate()}日 星期${w[d.getDay()]}`
 })
 
-const pendingCount = 5
+const pendingCount = ref(0)
 
 const stats = reactive({
-  newDemands: 12,
-  pendingInterviews: 8,
-  weeklyOnboard: 5,
-  totalTalents: 2468,
+  newDemands: 0,
+  pendingInterviews: 0,
+  weeklyOnboard: 0,
+  totalTalents: 0,
 })
 
-const statCards = [
-  { label: '今日新增', value: 12, icon: 'Document', color: '#3B82F6', bg: '#EFF6FF', trend: 12 },
-  { label: '待面试', value: 8, icon: 'Calendar', color: '#D97706', bg: '#FEF3C7', trend: -5 },
-  { label: '本周入职', value: 5, icon: 'Promotion', color: '#059669', bg: '#D1FAE5', trend: 20 },
-  { label: '人才库', value: '2,468', icon: 'UserFilled', color: '#6B7280', bg: '#F1F5F9', trend: 15 },
-]
-
-const quickActions = [
-  { label: '创建需求', icon: 'Plus', path: '/position/demand', color: '#3B82F6', bg: '#EFF6FF' },
-  { label: '安排面试', icon: 'Calendar', path: '/interview/calendar', color: '#D97706', bg: '#FEF3C7' },
-  { label: '候选人', icon: 'User', path: '/talent/candidate', color: '#059669', bg: '#D1FAE5' },
-  { label: '审批', icon: 'Checked', path: '/position/demand/approval', color: '#DC2626', bg: '#FEE2E2' },
-  { label: '数据看板', icon: 'DataAnalysis', path: '/analytics/funnel', color: '#7C3AED', bg: '#EDE9FE' },
-  { label: 'AI 沟通', icon: 'ChatDotRound', path: '/ai-tools/conversation', color: '#0891B2', bg: '#CFFAFE' },
-]
-
-const recentActivities = [
-  { text: '张三 通过了「高级前端工程师」面试', time: '10 分钟前', color: '#059669' },
-  { text: '新需求「产品经理」已创建', time: '30 分钟前', color: '#3B82F6' },
-  { text: '李四 的 Offer 已发送', time: '1 小时前', color: '#D97706' },
-  { text: '王五 已完成入职手续', time: '2 小时前', color: '#059669' },
-]
-
-const todoList = reactive([
-  { text: '审核「高级前端工程师」需求', done: false, urgent: true },
-  { text: '安排张三的终面', done: false, urgent: true },
-  { text: '确认李四的 Offer 细节', done: false, urgent: false },
-  { text: '完成本周面试评价', done: true, urgent: false },
+const statCards = reactive([
+  { label: '今日面试', value: 0, icon: 'Calendar', color: '#D97706', bg: '#FEF3C7', trend: 0 },
+  { label: '待办', value: 0, icon: 'Document', color: '#3B82F6', bg: '#EFF6FF', trend: 0 },
+  { label: '本周入职', value: 0, icon: 'Promotion', color: '#059669', bg: '#D1FAE5', trend: 0 },
+  { label: '人才库', value: '0', icon: 'UserFilled', color: '#6B7280', bg: '#F1F5F9', trend: 0 },
 ])
 
-const funnelPreview = [
-  { name: '需求', count: 1000, pct: 100, color: '#3B82F6' },
-  { name: '筛选', count: 650, pct: 65, color: '#60A5FA' },
-  { name: '面试', count: 320, pct: 32, color: '#818CF8' },
-  { name: 'Offer', count: 95, pct: 9.5, color: '#A78BFA' },
-  { name: '入职', count: 78, pct: 7.8, color: '#059669' },
+const quickActions = [
+  { label: '招聘进展', icon: 'Grid', path: '/pipeline/board', color: '#3B82F6', bg: '#EFF6FF' },
+  { label: '创建需求', icon: 'Plus', path: '/planning/demands/create', color: '#6366F1', bg: '#EEF2FF' },
+  { label: '候选人', icon: 'User', path: '/pipeline/candidates', color: '#059669', bg: '#D1FAE5' },
+  { label: '安排面试', icon: 'Calendar', path: '/pipeline/calendar', color: '#D97706', bg: '#FEF3C7' },
+  { label: '人才库', icon: 'UserFilled', path: '/talent/pool', color: '#6B7280', bg: '#F1F5F9' },
+  { label: '渠道招聘', icon: 'ChatDotRound', path: '/planning/jobs', color: '#0891B2', bg: '#CFFAFE' },
 ]
+
+const recentActivities = ref<{ text: string; time: string; color: string }[]>([])
+const todoList = reactive<{ text: string; done: boolean; urgent: boolean }[]>([])
+const funnelPreview = ref<{ name: string; count: number; pct: number; color: string }[]>([])
+
+const funnelColors = ['#3B82F6', '#60A5FA', '#818CF8', '#A78BFA', '#059669']
+
+function formatTime(t: string) {
+  if (!t) return ''
+  const d = new Date(t)
+  if (Number.isNaN(d.getTime())) return t
+  return d.toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+
+async function loadDashboard() {
+  try {
+    const [inbox, todayInterviews, funnelRes, poolRes, notifRes] = await Promise.all([
+      loadInboxItems().catch(() => []),
+      loadTodayInterviews().catch(() => []),
+      getFunnelData().catch(() => ({ data: null })),
+      getTalentPool({ pageNum: 1, pageSize: 1 }).catch(() => ({ data: { total: 0 } })),
+      getMyNotifications(8).catch(() => ({ data: [] })),
+    ])
+
+    pendingCount.value = inbox.length
+    stats.pendingInterviews = todayInterviews.length
+    stats.totalTalents = poolRes.data?.total || 0
+
+    statCards[0].value = todayInterviews.length
+    statCards[1].value = inbox.length
+    statCards[3].value = (poolRes.data?.total || 0).toLocaleString()
+
+    const stages = funnelRes.data?.stages || []
+    if (stages.length) {
+      const max = Math.max(...stages.map((s: any) => s.count || 0), 1)
+      funnelPreview.value = stages.map((s: any, i: number) => ({
+        name: s.stageName,
+        count: s.count || 0,
+        pct: Math.round(((s.count || 0) / max) * 100),
+        color: funnelColors[i % funnelColors.length],
+      }))
+      const last = stages[stages.length - 1]
+      stats.weeklyOnboard = last?.count || 0
+      statCards[2].value = last?.count || 0
+    }
+
+    const notifications = notifRes.data || []
+    recentActivities.value = notifications.slice(0, 4).map((n: any) => ({
+      text: n.title || n.content || '系统通知',
+      time: formatTime(n.createdAt),
+      color: '#3B82F6',
+    }))
+
+    todoList.splice(0, todoList.length)
+    inbox.slice(0, 5).forEach((item) => {
+      todoList.push({ text: item.title, done: false, urgent: item.type === 'approval' })
+    })
+  } catch {
+    // keep defaults
+  }
+}
+
+onMounted(loadDashboard)
 </script>
 
 <style lang="scss" scoped>

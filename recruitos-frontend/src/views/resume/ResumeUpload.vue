@@ -175,7 +175,7 @@ function getFileColor(name: string) {
 }
 
 function goDetail(result: any) {
-  router.push(`/talent/resume/detail/${result.id}`)
+  router.push(`/talent/resumes/${result.id}`)
 }
 
 async function handleImport(result: any) {

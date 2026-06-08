@@ -4,6 +4,7 @@ import com.recruitos.agent.dto.AgentAccountCreateDTO;
 import com.recruitos.agent.dto.AgentAccountQueryDTO;
 import com.recruitos.agent.dto.AgentAccountVO;
 import com.recruitos.agent.service.AgentAccountService;
+import com.recruitos.agent.service.RpaLoginService;
 import com.recruitos.common.result.PageResult;
 import com.recruitos.common.result.R;
 import io.swagger.annotations.Api;
@@ -22,6 +23,9 @@ public class AgentAccountController {
 
     @Resource
     private AgentAccountService agentAccountService;
+
+    @Resource
+    private RpaLoginService rpaLoginService;
 
     @ApiOperation("Create agent account")
     @PostMapping
@@ -64,4 +68,24 @@ public class AgentAccountController {
         AgentAccountVO vo = agentAccountService.refreshHealth(id);
         return R.ok(vo);
     }
+
+    @ApiOperation("Open browser to login platform (Playwright RPA)")
+    @PostMapping("/{id}/rpa-login")
+    public R<java.util.Map<String, Object>> rpaLogin(@PathVariable Long id) {
+        return R.ok(rpaLoginService.interactiveLogin(id));
+    }
+
+    @ApiOperation("Test saved RPA session")
+    @PostMapping("/{id}/rpa-test")
+    public R<java.util.Map<String, Object>> rpaTest(@PathVariable Long id) {
+        return R.ok(rpaLoginService.testSession(id));
+    }
+
+    @ApiOperation("Clear RPA session")
+    @PostMapping("/{id}/rpa-logout")
+    public R<Void> rpaLogout(@PathVariable Long id) {
+        rpaLoginService.logoutSession(id);
+        return R.ok();
+    }
+
 }

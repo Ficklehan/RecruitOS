@@ -43,4 +43,7 @@ public class SysPermission extends BaseEntity {
 
     @TableField("status")
     private Integer status;
+
+    @TableField(exist = false)
+    private java.util.List<SysPermission> children;
 }

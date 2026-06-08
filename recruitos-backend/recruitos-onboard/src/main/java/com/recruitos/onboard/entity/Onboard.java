@@ -1,5 +1,6 @@
 package com.recruitos.onboard.entity;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.recruitos.common.mybatis.BaseEntity;
 
@@ -32,6 +33,7 @@ public class Onboard extends BaseEntity {
     private LocalDate onboardDate;
 
     /** Onboard status: PENDING / CONFIRMED / CANCELLED / COMPLETED */
+    @TableField("status")
     private String onboardStatus;
 
     /** HR user ID */

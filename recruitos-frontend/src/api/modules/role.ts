@@ -1,7 +1,7 @@
 import request from '../request'
 
 export function getRoleList(params?: any) {
-  return request.get('/api/role', { params }) as any
+  return request.get('/api/role/list', { params }) as any
 }
 
 export function getRoleDetail(id: number) {
@@ -25,5 +25,5 @@ export function getRolePermissions(roleId: number) {
 }
 
 export function assignRolePermissions(roleId: number, permissionIds: number[]) {
-  return request.put(`/api/role/${roleId}/permissions`, { permissionIds }) as any
+  return request.post(`/api/role/${roleId}/permissions`, permissionIds) as any
 }

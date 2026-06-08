@@ -146,9 +146,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick } from 'vue'
+import { ref, computed, nextTick, onMounted } from 'vue'
 import { Search, User, MoreFilled, Document, Promotion, ChatLineRound, Check, Loading } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import {
+  getConversationList, getConversationDetail, sendMessage as sendConversationMessage, getTemplateList,
+} from '@/api/modules/communication'
 
 type Channel = 'SMS' | 'EMAIL' | 'WECHAT' | 'FEISHU'
 type MsgType = 'system' | 'outgoing' | 'incoming'
@@ -187,94 +190,48 @@ const channelLabelMap: Record<Channel, string> = {
   FEISHU: '飞书',
 }
 
-// Mock conversations
-const conversations = ref<Conversation[]>([
-  {
-    id: 1,
-    candidateName: '张三',
-    channel: 'WECHAT',
-    status: '进行中',
-    lastMessage: '好的，那我们周三下午两点面试。',
-    lastTime: '14:32',
-    unread: 2,
-    avatarColor: '#3B82F6',
-  },
-  {
-    id: 2,
-    candidateName: '李四',
-    channel: 'EMAIL',
-    status: '进行中',
-    lastMessage: '感谢您的offer，我需要考虑一下。',
-    lastTime: '昨天',
-    unread: 0,
-    avatarColor: '#059669',
-  },
-  {
-    id: 3,
-    candidateName: '王五',
-    channel: 'SMS',
-    status: '已完成',
-    lastMessage: '面试已结束，等待反馈中。',
-    lastTime: '昨天',
-    unread: 0,
-    avatarColor: '#D97706',
-  },
-  {
-    id: 4,
-    candidateName: '赵六',
-    channel: 'FEISHU',
-    status: '进行中',
-    lastMessage: '请问面试需要准备什么材料？',
-    lastTime: '周一',
-    unread: 1,
-    avatarColor: '#DC2626',
-  },
-  {
-    id: 5,
-    candidateName: '孙七',
-    channel: 'WECHAT',
-    status: '已完成',
-    lastMessage: '已收到，谢谢。',
-    lastTime: '06/02',
-    unread: 0,
-    avatarColor: '#64748B',
-  },
-])
+const avatarColors = ['#3B82F6', '#059669', '#D97706', '#DC2626', '#64748B']
+const conversations = ref<Conversation[]>([])
 
-// Mock messages for conversation 1 (张三)
-const allMessages: Record<number, Message[]> = {
-  1: [
-    { id: 1, type: 'system', content: '会话开始 - 企微渠道', time: '2026-06-06 09:00' },
-    { id: 2, type: 'outgoing', content: '您好张三，我是XX公司HR，看到您的简历非常感兴趣，方便聊一下前端开发工程师岗位吗？', time: '09:01', status: 'read' },
-    { id: 3, type: 'incoming', content: '您好，方便的，请问是什么样的岗位？', time: '09:15' },
-    { id: 4, type: 'outgoing', content: '我们是一家专注于AI招聘的科技公司，目前在招聘高级前端工程师，负责招聘平台的前端架构设计和开发。薪资范围30-45K，不知道您是否有兴趣？', time: '09:16', status: 'read' },
-    { id: 5, type: 'incoming', content: '听起来不错，我目前在看新的机会，能详细了解一下技术栈和团队情况吗？', time: '09:30' },
-    { id: 6, type: 'outgoing', content: '技术栈主要是Vue3 + TypeScript + Vite，后端是Go微服务架构。团队目前有15人，前端4人。我们采用敏捷开发，两周一个迭代。', time: '09:32', status: 'read' },
-    { id: 7, type: 'system', content: 'AI自动回复已生成候选回复建议', time: '09:32' },
-    { id: 8, type: 'incoming', content: '了解了，我很感兴趣。方便安排一次面试吗？', time: '14:20' },
-    { id: 9, type: 'outgoing', content: '当然可以！请问您周三下午或者周四上午方便吗？我们安排技术面试+主管面试，大概2小时。', time: '14:25', status: 'delivered' },
-    { id: 10, type: 'incoming', content: '好的，那我们周三下午两点面试。', time: '14:32' },
-  ],
-  2: [
-    { id: 1, type: 'system', content: '会话开始 - 邮件渠道', time: '2026-06-05 10:00' },
-    { id: 2, type: 'outgoing', content: '尊敬的李四，恭喜您通过我们的面试，我们诚挚邀请您加入XX公司担任产品经理岗位。', time: '10:00', status: 'read' },
-    { id: 3, type: 'incoming', content: '感谢您的offer，我需要考虑一下。', time: '16:45' },
-  ],
-  3: [
-    { id: 1, type: 'system', content: '会话开始 - 短信渠道', time: '2026-06-05 08:00' },
-    { id: 2, type: 'outgoing', content: '王五您好，提醒您今天下午3点有面试安排，请准时参加。', time: '08:00', status: 'read' },
-    { id: 3, type: 'incoming', content: '收到，我会准时到场。', time: '08:20' },
-    { id: 4, type: 'system', content: '面试已结束，等待反馈中。', time: '17:00' },
-  ],
-  4: [
-    { id: 1, type: 'system', content: '会话开始 - 飞书渠道', time: '2026-06-04 11:00' },
-    { id: 2, type: 'incoming', content: '请问面试需要准备什么材料？', time: '11:05' },
-  ],
-  5: [
-    { id: 1, type: 'system', content: '会话开始 - 企微渠道', time: '2026-06-02 09:00' },
-    { id: 2, type: 'outgoing', content: '孙七您好，感谢您参加我们的面试，面试结果将在3个工作日内通知您。', time: '09:00', status: 'read' },
-    { id: 3, type: 'incoming', content: '已收到，谢谢。', time: '09:30' },
-  ],
+function formatMsgTime(t?: string) {
+  if (!t) return ''
+  const d = new Date(t)
+  if (Number.isNaN(d.getTime())) return t
+  return d.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+}
+
+function mapConversation(row: any, index: number): Conversation {
+  const lastMsg = row.messages?.[row.messages.length - 1]
+  return {
+    id: row.id,
+    candidateName: row.candidateName || '未知',
+    channel: (row.channel || 'WECHAT') as Channel,
+    status: row.status === 'CLOSED' ? '已完成' : '进行中',
+    lastMessage: lastMsg?.content || `共 ${row.messageCount || 0} 条消息`,
+    lastTime: formatMsgTime(row.lastMessageAt),
+    unread: 0,
+    avatarColor: avatarColors[index % avatarColors.length],
+  }
+}
+
+function mapMessages(msgs: any[]): Message[] {
+  return (msgs || []).map((m) => ({
+    id: m.id,
+    type: m.senderType === 'SYSTEM' ? 'system' : m.senderType === 'AGENT' || m.senderType === 'HR' ? 'outgoing' : 'incoming',
+    content: m.content,
+    time: formatMsgTime(m.sentAt || m.createdAt),
+    status: m.status === 'READ' ? 'read' : m.status === 'DELIVERED' ? 'delivered' : 'sent',
+  }))
+}
+
+async function loadConversations() {
+  try {
+    const res: any = await getConversationList({ pageNum: 1, pageSize: 50 })
+    const list = res.data?.list || res.data?.records || []
+    conversations.value = list.map(mapConversation)
+  } catch {
+    conversations.value = []
+  }
 }
 
 const searchKeyword = ref('')
@@ -284,12 +241,7 @@ const messageInput = ref('')
 const messageListRef = ref<HTMLElement>()
 const templateDrawerVisible = ref(false)
 
-const templateOptions = [
-  { id: 1, name: '面试邀请', content: '您好{candidateName}，我们诚挚邀请您参加{positionName}岗位的面试，请于{interviewTime}准时到场。' },
-  { id: 2, name: '面试提醒', content: '您好{candidateName}，提醒您明天{interviewTime}有面试安排，请准时参加。' },
-  { id: 3, name: 'offer通知', content: '尊敬的{candidateName}，恭喜您通过面试，我们诚挚邀请您加入{positionName}岗位。' },
-  { id: 4, name: '结果通知', content: '尊敬的{candidateName}，感谢您参与面试，我们会尽快反馈面试结果。' },
-]
+const templateOptions = ref<{ id: number; name: string; content: string }[]>([])
 
 const filteredConversations = computed(() => {
   if (!searchKeyword.value) return conversations.value
@@ -298,13 +250,17 @@ const filteredConversations = computed(() => {
   )
 })
 
-function selectConversation(conv: Conversation) {
+async function selectConversation(conv: Conversation) {
   activeConversation.value = conv
-  messages.value = allMessages[conv.id] || []
   conv.unread = 0
-  nextTick(() => {
-    scrollToBottom()
-  })
+  try {
+    const res: any = await getConversationDetail(conv.id)
+    const detail = res.data || res
+    messages.value = mapMessages(detail.messages)
+  } catch {
+    messages.value = []
+  }
+  nextTick(scrollToBottom)
 }
 
 function scrollToBottom() {
@@ -313,31 +269,37 @@ function scrollToBottom() {
   }
 }
 
-function sendMessage() {
+async function sendMessage() {
   if (!messageInput.value.trim() || !activeConversation.value) return
-
-  const newMsg: Message = {
-    id: Date.now(),
-    type: 'outgoing',
-    content: messageInput.value.trim(),
-    time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
-    status: 'sent',
+  const content = messageInput.value.trim()
+  try {
+    const res: any = await sendConversationMessage(activeConversation.value.id, { content })
+    const detail = res.data || res
+    messages.value = mapMessages(detail.messages)
+    activeConversation.value.lastMessage = content
+    activeConversation.value.lastTime = '刚刚'
+    messageInput.value = ''
+    nextTick(scrollToBottom)
+    ElMessage.success('消息已发送')
+  } catch {
+    ElMessage.error('发送失败')
   }
-
-  messages.value.push(newMsg)
-
-  // Update conversation preview
-  activeConversation.value.lastMessage = newMsg.content
-  activeConversation.value.lastTime = '刚刚'
-
-  messageInput.value = ''
-
-  nextTick(() => {
-    scrollToBottom()
-  })
-
-  ElMessage.success('消息已发送')
 }
+
+onMounted(async () => {
+  await loadConversations()
+  try {
+    const res: any = await getTemplateList({ pageNum: 1, pageSize: 50 })
+    const list = res.data?.list || res.data?.records || []
+    templateOptions.value = list.map((t: any) => ({
+      id: t.id,
+      name: t.templateName || t.name,
+      content: t.content,
+    }))
+  } catch {
+    templateOptions.value = []
+  }
+})
 
 function insertTemplate(content: string) {
   messageInput.value = content

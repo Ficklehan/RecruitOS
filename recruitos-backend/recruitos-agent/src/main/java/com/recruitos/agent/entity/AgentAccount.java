@@ -1,5 +1,6 @@
 package com.recruitos.agent.entity;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.recruitos.common.mybatis.BaseEntity;
 
@@ -13,6 +14,9 @@ public class AgentAccount extends BaseEntity {
 
     private static final long serialVersionUID = 1L;
 
+    /** 所属招聘渠道 ID */
+    private Long channelId;
+
     /** Platform: BOSS / LAGOU / ZHILIAN / LIEPIN / OTHER */
     private String platform;
 
@@ -21,6 +25,10 @@ public class AgentAccount extends BaseEntity {
 
     /** Platform account ID */
     private String accountId;
+
+    /** 登录凭证 JSON（生产应 KMS 加密） */
+    @TableField("encrypted_credential")
+    private String encryptedCredential;
 
     /** Status: ACTIVE / PAUSED / DISABLED / RATE_LIMITED */
     private String status;
@@ -45,6 +53,14 @@ public class AgentAccount extends BaseEntity {
 
     // Getters and Setters
 
+    public Long getChannelId() {
+        return channelId;
+    }
+
+    public void setChannelId(Long channelId) {
+        this.channelId = channelId;
+    }
+
     public String getPlatform() {
         return platform;
     }
@@ -67,6 +83,14 @@ public class AgentAccount extends BaseEntity {
 
     public void setAccountId(String accountId) {
         this.accountId = accountId;
+    }
+
+    public String getEncryptedCredential() {
+        return encryptedCredential;
+    }
+
+    public void setEncryptedCredential(String encryptedCredential) {
+        this.encryptedCredential = encryptedCredential;
     }
 
     public String getStatus() {

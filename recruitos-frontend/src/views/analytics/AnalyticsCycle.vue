@@ -105,20 +105,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { Search, Top, Bottom } from '@element-plus/icons-vue'
+import { getCycleData } from '@/api/modules/analytics'
 
 const dateRange = ref<string[]>([])
+const stageColors = ['#3B82F6', '#059669', '#D97706', '#DC2626', '#64748B', '#3B82F6']
+const totalAvgFromApi = ref<number | null>(null)
 
-// 阶段数据
-const stageData = ref([
-  { name: '需求审批', days: 3.2, diff: -0.5, color: '#3B82F6' },
-  { name: '简历筛选', days: 5.1, diff: 0.8, color: '#059669' },
-  { name: '初面安排', days: 4.8, diff: -0.3, color: '#D97706' },
-  { name: '复试安排', days: 3.5, diff: 0.2, color: '#DC2626' },
-  { name: 'Offer审批', days: 2.1, diff: -0.4, color: '#64748B' },
-  { name: '入职准备', days: 7.0, diff: 1.5, color: '#3B82F6' },
-])
+const stageData = ref<{ name: string; days: number; diff: number; color: string }[]>([])
 
 // 最大天数（用于计算条形图宽度）
 const maxDays = computed(() =>
@@ -126,9 +121,10 @@ const maxDays = computed(() =>
 )
 
 // 平均招聘周期
-const avgCycleDays = computed(() =>
-  stageData.value.reduce((sum, s) => sum + s.days, 0).toFixed(1)
-)
+const avgCycleDays = computed(() => {
+  if (totalAvgFromApi.value != null) return totalAvgFromApi.value.toFixed(1)
+  return stageData.value.reduce((sum, s) => sum + s.days, 0).toFixed(1)
+})
 
 // 本月与上月对比
 const currentMonthDays = computed(() =>
@@ -148,9 +144,32 @@ function getStageWidth(days: number): number {
   return maxDays.value > 0 ? (days / maxDays.value) * 100 : 0
 }
 
-function handleSearch() {
-  // Mock: 重新加载数据
+async function loadCycle() {
+  try {
+    const params: { dateFrom?: string; dateTo?: string } = {}
+    if (dateRange.value?.length === 2) {
+      params.dateFrom = dateRange.value[0]
+      params.dateTo = dateRange.value[1]
+    }
+    const res: any = await getCycleData(params)
+    totalAvgFromApi.value = res.data?.totalAvgCycleDays ?? null
+    const stages = res.data?.stages || []
+    stageData.value = stages.map((s: any, i: number) => ({
+      name: s.stageName,
+      days: s.avgDays || 0,
+      diff: 0,
+      color: stageColors[i % stageColors.length],
+    }))
+  } catch {
+    stageData.value = []
+  }
 }
+
+function handleSearch() {
+  loadCycle()
+}
+
+onMounted(loadCycle)
 </script>
 
 <style lang="scss" scoped>

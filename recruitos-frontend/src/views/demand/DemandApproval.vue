@@ -2,7 +2,10 @@
   <div class="page-container">
     <!-- 页面头部 -->
     <div class="page-header">
-      <h2 class="page-title">我的审批</h2>
+      <div>
+        <h2 class="page-title">招聘需求审批</h2>
+        <p class="page-subtitle">处理待审批的招聘需求，通过后申请人可创建在招职位</p>
+      </div>
     </div>
 
     <!-- Tab 切换 -->
@@ -231,7 +234,7 @@ async function handleReject() {
 // 查看详情
 function handleViewDetail(item: any) {
   // 尝试通过 demandId 跳转到需求详情
-  router.push(`/position/demand/detail/${item.demandId || item.id}`)
+  router.push(`/planning/demands/${item.demandId || item.id}`)
 }
 
 onMounted(() => {

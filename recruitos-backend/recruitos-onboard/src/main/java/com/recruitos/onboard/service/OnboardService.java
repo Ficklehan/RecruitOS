@@ -8,6 +8,7 @@ import com.recruitos.common.tenant.TenantContext;
 import com.recruitos.onboard.dto.*;
 import com.recruitos.onboard.entity.Onboard;
 import com.recruitos.onboard.entity.OnboardTask;
+import com.recruitos.onboard.mapper.HeadcountWriteMapper;
 import com.recruitos.onboard.mapper.OnboardMapper;
 import com.recruitos.onboard.mapper.OnboardTaskMapper;
 import org.springframework.stereotype.Service;
@@ -33,6 +34,9 @@ public class OnboardService {
 
     @Resource
     private OnboardTaskMapper onboardTaskMapper;
+
+    @Resource
+    private HeadcountWriteMapper headcountWriteMapper;
 
     /**
      * Create an onboard record with default tasks
@@ -151,7 +155,25 @@ public class OnboardService {
         onboard.setOnboardStatus(status);
         onboardMapper.updateById(onboard);
 
+        if ("COMPLETED".equals(status)) {
+            completeHeadcountWriteback(tenantId, onboard);
+        }
+
         return convertToVO(onboard);
+    }
+
+    private void completeHeadcountWriteback(Long tenantId, Onboard onboard) {
+        if (onboard.getJobId() != null) {
+            headcountWriteMapper.incrementJobFilled(onboard.getJobId(), tenantId);
+            Long demandId = headcountWriteMapper.selectDemandId(onboard.getJobId(), tenantId);
+            if (demandId != null) {
+                headcountWriteMapper.incrementDemandFilled(demandId, tenantId);
+            }
+            if (onboard.getCandidateId() != null) {
+                headcountWriteMapper.markCandidateHired(tenantId, onboard.getCandidateId(), onboard.getJobId());
+                headcountWriteMapper.markCandidateOnboard(onboard.getCandidateId(), tenantId);
+            }
+        }
     }
 
     /**
@@ -193,7 +215,7 @@ public class OnboardService {
             throw new BizException("Access denied");
         }
 
-        task.setTaskStatus(status);
+        task.setTaskStatus(normalizeTaskStatus(status));
         onboardTaskMapper.updateById(task);
 
         return convertTaskToVO(task);
@@ -251,6 +273,13 @@ public class OnboardService {
     /**
      * Validate status transition
      */
+    private String normalizeTaskStatus(String status) {
+        if ("COMPLETED".equals(status)) {
+            return "DONE";
+        }
+        return status;
+    }
+
     private boolean isValidStatusTransition(String current, String next) {
         switch (current) {
             case "PENDING":
@@ -314,7 +343,8 @@ public class OnboardService {
         vo.setAssigneeId(task.getAssigneeId());
         vo.setAssigneeName(task.getAssigneeName());
         vo.setDueDate(task.getDueDate());
-        vo.setTaskStatus(task.getTaskStatus());
+        String taskStatus = task.getTaskStatus();
+        vo.setTaskStatus("DONE".equals(taskStatus) ? "COMPLETED" : taskStatus);
         vo.setRemark(task.getRemark());
         vo.setCreatedAt(task.getCreatedAt());
         vo.setUpdatedAt(task.getUpdatedAt());

@@ -62,8 +62,12 @@
           <el-form-item label="组织名称" prop="name">
             <el-input v-model="formData.name" placeholder="请输入组织名称" />
           </el-form-item>
-          <el-form-item label="组织编码" prop="code">
-            <el-input v-model="formData.code" placeholder="请输入组织编码" />
+          <el-form-item label="组织类型" prop="type">
+            <el-select v-model="formData.type" placeholder="请选择类型" style="width: 100%">
+              <el-option label="公司" value="COMPANY" />
+              <el-option label="部门" value="DEPARTMENT" />
+              <el-option label="小组" value="TEAM" />
+            </el-select>
           </el-form-item>
           <el-form-item label="上级组织" prop="parentId">
             <el-tree-select
@@ -76,14 +80,8 @@
               style="width: 100%"
             />
           </el-form-item>
-          <el-form-item label="负责人" prop="leader">
-            <el-input v-model="formData.leader" placeholder="请输入负责人" />
-          </el-form-item>
-          <el-form-item label="联系电话" prop="phone">
-            <el-input v-model="formData.phone" placeholder="请输入联系电话" />
-          </el-form-item>
-          <el-form-item label="排序" prop="sort">
-            <el-input-number v-model="formData.sort" :min="0" :max="999" />
+          <el-form-item label="排序" prop="sortOrder">
+            <el-input-number v-model="formData.sortOrder" :min="0" :max="999" />
           </el-form-item>
           <el-form-item label="状态" prop="status">
             <el-radio-group v-model="formData.status">
@@ -103,83 +101,76 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { onMounted, ref, reactive } from 'vue'
 import { Search } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { getOrgTree, createOrg, updateOrg, deleteOrg } from '@/api/modules/org'
 
 const treeRef = ref()
 const formRef = ref<FormInstance>()
 const searchText = ref('')
 const selectedOrg = ref<any>(null)
 const isEditing = ref(false)
+const loading = ref(false)
+const isNew = ref(false)
 
-const orgTree = ref([
-  {
-    id: 1,
-    name: 'RecruitOS 科技有限公司',
-    code: 'HQ',
-    children: [
-      {
-        id: 2,
-        name: '技术部',
-        code: 'TECH',
-        children: [
-          { id: 5, name: '前端组', code: 'FE' },
-          { id: 6, name: '后端组', code: 'BE' },
-          { id: 7, name: '测试组', code: 'QA' },
-        ],
-      },
-      {
-        id: 3,
-        name: '产品部',
-        code: 'PM',
-        children: [
-          { id: 8, name: '产品设计组', code: 'PD' },
-          { id: 9, name: '用户体验组', code: 'UX' },
-        ],
-      },
-      { id: 4, name: '人力资源部', code: 'HR' },
-    ],
-  },
-])
+const orgTree = ref<any[]>([])
 
 const formData = reactive({
   name: '',
-  code: '',
+  type: 'DEPARTMENT',
   parentId: null as number | null,
-  leader: '',
-  phone: '',
-  sort: 0,
+  sortOrder: 0,
   status: 'active',
 })
 
 const rules: FormRules = {
   name: [{ required: true, message: '请输入组织名称', trigger: 'blur' }],
-  code: [{ required: true, message: '请输入组织编码', trigger: 'blur' }],
+  type: [{ required: true, message: '请选择组织类型', trigger: 'change' }],
+}
+
+function toFormStatus(status: number | string) {
+  return status === 1 || status === 'active' ? 'active' : 'inactive'
+}
+
+function toApiStatus(status: string) {
+  return status === 'active' ? 1 : 0
+}
+
+async function loadTree() {
+  loading.value = true
+  try {
+    const res = await getOrgTree()
+    orgTree.value = res.data || []
+  } finally {
+    loading.value = false
+  }
+}
+
+function fillForm(data: any) {
+  formData.name = data.name || ''
+  formData.type = data.type || 'DEPARTMENT'
+  formData.parentId = data.parentId ?? null
+  formData.sortOrder = data.sortOrder ?? 0
+  formData.status = toFormStatus(data.status ?? 1)
 }
 
 function handleNodeClick(data: any) {
   selectedOrg.value = data
   isEditing.value = false
-  formData.name = data.name
-  formData.code = data.code
-  formData.parentId = data.parentId || null
-  formData.leader = data.leader || ''
-  formData.phone = data.phone || ''
-  formData.sort = data.sort || 0
-  formData.status = data.status || 'active'
+  isNew.value = false
+  fillForm(data)
 }
 
 function handleAdd() {
-  selectedOrg.value = {}
+  selectedOrg.value = { id: null }
   isEditing.value = true
+  isNew.value = true
   formData.name = ''
-  formData.code = ''
+  formData.type = 'DEPARTMENT'
   formData.parentId = null
-  formData.leader = ''
-  formData.phone = ''
-  formData.sort = 0
+  formData.sortOrder = 0
   formData.status = 'active'
 }
 
@@ -188,28 +179,46 @@ function handleEdit() {
 }
 
 async function handleDelete() {
+  if (!selectedOrg.value?.id) return
   try {
     await ElMessageBox.confirm('确定要删除该组织吗？删除后不可恢复。', '警告', {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
       type: 'warning',
     })
+    await deleteOrg(selectedOrg.value.id)
     ElMessage.success('删除成功')
     selectedOrg.value = null
+    loadTree()
   } catch {
-    // 取消操作
+    // cancelled
   }
 }
 
 async function handleSave() {
   if (!formRef.value) return
-  await formRef.value.validate((valid) => {
-    if (valid) {
-      ElMessage.success('保存成功')
-      isEditing.value = false
+  await formRef.value.validate(async (valid) => {
+    if (!valid) return
+    const payload = {
+      name: formData.name,
+      type: formData.type,
+      parentId: formData.parentId,
+      sortOrder: formData.sortOrder,
+      status: toApiStatus(formData.status),
     }
+    if (isNew.value) {
+      await createOrg(payload)
+    } else if (selectedOrg.value?.id) {
+      await updateOrg(selectedOrg.value.id, payload)
+    }
+    ElMessage.success('保存成功')
+    isEditing.value = false
+    isNew.value = false
+    await loadTree()
   })
 }
+
+onMounted(loadTree)
 </script>
 
 <style lang="scss" scoped>

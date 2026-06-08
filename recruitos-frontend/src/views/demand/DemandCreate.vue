@@ -7,7 +7,8 @@
           <el-icon><ArrowLeft /></el-icon>
           返回
         </el-button>
-        <h2 class="page-title">{{ isEdit ? '编辑需求' : '创建需求' }}</h2>
+        <h2 class="page-title">{{ isEdit ? '编辑招聘需求' : '创建招聘需求' }}</h2>
+        <p class="page-subtitle">审批通过后可据此创建在招职位并开始招聘</p>
       </div>
     </div>
 
@@ -24,8 +25,8 @@
         <div class="form-section">
           <h3 class="section-title">基本信息</h3>
           <div class="form-grid">
-            <el-form-item label="需求标题" prop="title" class="span-2">
-              <el-input v-model="formData.title" placeholder="请输入需求标题" maxlength="100" show-word-limit />
+            <el-form-item label="招聘需求标题" prop="title" class="span-2">
+              <el-input v-model="formData.title" placeholder="如：技术部-高级前端工程师" maxlength="100" show-word-limit />
             </el-form-item>
             <el-form-item label="所属部门" prop="orgId">
               <el-tree-select
@@ -41,8 +42,8 @@
             <el-form-item label="招聘人数" prop="headCount">
               <el-input-number v-model="formData.headCount" :min="1" :max="99" style="width: 100%" />
             </el-form-item>
-            <el-form-item label="岗位级别" prop="jobLevel">
-              <el-select v-model="formData.jobLevel" placeholder="请选择岗位级别" style="width: 100%">
+            <el-form-item label="职级" prop="jobLevel">
+              <el-select v-model="formData.jobLevel" placeholder="请选择职级" style="width: 100%">
                 <el-option label="P6 - 高级工程师" value="P6" />
                 <el-option label="P7 - 资深工程师" value="P7" />
                 <el-option label="P8 - 技术专家" value="P8" />
@@ -108,12 +109,12 @@
               <el-option label="项目临时用工" value="TEMPORARY" />
             </el-select>
           </el-form-item>
-          <el-form-item label="岗位职责" prop="jobDuty">
+          <el-form-item label="职位描述" prop="jobDuty">
             <el-input
               v-model="formData.jobDuty"
               type="textarea"
               :rows="5"
-              placeholder="请详细描述岗位职责"
+              placeholder="请描述该职位的主要工作内容"
               maxlength="2000"
               show-word-limit
             />
@@ -290,7 +291,7 @@ const formRules: FormRules = {
     { required: true, message: '请输入招聘人数', trigger: 'change' },
   ],
   jobLevel: [
-    { required: true, message: '请选择岗位级别', trigger: 'change' },
+    { required: true, message: '请选择职级', trigger: 'change' },
   ],
   urgency: [
     { required: true, message: '请选择紧急程度', trigger: 'change' },
@@ -299,7 +300,7 @@ const formRules: FormRules = {
     { required: true, message: '请选择需求原因', trigger: 'change' },
   ],
   jobDuty: [
-    { required: true, message: '请输入岗位职责', trigger: 'blur' },
+    { required: true, message: '请输入职位描述', trigger: 'blur' },
   ],
   jobRequirement: [
     { required: true, message: '请输入任职要求', trigger: 'blur' },
@@ -390,7 +391,7 @@ async function handleSaveDraft() {
       await createDemand(formData)
       ElMessage.success('草稿已保存')
     }
-    router.push('/position/demand')
+    router.push('/planning/demands')
   } catch {
     ElMessage.error('保存失败')
   } finally {
@@ -422,7 +423,7 @@ async function handleSubmit() {
       }
     }
     ElMessage.success('已提交审批')
-    router.push('/position/demand')
+    router.push('/planning/demands')
   } catch {
     ElMessage.error('提交失败')
   } finally {
@@ -431,7 +432,7 @@ async function handleSubmit() {
 }
 
 function goBack() {
-  router.push('/position/demand')
+  router.push('/planning/demands')
 }
 
 onMounted(() => {

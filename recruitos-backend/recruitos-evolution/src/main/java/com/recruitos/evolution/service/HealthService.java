@@ -134,7 +134,8 @@ public class HealthService {
             HealthVO vo = new HealthVO();
             vo.setOverallScore(0);
             vo.setStatus("CRITICAL");
-            vo.setAlerts(List.of("No jobs with evolution data found"));
+            // Java 8 compatibility: List.of() is available since Java 9
+            vo.setAlerts(java.util.Collections.singletonList("No jobs with evolution data found"));
             return vo;
         }
 

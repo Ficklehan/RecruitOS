@@ -24,8 +24,18 @@ export function getConversationDetail(id: number) {
   return request.get(`/api/communication/conversation/${id}`)
 }
 
-export function sendMessage(conversationId: number, data: any) {
-  return request.post(`/api/communication/conversation/${conversationId}/message`, data)
+export function sendMessage(conversationId: number, data: { content: string; templateId?: number }) {
+  return request.post(`/api/communication/conversation/${conversationId}/send`, null, {
+    params: { content: data.content, templateId: data.templateId },
+  })
+}
+
+export function getSafetyStats() {
+  return request.get('/api/communication/safety/stats')
+}
+
+export function reviewSafetyLog(id: number, action: string) {
+  return request.post(`/api/communication/safety/${id}/review`, null, { params: { action } })
 }
 
 export function getSafetyLogList(params?: any) {

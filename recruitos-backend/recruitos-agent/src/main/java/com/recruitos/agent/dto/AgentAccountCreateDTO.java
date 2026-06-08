@@ -9,6 +9,9 @@ public class AgentAccountCreateDTO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
+    /** 所属渠道 ID */
+    private Long channelId;
+
     /** Platform: BOSS / LAGOU / ZHILIAN / LIEPIN / OTHER */
     private String platform;
 
@@ -27,7 +30,24 @@ public class AgentAccountCreateDTO implements Serializable {
     /** Remark */
     private String remark;
 
+    /** 登录方式：manual | phone */
+    private String authMode;
+
+    /** 平台登录手机号（authMode=phone） */
+    private String loginPhone;
+
+    /** 平台登录密码 */
+    private String loginPassword;
+
     // Getters and Setters
+
+    public Long getChannelId() {
+        return channelId;
+    }
+
+    public void setChannelId(Long channelId) {
+        this.channelId = channelId;
+    }
 
     public String getPlatform() {
         return platform;
@@ -75,5 +95,29 @@ public class AgentAccountCreateDTO implements Serializable {
 
     public void setRemark(String remark) {
         this.remark = remark;
+    }
+
+    public String getAuthMode() {
+        return authMode;
+    }
+
+    public void setAuthMode(String authMode) {
+        this.authMode = authMode;
+    }
+
+    public String getLoginPhone() {
+        return loginPhone;
+    }
+
+    public void setLoginPhone(String loginPhone) {
+        this.loginPhone = loginPhone;
+    }
+
+    public String getLoginPassword() {
+        return loginPassword;
+    }
+
+    public void setLoginPassword(String loginPassword) {
+        this.loginPassword = loginPassword;
     }
 }

@@ -2,10 +2,13 @@
   <div class="page-container">
     <!-- 页面头部 -->
     <div class="page-header">
-      <h2 class="page-title">需求列表</h2>
+      <div>
+        <h2 class="page-title">招聘需求</h2>
+        <p class="page-subtitle">部门提出的用人申请，审批通过后可创建在招职位</p>
+      </div>
       <el-button type="primary" @click="handleCreate">
         <el-icon><Plus /></el-icon>
-        创建需求
+        创建招聘需求
       </el-button>
     </div>
 
@@ -13,7 +16,7 @@
     <div class="filter-bar">
       <el-input
         v-model="queryParams.title"
-        placeholder="搜索需求标题"
+        placeholder="搜索招聘需求"
         :prefix-icon="Search"
         clearable
         style="width: 240px"
@@ -40,7 +43,7 @@
 
     <!-- 数据表格 -->
     <div class="data-card">
-      <el-table :data="demandList" stripe highlight-current-row style="width: 100%">
+      <el-table v-if="demandList.length" :data="demandList" stripe highlight-current-row style="width: 100%">
         <el-table-column prop="demandNo" label="需求编号" width="140" show-overflow-tooltip />
         <el-table-column prop="title" label="需求标题" min-width="200" show-overflow-tooltip>
           <template #default="{ row }">
@@ -93,8 +96,19 @@
         </el-table-column>
       </el-table>
 
+      <EmptyStateCta
+        v-else
+        title="暂无招聘需求"
+        description="创建招聘需求并提交审批后，可据此创建在招职位并开始招聘"
+        :actions="[
+          { label: '创建招聘需求', type: 'primary', onClick: handleCreate },
+          { label: '查看在招职位', type: 'default', onClick: () => router.push('/planning/jobs') },
+        ]"
+      />
+
       <!-- 分页 -->
       <el-pagination
+        v-if="total > 0"
         v-model:current-page="queryParams.pageNum"
         v-model:page-size="queryParams.pageSize"
         :page-sizes="[10, 20, 50, 100]"
@@ -112,6 +126,8 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Plus, RefreshRight } from '@element-plus/icons-vue'
+import EmptyStateCta from '@/components/common/EmptyStateCta.vue'
+import { demandStatusLabel } from '@/constants/businessLabels'
 import { getDemandList, submitDemand, closeDemand } from '@/api/modules/demand'
 
 const router = useRouter()
@@ -144,7 +160,7 @@ const statusOptions = [
   { label: '审批中', value: 'PENDING' },
   { label: '已通过', value: 'APPROVED' },
   { label: '已驳回', value: 'REJECTED' },
-  { label: '已建岗', value: 'JOB_CREATED' },
+  { label: '已创建职位', value: 'JOB_CREATED' },
   { label: '招聘中', value: 'RECRUITING' },
   { label: '已完成', value: 'COMPLETED' },
   { label: '已关闭', value: 'CLOSED' },
@@ -179,17 +195,7 @@ function getStatusType(status: string) {
 }
 
 function getStatusLabel(status: string) {
-  const map: Record<string, string> = {
-    DRAFT: '草稿',
-    PENDING: '审批中',
-    APPROVED: '已通过',
-    REJECTED: '已驳回',
-    JOB_CREATED: '已建岗',
-    RECRUITING: '招聘中',
-    COMPLETED: '已完成',
-    CLOSED: '已关闭',
-  }
-  return map[status] || status
+  return demandStatusLabel(status)
 }
 
 // 紧急程度标签映射
@@ -237,15 +243,15 @@ function handleReset() {
 }
 
 function handleCreate() {
-  router.push('/position/demand/create')
+  router.push('/planning/demands/create')
 }
 
 function handleView(row: any) {
-  router.push(`/position/demand/detail/${row.id}`)
+  router.push(`/planning/demands/${row.id}`)
 }
 
 function handleEdit(row: any) {
-  router.push(`/position/demand/create?id=${row.id}`)
+  router.push(`/planning/demands/create?id=${row.id}`)
 }
 
 async function handleSubmit(row: any) {

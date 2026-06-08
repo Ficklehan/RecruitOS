@@ -7,6 +7,8 @@ import com.recruitos.common.result.PageResult;
 import com.recruitos.common.tenant.TenantContext;
 import com.recruitos.offer.dto.*;
 import com.recruitos.offer.entity.Offer;
+import com.recruitos.offer.mapper.CandidateJobWriteMapper;
+import com.recruitos.offer.mapper.HiringDecisionReadMapper;
 import com.recruitos.offer.mapper.OfferMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,6 +34,12 @@ public class OfferService {
     @Resource
     private OfferMapper offerMapper;
 
+    @Resource
+    private HiringDecisionReadMapper hiringDecisionReadMapper;
+
+    @Resource
+    private CandidateJobWriteMapper candidateJobWriteMapper;
+
     /**
      * Create an offer with DRAFT status
      */
@@ -40,6 +48,14 @@ public class OfferService {
         Long tenantId = TenantContext.getTenantId();
         if (tenantId == null) {
             throw new BizException("User not authenticated");
+        }
+
+        if (dto.getCandidateId() == null || dto.getJobId() == null) {
+            throw new BizException("Candidate ID and Job ID are required");
+        }
+        int hireCount = hiringDecisionReadMapper.countHireDecision(tenantId, dto.getCandidateId(), dto.getJobId());
+        if (hireCount <= 0) {
+            throw new BizException("Hiring decision (HIRE) is required before creating an offer");
         }
 
         Offer offer = new Offer();
@@ -58,6 +74,49 @@ public class OfferService {
 
         offerMapper.insert(offer);
 
+        candidateJobWriteMapper.updatePipelineStage(tenantId, dto.getCandidateId(), dto.getJobId(), "OFFER");
+
+        return convertToVO(offer);
+    }
+
+    /**
+     * Update offer fields (salary, bg check, level, etc.)
+     */
+    @Transactional
+    public OfferVO updateOffer(Long id, OfferCreateDTO dto) {
+        Long tenantId = TenantContext.getTenantId();
+        Offer offer = offerMapper.selectById(id);
+        if (offer == null || !offer.getTenantId().equals(tenantId)) {
+            throw new BizException("Offer not found");
+        }
+        if (StringUtils.hasText(dto.getCandidateName())) {
+            offer.setCandidateName(dto.getCandidateName());
+        }
+        if (StringUtils.hasText(dto.getJobTitle())) {
+            offer.setJobTitle(dto.getJobTitle());
+        }
+        if (StringUtils.hasText(dto.getDepartment())) {
+            offer.setDepartment(dto.getDepartment());
+        }
+        if (dto.getSalary() != null) {
+            offer.setSalary(new BigDecimal(dto.getSalary()));
+        }
+        if (dto.getRemark() != null) {
+            offer.setRemark(dto.getRemark());
+        }
+        offerMapper.updateById(offer);
+        return convertToVO(offer);
+    }
+
+    @Transactional
+    public OfferVO updateBgCheckStatus(Long id, String bgCheckStatus) {
+        Long tenantId = TenantContext.getTenantId();
+        Offer offer = offerMapper.selectById(id);
+        if (offer == null || !offer.getTenantId().equals(tenantId)) {
+            throw new BizException("Offer not found");
+        }
+        offer.setBgCheckStatus(bgCheckStatus);
+        offerMapper.updateById(offer);
         return convertToVO(offer);
     }
 
@@ -273,6 +332,10 @@ public class OfferService {
         vo.setSentAt(offer.getSentAt());
         vo.setAcceptedAt(offer.getAcceptedAt());
         vo.setRemark(offer.getRemark());
+        vo.setBgCheckStatus(offer.getBgCheckStatus());
+        vo.setLevel(offer.getLevel());
+        vo.setBonus(offer.getBonus());
+        vo.setOnboardDate(offer.getOnboardDate());
         vo.setCreatedBy(offer.getCreatedBy());
         vo.setCreatedAt(offer.getCreatedAt());
         vo.setUpdatedAt(offer.getUpdatedAt());

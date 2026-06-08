@@ -29,7 +29,7 @@ public class RoleController {
     private final RoleService roleService;
 
     @ApiOperation("Get role list")
-    @GetMapping("/list")
+    @GetMapping({"/list", ""})
     public R<List<SysRole>> list() {
         return R.ok(roleService.list());
     }

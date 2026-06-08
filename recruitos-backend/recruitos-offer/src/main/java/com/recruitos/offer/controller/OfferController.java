@@ -76,4 +76,16 @@ public class OfferController {
         OfferVO vo = offerService.getOfferDetail(id);
         return R.ok(vo);
     }
+
+    @ApiOperation("Update offer")
+    @PutMapping("/{id}")
+    public R<OfferVO> updateOffer(@PathVariable Long id, @RequestBody OfferCreateDTO dto) {
+        return R.ok(offerService.updateOffer(id, dto));
+    }
+
+    @ApiOperation("Update background check status")
+    @PutMapping("/{id}/bg-check")
+    public R<OfferVO> updateBgCheck(@PathVariable Long id, @RequestParam String status) {
+        return R.ok(offerService.updateBgCheckStatus(id, status));
+    }
 }

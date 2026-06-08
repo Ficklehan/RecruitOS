@@ -21,6 +21,22 @@ export function testAgentAccount(id: number | string) {
   return request.post(`/api/agent/account/${id}/test`)
 }
 
+export function rpaLoginAccount(id: number | string) {
+  return request.post(`/api/agent/account/${id}/rpa-login`, null, { timeout: 360000 })
+}
+
+export function rpaTestAccount(id: number | string) {
+  return request.post(`/api/agent/account/${id}/rpa-test`, null, { timeout: 120000 })
+}
+
+export function rpaLogoutAccount(id: number | string) {
+  return request.post(`/api/agent/account/${id}/rpa-logout`)
+}
+
+export function getRpaStatus() {
+  return request.get('/api/agent/rpa/status')
+}
+
 // ── Agent任务 ──────────────────────────
 export function getAgentTaskList(params?: any) {
   return request.get('/api/agent/task/list', { params })
@@ -32,6 +48,22 @@ export function createAgentTask(data: any) {
 
 export function stopAgentTask(id: number) {
   return request.post(`/api/agent/task/${id}/stop`)
+}
+
+export function startAgentTask(id: number) {
+  return request.post(`/api/agent/task/${id}/start`)
+}
+
+export function pauseAgentTask(id: number) {
+  return request.post(`/api/agent/task/${id}/pause`)
+}
+
+export function resumeAgentTask(id: number) {
+  return request.post(`/api/agent/task/${id}/resume`)
+}
+
+export function getAgentTaskDetail(id: number) {
+  return request.get(`/api/agent/task/${id}`)
 }
 
 // ── Agent日志 ──────────────────────────
@@ -62,4 +94,20 @@ export function pauseWorkflow(id: number | string) {
 
 export function resumeWorkflow(id: number | string) {
   return request.post(`/api/agent/workflow/${id}/resume`)
+}
+
+export function getWorkflowCandidates(id: number | string, params?: any) {
+  return request.get(`/api/agent/workflow/${id}/candidates`, { params })
+}
+
+export function confirmWorkflowPublish(id: number | string) {
+  return request.post(`/api/agent/workflow/${id}/confirm-publish`)
+}
+
+export function confirmWorkflowGreet(traceId: number | string) {
+  return request.post(`/api/agent/workflow/trace/${traceId}/confirm-greet`)
+}
+
+export function confirmWorkflowImport(traceId: number | string) {
+  return request.post(`/api/agent/workflow/trace/${traceId}/confirm-import`)
 }

@@ -77,19 +77,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { Search } from '@element-plus/icons-vue'
+import { getFunnelData } from '@/api/modules/analytics'
 
 const dateRange = ref<string[]>([])
+const funnelColors = ['#3B82F6', '#60A5FA', '#818CF8', '#A78BFA', '#C084FC', '#059669']
 
-const funnelData = ref([
-  { name: '需求提报', count: 1000, percentage: 100, conversionRate: 100, color: '#3B82F6' },
-  { name: '简历筛选', count: 650, percentage: 65, conversionRate: 65, color: '#60A5FA' },
-  { name: '初面', count: 320, percentage: 32, conversionRate: 49.2, color: '#818CF8' },
-  { name: '复试', count: 180, percentage: 18, conversionRate: 56.3, color: '#A78BFA' },
-  { name: 'Offer', count: 95, percentage: 9.5, conversionRate: 52.8, color: '#C084FC' },
-  { name: '入职', count: 78, percentage: 7.8, conversionRate: 82.1, color: '#059669' },
-])
+const funnelData = ref<{ name: string; count: number; percentage: number; conversionRate: number; color: string }[]>([])
 
 const overallRate = computed(() => {
   if (!funnelData.value.length) return 0
@@ -98,9 +93,33 @@ const overallRate = computed(() => {
   return ((last / first) * 100).toFixed(1)
 })
 
-function handleSearch() {
-  // Mock: 重新加载数据
+async function loadFunnel() {
+  try {
+    const params: { dateFrom?: string; dateTo?: string } = {}
+    if (dateRange.value?.length === 2) {
+      params.dateFrom = dateRange.value[0]
+      params.dateTo = dateRange.value[1]
+    }
+    const res: any = await getFunnelData(params)
+    const stages = res.data?.stages || []
+    const max = Math.max(...stages.map((s: any) => s.count || 0), 1)
+    funnelData.value = stages.map((s: any, i: number) => ({
+      name: s.stageName,
+      count: s.count || 0,
+      percentage: Math.round(((s.count || 0) / max) * 1000) / 10,
+      conversionRate: s.conversionRate || 0,
+      color: funnelColors[i % funnelColors.length],
+    }))
+  } catch {
+    funnelData.value = []
+  }
 }
+
+function handleSearch() {
+  loadFunnel()
+}
+
+onMounted(loadFunnel)
 </script>
 
 <style lang="scss" scoped>

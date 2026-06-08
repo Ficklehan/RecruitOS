@@ -2,21 +2,20 @@
   <div class="page-container">
     <div class="page-header">
       <div>
-        <h2 class="page-title">简历管理</h2>
-        <p class="page-subtitle">管理所有来源的简历，支持AI解析和批量入库</p>
+        <h2 class="page-title">简历收件</h2>
+        <p class="page-subtitle">管理各渠道收到的简历，解析后可加入人才库或关联在招职位</p>
       </div>
       <div class="header-actions">
         <el-button @click="handleRefresh">
           <el-icon><Refresh /></el-icon>
         </el-button>
-        <el-button type="primary" @click="$router.push('/talent/resume/upload')">
+        <el-button type="primary" @click="$router.push('/talent/resumes/upload')">
           <el-icon><Upload /></el-icon>
           上传简历
         </el-button>
       </div>
     </div>
 
-    <!-- 统计卡片 -->
     <div class="stats-row">
       <div class="stat-card">
         <div class="stat-icon" style="background: #EFF6FF; color: #3B82F6">
@@ -24,7 +23,7 @@
         </div>
         <div class="stat-info">
           <div class="stat-value">{{ stats.total }}</div>
-          <div class="stat-label">总简历数</div>
+          <div class="stat-label">简历总数</div>
         </div>
       </div>
       <div class="stat-card">
@@ -56,7 +55,6 @@
       </div>
     </div>
 
-    <!-- 筛选栏 -->
     <div class="filter-bar">
       <el-input
         v-model="searchKeyword"
@@ -66,10 +64,8 @@
         style="width: 240px"
         @keyup.enter="handleSearch"
       />
-      <el-select v-model="filterSource" placeholder="来源平台" clearable style="width: 140px">
+      <el-select v-model="filterSource" placeholder="来源渠道" clearable style="width: 140px">
         <el-option label="Boss直聘" value="BOSS" />
-        <el-option label="拉勾" value="LAGOU" />
-        <el-option label="智联招聘" value="ZHILIAN" />
         <el-option label="猎聘" value="LIEPIN" />
         <el-option label="手动上传" value="MANUAL" />
         <el-option label="内推" value="REFERRAL" />
@@ -91,13 +87,13 @@
       <div style="flex: 1" />
       <el-button v-if="selectedIds.length" type="success" @click="handleBatchImport">
         <el-icon><FolderAdd /></el-icon>
-        批量入库 ({{ selectedIds.length }})
+        批量加入人才库 ({{ selectedIds.length }})
       </el-button>
     </div>
 
-    <!-- 数据表格 -->
     <div class="data-card">
       <el-table
+        v-if="resumeList.length"
         :data="resumeList"
         style="width: 100%"
         @selection-change="handleSelectionChange"
@@ -115,12 +111,12 @@
           <template #default="{ row }">{{ row.workYears ? row.workYears + '年' : '-' }}</template>
         </el-table-column>
         <el-table-column prop="education" label="学历" width="90" align="center">
-          <template #default="{ row }">{{ row.education || '-' }}</template>
+          <template #default="{ row }">{{ educationLabel(row.education) }}</template>
         </el-table-column>
         <el-table-column prop="source" label="来源" width="100" align="center">
           <template #default="{ row }">
             <el-tag :type="sourceTagMap[row.source] || 'info'" size="small" disable-transitions>
-              {{ sourceLabelMap[row.source] || row.source }}
+              {{ sourceLabel(row.source) }}
             </el-tag>
           </template>
         </el-table-column>
@@ -132,19 +128,28 @@
           </template>
         </el-table-column>
         <el-table-column prop="createdAt" label="上传时间" width="160" />
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="240" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link size="small" @click="goDetail(row)">查看</el-button>
             <el-button v-if="row.parseStatus !== 'PARSED'" type="success" link size="small" @click="handleParse(row)">解析</el-button>
-            <el-button type="warning" link size="small" @click="handleImportPool(row)">入库</el-button>
+            <el-button type="warning" link size="small" @click="handleImportPool(row)">加入人才库</el-button>
             <el-button type="danger" link size="small" @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
+
+      <EmptyStateCta
+        v-else
+        title="暂无简历"
+        description="上传简历后将自动进入收件列表，解析后可加入人才库进行匹配"
+        :actions="[
+          { label: '上传简历', type: 'primary', onClick: () => router.push('/talent/resumes/upload') },
+          { label: '去人才库', type: 'default', onClick: () => router.push('/talent/pool') },
+        ]"
+      />
     </div>
 
-    <!-- 分页 -->
-    <div class="pagination-wrap">
+    <div v-if="total > 0" class="pagination-wrap">
       <el-pagination
         v-model:current-page="currentPage"
         v-model:page-size="pageSize"
@@ -152,6 +157,8 @@
         :page-sizes="[10, 20, 50]"
         layout="total, sizes, prev, pager, next, jumper"
         background
+        @size-change="loadData"
+        @current-change="loadData"
       />
     </div>
   </div>
@@ -162,6 +169,8 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, RefreshRight, Refresh, Upload, Document, CircleCheck, Clock, Warning, FolderAdd } from '@element-plus/icons-vue'
+import EmptyStateCta from '@/components/common/EmptyStateCta.vue'
+import { sourceLabel, educationLabel } from '@/constants/businessLabels'
 import { getResumeList, parseResume, deleteResume, importToTalentPool, batchImportToTalentPool } from '@/api/modules/resume'
 
 const router = useRouter()
@@ -184,12 +193,7 @@ const stats = computed(() => {
 })
 
 const sourceTagMap: Record<string, string> = {
-  BOSS: '', LAGOU: 'success', ZHILIAN: 'warning', LIEPIN: 'danger',
-  MANUAL: 'info', REFERRAL: 'success', HEADHUNTER: 'warning',
-}
-const sourceLabelMap: Record<string, string> = {
-  BOSS: 'Boss直聘', LAGOU: '拉勾', ZHILIAN: '智联招聘', LIEPIN: '猎聘',
-  MANUAL: '手动上传', REFERRAL: '内推', HEADHUNTER: '猎头',
+  BOSS: '', LIEPIN: 'danger', MANUAL: 'info', REFERRAL: 'success', HEADHUNTER: 'warning',
 }
 const parseStatusTagMap: Record<string, string> = {
   PARSED: 'success', PENDING: 'warning', FAILED: 'danger',
@@ -203,7 +207,7 @@ function handleSelectionChange(rows: any[]) {
 }
 
 function goDetail(row: any) {
-  router.push(`/talent/resume/detail/${row.id}`)
+  router.push(`/talent/resumes/${row.id}`)
 }
 
 async function handleParse(row: any) {
@@ -219,19 +223,19 @@ async function handleParse(row: any) {
 async function handleImportPool(row: any) {
   try {
     await importToTalentPool(row.id)
-    ElMessage.success('已导入人才库')
+    ElMessage.success('已加入人才库')
   } catch {
-    ElMessage.error('导入失败')
+    ElMessage.error('加入失败')
   }
 }
 
 async function handleBatchImport() {
   try {
     await batchImportToTalentPool(selectedIds.value)
-    ElMessage.success(`已批量导入 ${selectedIds.value.length} 份简历`)
+    ElMessage.success(`已批量加入人才库 ${selectedIds.value.length} 份简历`)
     selectedIds.value = []
   } catch {
-    ElMessage.error('批量导入失败')
+    ElMessage.error('批量加入失败')
   }
 }
 
@@ -261,7 +265,7 @@ function handleReset() {
 
 function handleRefresh() {
   loadData()
-  ElMessage.success('刷新成功')
+  ElMessage.success('已刷新')
 }
 
 async function loadData() {
@@ -274,10 +278,11 @@ async function loadData() {
       pageSize: pageSize.value,
     })
     const data = res.data || res
-    resumeList.value = Array.isArray(data) ? data : data.records || []
+    resumeList.value = Array.isArray(data) ? data : data.records || data.list || []
     total.value = data.total || resumeList.value.length
   } catch {
     resumeList.value = []
+    total.value = 0
   }
 }
 
@@ -296,10 +301,7 @@ onMounted(() => loadData())
   color: $primary-color;
   cursor: pointer;
   font-weight: 500;
-
-  &:hover {
-    text-decoration: underline;
-  }
+  &:hover { text-decoration: underline; }
 }
 
 .stats-row {
@@ -307,10 +309,7 @@ onMounted(() => loadData())
   grid-template-columns: repeat(4, 1fr);
   gap: 16px;
   margin-bottom: $spacing-lg;
-
-  @media (max-width: 768px) {
-    grid-template-columns: repeat(2, 1fr);
-  }
+  @media (max-width: 768px) { grid-template-columns: repeat(2, 1fr); }
 }
 
 .stat-card {
@@ -320,28 +319,17 @@ onMounted(() => loadData())
   display: flex;
   align-items: center;
   gap: 14px;
-
   .stat-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
+    width: 48px; height: 48px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
   }
+  .stat-value { font-size: 24px; font-weight: 700; color: $text-primary; line-height: 1.2; }
+  .stat-label { font-size: 13px; color: $text-secondary; margin-top: 2px; }
+}
 
-  .stat-value {
-    font-size: 24px;
-    font-weight: 700;
-    color: $text-primary;
-    line-height: 1.2;
-  }
-
-  .stat-label {
-    font-size: 13px;
-    color: $text-secondary;
-    margin-top: 2px;
-  }
+.pagination-wrap {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
 }
 </style>

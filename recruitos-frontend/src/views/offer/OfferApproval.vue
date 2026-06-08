@@ -2,7 +2,7 @@
   <div class="page-container">
     <!-- 页面头部 -->
     <div class="page-header">
-      <h2 class="page-title">Offer审批</h2>
+      <h2 class="page-title">录用通知审批</h2>
     </div>
 
     <!-- Tab 导航 -->
@@ -13,9 +13,9 @@
     </el-tabs>
 
     <!-- 审批卡片列表 -->
-    <div class="approval-list">
+    <div class="approval-list" v-loading="loading">
       <div v-if="filteredItems.length === 0" class="empty-state">
-        <el-empty description="暂无数据" />
+        <EmptyStateCta description="当前没有需要您处理的录用通知" />
       </div>
       <div v-for="item in filteredItems" :key="item.id" class="approval-card">
         <div class="card-header">
@@ -34,7 +34,7 @@
         <div class="card-body">
           <div class="info-grid">
             <div class="info-item">
-              <span class="info-label">岗位</span>
+              <span class="info-label">在招职位</span>
               <span class="info-value">{{ item.jobTitle }}</span>
             </div>
             <div class="info-item">
@@ -105,101 +105,53 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Check, Close } from '@element-plus/icons-vue'
+import EmptyStateCta from '@/components/common/EmptyStateCta.vue'
+import { offerStatusLabel } from '@/constants/businessLabels'
+import { getOfferList, approveOffer, rejectOffer } from '@/api/modules/offer'
 
 const activeTab = ref('pending')
+const loading = ref(false)
 
-// 审批对话框
 const approvalDialogVisible = ref(false)
 const approvalType = ref<'approve' | 'reject'>('approve')
 const approvalRemark = ref('')
 const approvalLoading = ref(false)
 const currentApprovalItem = ref<any>(null)
+const approvalItems = ref<any[]>([])
 
 const approvalDialogTitle = computed(() =>
   approvalType.value === 'approve' ? '审批通过' : '审批驳回'
 )
 
-// Mock 数据
-const approvalItems = ref([
-  {
-    id: 1,
-    candidateName: '张伟',
-    jobTitle: '高级前端工程师',
-    department: '技术部',
-    salary: '35K/月',
-    submitter: '李经理',
-    submitTime: '2026-06-05 10:30',
-    status: 'PENDING',
-    remark: '候选人技术能力突出，薪资在预算范围内',
-  },
-  {
-    id: 2,
-    candidateName: '李静',
-    jobTitle: 'Java后端工程师',
-    department: '技术部',
-    salary: '40K/月',
-    submitter: '王总监',
-    submitTime: '2026-06-05 14:00',
-    status: 'PENDING',
-    remark: '有大厂经验，建议尽快确认',
-  },
-  {
-    id: 3,
-    candidateName: '周婷',
-    jobTitle: '数据分析师',
-    department: '数据部',
-    salary: '30K/月',
-    submitter: '赵经理',
-    submitTime: '2026-06-04 16:20',
-    status: 'PENDING',
-    remark: '',
-  },
-  {
-    id: 4,
-    candidateName: '王磊',
-    jobTitle: '产品经理',
-    department: '产品部',
-    salary: '45K/月',
-    submitter: '孙经理',
-    submitTime: '2026-06-03 09:15',
-    status: 'APPROVED',
-    remark: '审批通过，已安排发送Offer',
-  },
-  {
-    id: 5,
-    candidateName: '赵芳',
-    jobTitle: 'UI设计师',
-    department: '设计部',
-    salary: '25K/月',
-    submitter: '钱经理',
-    submitTime: '2026-06-02 11:00',
-    status: 'APPROVED',
-    remark: '设计能力符合要求',
-  },
-  {
-    id: 6,
-    candidateName: '刘洋',
-    jobTitle: '算法工程师',
-    department: 'AI实验室',
-    salary: '50K/月',
-    submitter: '李总监',
-    submitTime: '2026-06-01 15:30',
-    status: 'REJECTED',
-    remark: '薪资超出部门预算，建议调整后再提交',
-  },
-])
+const tabStatusMap: Record<string, string> = {
+  pending: 'PENDING',
+  approved: 'APPROVED',
+  rejected: 'REJECTED',
+}
 
-const filteredItems = computed(() => {
-  return approvalItems.value.filter(item => {
-    if (activeTab.value === 'pending') return item.status === 'PENDING'
-    if (activeTab.value === 'approved') return item.status === 'APPROVED'
-    if (activeTab.value === 'rejected') return item.status === 'REJECTED'
-    return false
-  })
-})
+const filteredItems = computed(() => approvalItems.value)
+
+async function loadData() {
+  loading.value = true
+  try {
+    const res = await getOfferList({
+      status: tabStatusMap[activeTab.value],
+      pageNum: 1,
+      pageSize: 50,
+    })
+    approvalItems.value = (res.data?.list || []).map((o: any) => ({
+      ...o,
+      submitTime: o.createdAt || '-',
+      submitter: o.createdBy ? `用户#${o.createdBy}` : '-',
+      salary: o.salary != null ? `${o.salary}` : '-',
+    }))
+  } finally {
+    loading.value = false
+  }
+}
 
 function getStatusType(status: string): string {
   const map: Record<string, string> = {
@@ -220,7 +172,7 @@ function getStatusLabel(status: string): string {
 }
 
 function handleTabChange() {
-  // 切换 tab 时可以重新加载数据
+  loadData()
 }
 
 function handleApprove(item: any) {
@@ -237,25 +189,30 @@ function handleReject(item: any) {
   approvalDialogVisible.value = true
 }
 
-function confirmApproval() {
+async function confirmApproval() {
   if (approvalType.value === 'reject' && !approvalRemark.value.trim()) {
     ElMessage.warning('请输入驳回原因')
     return
   }
+  if (!currentApprovalItem.value) return
   approvalLoading.value = true
-  setTimeout(() => {
-    const idx = approvalItems.value.findIndex(item => item.id === currentApprovalItem.value?.id)
-    if (idx !== -1) {
-      approvalItems.value[idx].status = approvalType.value === 'approve' ? 'APPROVED' : 'REJECTED'
-      if (approvalRemark.value) {
-        approvalItems.value[idx].remark = approvalRemark.value
-      }
+  try {
+    if (approvalType.value === 'approve') {
+      await approveOffer(currentApprovalItem.value.id, approvalRemark.value)
+      ElMessage.success('审批通过')
+    } else {
+      await rejectOffer(currentApprovalItem.value.id, approvalRemark.value)
+      ElMessage.success('已驳回')
     }
-    approvalLoading.value = false
     approvalDialogVisible.value = false
-    ElMessage.success(approvalType.value === 'approve' ? '审批通过' : '已驳回')
-  }, 500)
+    loadData()
+  } finally {
+    approvalLoading.value = false
+  }
 }
+
+watch(activeTab, loadData)
+onMounted(loadData)
 </script>
 
 <style lang="scss" scoped>

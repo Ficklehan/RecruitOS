@@ -12,6 +12,7 @@ import com.recruitos.common.tenant.TenantContext;
 import com.recruitos.job.dto.*;
 import com.recruitos.job.entity.JobPosition;
 import com.recruitos.job.mapper.JobPositionMapper;
+import com.recruitos.job.mapper.RecruitDemandReadMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -33,7 +34,14 @@ public class JobService {
     private JobPositionMapper jobPositionMapper;
 
     @Resource
+    private RecruitDemandReadMapper recruitDemandReadMapper;
+
+    @Resource
     private ObjectMapper objectMapper;
+
+    private static final java.util.Set<String> ALLOWED_DEMAND_STATUS = new java.util.HashSet<>(
+            java.util.Arrays.asList("APPROVED", "JOB_CREATED", "RECRUITING", "COMPLETED")
+    );
 
     /** Sequence counter for job number generation (in-memory, resets on restart) */
     private final AtomicLong jobSeqCounter = new AtomicLong(0);
@@ -64,6 +72,8 @@ public class JobService {
         if (tenantId == null || userId == null) {
             throw new BizException("User not authenticated");
         }
+
+        validateDemandForJob(dto.getDemandId(), tenantId);
 
         JobPosition job = new JobPosition();
         job.setTenantId(tenantId);
@@ -178,8 +188,12 @@ public class JobService {
             throw new BizException("Only DRAFT jobs can be activated");
         }
 
+        validateDemandForJob(job.getDemandId(), tenantId);
+
         job.setStatus("ACTIVE");
         jobPositionMapper.updateById(job);
+
+        recruitDemandReadMapper.updateStatus(job.getDemandId(), tenantId, "RECRUITING");
 
         return convertToVO(job);
     }
@@ -226,11 +240,33 @@ public class JobService {
             throw new BizException("Job position is already closed");
         }
 
+        int unusedHeadcount = Math.max(0, job.getHeadCount() - (job.getFilledCount() != null ? job.getFilledCount() : 0));
+
         job.setStatus("CLOSED");
         job.setClosedReason(reason);
         jobPositionMapper.updateById(job);
 
+        if (unusedHeadcount > 0 && job.getDemandId() != null) {
+            Integer approved = recruitDemandReadMapper.selectApprovedHeadCount(job.getDemandId(), tenantId);
+            if (approved != null && approved > 0) {
+                recruitDemandReadMapper.updateStatus(job.getDemandId(), tenantId, "RECRUITING");
+            }
+        }
+
         return convertToVO(job);
+    }
+
+    private void validateDemandForJob(Long demandId, Long tenantId) {
+        if (demandId == null) {
+            throw new BizException("Demand ID is required");
+        }
+        String status = recruitDemandReadMapper.selectStatus(demandId, tenantId);
+        if (status == null) {
+            throw new BizException("Associated demand not found");
+        }
+        if (!ALLOWED_DEMAND_STATUS.contains(status)) {
+            throw new BizException("Cannot create or activate job: demand is not approved");
+        }
     }
 
     /**

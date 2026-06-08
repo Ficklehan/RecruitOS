@@ -9,6 +9,9 @@ public class AgentAccountQueryDTO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
+    /** Filter by channel */
+    private Long channelId;
+
     /** Filter by platform */
     private String platform;
 
@@ -25,6 +28,14 @@ public class AgentAccountQueryDTO implements Serializable {
     private Integer pageSize = 10;
 
     // Getters and Setters
+
+    public Long getChannelId() {
+        return channelId;
+    }
+
+    public void setChannelId(Long channelId) {
+        this.channelId = channelId;
+    }
 
     public String getPlatform() {
         return platform;

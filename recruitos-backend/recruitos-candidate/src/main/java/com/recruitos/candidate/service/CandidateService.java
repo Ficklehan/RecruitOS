@@ -40,6 +40,9 @@ public class CandidateService {
     @Resource
     private CandidateJobMapper candidateJobMapper;
 
+    @Resource
+    private MatchVerdictService matchVerdictService;
+
     /**
      * Create a new candidate
      */
@@ -132,7 +135,7 @@ public class CandidateService {
 
         List<CandidateJobVO> jobVOs = new ArrayList<>();
         for (CandidateJob job : jobs) {
-            jobVOs.add(convertToCandidateJobVO(job));
+            jobVOs.add(convertToCandidateJobVO(job, true));
         }
         vo.setJobs(jobVOs);
 
@@ -187,9 +190,14 @@ public class CandidateService {
 
         Page<Candidate> result = candidateMapper.selectPage(page, wrapper);
 
+        Long filterJobId = query.getJobId();
         List<CandidateVO> voList = new ArrayList<>();
         for (Candidate candidate : result.getRecords()) {
-            voList.add(convertToVO(candidate));
+            CandidateVO vo = convertToVO(candidate);
+            if (filterJobId != null) {
+                enrichMatchForJob(vo, candidate, filterJobId, tenantId);
+            }
+            voList.add(vo);
         }
 
         return new PageResult<>(result.getTotal(), voList, query.getPageNum(), query.getPageSize());
@@ -210,19 +218,20 @@ public class CandidateService {
             throw new BizException("Access denied");
         }
 
-        // Check if already associated
+        // Idempotent: return existing association instead of failing
         LambdaQueryWrapper<CandidateJob> existWrapper = new LambdaQueryWrapper<>();
         existWrapper.eq(CandidateJob::getTenantId, tenantId)
                 .eq(CandidateJob::getCandidateId, candidateId)
                 .eq(CandidateJob::getJobId, jobId);
-        Long existCount = candidateJobMapper.selectCount(existWrapper);
-        if (existCount > 0) {
-            throw new BizException("Candidate is already associated with this job");
+        CandidateJob existing = candidateJobMapper.selectOne(existWrapper);
+        if (existing != null) {
+            log.info("Candidate {} already linked to job {}, returning existing association", candidateId, jobId);
+            return convertToCandidateJobVO(existing);
         }
 
-        // Calculate match score (simulated)
         BigDecimal matchScore = calculateMatchScore(candidateId, jobId);
-        String matchDetail = buildMatchDetail(candidateId, jobId, matchScore);
+        String matchDetail = matchVerdictService.buildMatchDetailJson(
+                tenantId, candidateId, jobId, candidate, matchScore);
 
         CandidateJob candidateJob = new CandidateJob();
         candidateJob.setCandidateId(candidateId);
@@ -230,6 +239,7 @@ public class CandidateService {
         candidateJob.setMatchScore(matchScore);
         candidateJob.setMatchDetail(matchDetail);
         candidateJob.setScreeningStatus("PENDING");
+        candidateJob.setPipelineStage("SOURCED");
 
         candidateJobMapper.insert(candidateJob);
 
@@ -275,31 +285,39 @@ public class CandidateService {
             throw new BizException("Candidate is not associated with this job");
         }
 
-        CandidateJobVO vo = convertToCandidateJobVO(candidateJob);
-
-        // Load candidate info for the panel
         Candidate candidate = candidateMapper.selectById(candidateId);
-        if (candidate != null) {
-            vo.setCandidateName(candidate.getName());
-            vo.setCandidatePhone(candidate.getPhone());
-            vo.setCandidateEmail(candidate.getEmail());
-            vo.setCandidateCompany(candidate.getCurrentCompany());
-            vo.setCandidateTitle(candidate.getCurrentTitle());
-        }
+        BigDecimal score = candidateJob.getMatchScore() != null
+                ? candidateJob.getMatchScore()
+                : calculateMatchScore(candidateId, jobId);
+        String detail = matchVerdictService.buildMatchDetailJson(
+                tenantId, candidateId, jobId, candidate, score);
+        candidateJob.setMatchScore(score);
+        candidateJob.setMatchDetail(detail);
+        candidateJobMapper.updateById(candidateJob);
 
-        return vo;
+        return convertToCandidateJobVO(candidateJob);
     }
 
     /**
-     * Talent pool global search by keyword and tags
+     * Talent pool: default browse shows candidates not in an active pipeline;
+     * keyword/tags search scans the broader pool.
      */
-    public PageResult<CandidateVO> getTalentPool(String keyword, String tags) {
+    public PageResult<CandidateVO> getTalentPool(String keyword, String tags, Long jobId,
+                                                  Integer pageNum, Integer pageSize) {
         Long tenantId = TenantContext.getTenantId();
 
-        Page<Candidate> page = new Page<>(1, 50);
+        int pn = pageNum != null && pageNum > 0 ? pageNum : 1;
+        int ps = pageSize != null && pageSize > 0 ? pageSize : 12;
+        Page<Candidate> page = new Page<>(pn, ps);
 
         LambdaQueryWrapper<Candidate> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Candidate::getTenantId, tenantId);
+        wrapper.ne(Candidate::getStatus, "BLACKLIST");
+
+        boolean hasSearch = StringUtils.hasText(keyword) || StringUtils.hasText(tags);
+        if (!hasSearch) {
+            applyNotInActivePipelineFilter(wrapper, tenantId);
+        }
 
         if (StringUtils.hasText(keyword)) {
             wrapper.and(w -> w
@@ -321,10 +339,44 @@ public class CandidateService {
 
         List<CandidateVO> voList = new ArrayList<>();
         for (Candidate candidate : result.getRecords()) {
-            voList.add(convertToVO(candidate));
+            CandidateVO vo = convertToVO(candidate);
+            if (jobId != null) {
+                enrichMatchForJob(vo, candidate, jobId, tenantId);
+            }
+            voList.add(vo);
         }
 
-        return new PageResult<>(result.getTotal(), voList, 1, 50);
+        return new PageResult<>(result.getTotal(), voList, pn, ps);
+    }
+
+    /** Reserved for pool or not linked to any non-archived job pipeline. */
+    private void applyNotInActivePipelineFilter(LambdaQueryWrapper<Candidate> wrapper, Long tenantId) {
+        wrapper.and(w -> w.eq(Candidate::getStatus, "POOL")
+                .or()
+                .apply("NOT EXISTS (SELECT 1 FROM candidate_job cj WHERE cj.candidate_id = candidate.id"
+                        + " AND cj.tenant_id = {0}"
+                        + " AND IFNULL(cj.pipeline_stage, 'SOURCED') <> 'ARCHIVED')", tenantId));
+    }
+
+    private void enrichMatchForJob(CandidateVO vo, Candidate candidate, Long jobId, Long tenantId) {
+        vo.setContextJobId(jobId);
+        LambdaQueryWrapper<CandidateJob> w = new LambdaQueryWrapper<>();
+        w.eq(CandidateJob::getTenantId, tenantId)
+                .eq(CandidateJob::getCandidateId, candidate.getId())
+                .eq(CandidateJob::getJobId, jobId);
+        CandidateJob cj = candidateJobMapper.selectOne(w);
+        BigDecimal score;
+        if (cj != null && cj.getMatchScore() != null) {
+            score = cj.getMatchScore();
+        } else {
+            score = calculateMatchScore(candidate.getId(), jobId);
+        }
+        vo.setMatchScore(score);
+        vo.setMatchDetail(matchVerdictService.buildMatchDetailJson(
+                tenantId, candidate.getId(), jobId, candidate, score));
+        if (cj != null && StringUtils.hasText(cj.getPipelineStage())) {
+            vo.setPipelineStage(cj.getPipelineStage());
+        }
     }
 
     /**
@@ -385,41 +437,6 @@ public class CandidateService {
     }
 
     /**
-     * Build match detail JSON (simulated breakdown)
-     */
-    private String buildMatchDetail(Long candidateId, Long jobId, BigDecimal totalScore) {
-        Candidate candidate = candidateMapper.selectById(candidateId);
-        StringBuilder sb = new StringBuilder();
-        sb.append("{");
-        sb.append("\"totalScore\":").append(totalScore).append(",");
-        sb.append("\"breakdown\":{");
-
-        // Skill match
-        double skillScore = 40.0;
-        if (candidate != null && StringUtils.hasText(candidate.getTags())) {
-            skillScore = 60.0;
-        }
-        sb.append("\"skillMatch\":").append(skillScore).append(",");
-
-        // Experience match
-        double expScore = 30.0;
-        if (candidate != null && candidate.getWorkYears() != null && candidate.getWorkYears() >= 3) {
-            expScore = 50.0;
-        }
-        sb.append("\"experienceMatch\":").append(expScore).append(",");
-
-        // Education match
-        double eduScore = 20.0;
-        if (candidate != null && StringUtils.hasText(candidate.getEducation())) {
-            eduScore = 40.0;
-        }
-        sb.append("\"educationMatch\":").append(eduScore);
-
-        sb.append("}}");
-        return sb.toString();
-    }
-
-    /**
      * Convert Candidate entity to CandidateVO
      */
     private CandidateVO convertToVO(Candidate candidate) {
@@ -445,26 +462,43 @@ public class CandidateService {
         vo.setRemark(candidate.getRemark());
         vo.setCreatedAt(candidate.getCreatedAt());
         vo.setUpdatedAt(candidate.getUpdatedAt());
+        vo.setResumeId(resolveLatestResumeId(candidate.getId()));
         return vo;
+    }
+
+    private Long resolveLatestResumeId(Long candidateId) {
+        LambdaQueryWrapper<Resume> w = new LambdaQueryWrapper<>();
+        w.eq(Resume::getCandidateId, candidateId)
+                .orderByDesc(Resume::getCreatedAt)
+                .last("LIMIT 1");
+        Resume resume = resumeMapper.selectOne(w);
+        return resume != null ? resume.getId() : null;
     }
 
     /**
      * Convert CandidateJob entity to CandidateJobVO
      */
-    private CandidateJobVO convertToCandidateJobVO(CandidateJob job) {
+    public CandidateJobVO convertToCandidateJobVO(CandidateJob job) {
+        return convertToCandidateJobVO(job, false);
+    }
+
+    /**
+     * @param refreshMatch 为 true 时按当前岗位样本重新计算匹配结论（仅写入 VO，不落库）
+     */
+    public CandidateJobVO convertToCandidateJobVO(CandidateJob job, boolean refreshMatch) {
         CandidateJobVO vo = new CandidateJobVO();
         vo.setId(job.getId());
         vo.setCandidateId(job.getCandidateId());
         vo.setJobId(job.getJobId());
-        vo.setMatchScore(job.getMatchScore());
-        vo.setMatchDetail(job.getMatchDetail());
         vo.setScreeningStatus(job.getScreeningStatus());
+        vo.setPipelineStage(job.getPipelineStage());
+        vo.setInterviewSubStage(job.getInterviewSubStage());
+        vo.setRejectionReasonCode(job.getRejectionReasonCode());
         vo.setScreenerId(job.getScreenerId());
         vo.setScreenerComment(job.getScreenerComment());
         vo.setCreatedAt(job.getCreatedAt());
         vo.setUpdatedAt(job.getUpdatedAt());
 
-        // Load candidate info
         Candidate candidate = candidateMapper.selectById(job.getCandidateId());
         if (candidate != null) {
             vo.setCandidateName(candidate.getName());
@@ -472,6 +506,19 @@ public class CandidateService {
             vo.setCandidateEmail(candidate.getEmail());
             vo.setCandidateCompany(candidate.getCurrentCompany());
             vo.setCandidateTitle(candidate.getCurrentTitle());
+        }
+
+        if (refreshMatch) {
+            Long tenantId = job.getTenantId() != null ? job.getTenantId() : TenantContext.getTenantId();
+            BigDecimal score = job.getMatchScore() != null
+                    ? job.getMatchScore()
+                    : calculateMatchScore(job.getCandidateId(), job.getJobId());
+            vo.setMatchScore(score);
+            vo.setMatchDetail(matchVerdictService.buildMatchDetailJson(
+                    tenantId, job.getCandidateId(), job.getJobId(), candidate, score));
+        } else {
+            vo.setMatchScore(job.getMatchScore());
+            vo.setMatchDetail(job.getMatchDetail());
         }
 
         return vo;

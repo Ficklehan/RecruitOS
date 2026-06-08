@@ -1,6 +1,9 @@
 -- ============================================================
 -- RecruitOS 测试数据
 -- 执行前请确保 init.sql 已执行完毕
+-- 导入时必须指定客户端字符集 utf8mb4，例如：
+--   mysql --default-character-set=utf8mb4 -uroot -p recruit_os < test-data.sql
+-- 或：scripts/reseed-demo.sh
 -- ============================================================
 
 USE `recruit_os`;
@@ -109,7 +112,7 @@ INSERT IGNORE INTO `recruit_demand` (`id`, `tenant_id`, `demand_no`, `title`, `o
 INSERT IGNORE INTO `approval_instance` (`id`, `tenant_id`, `biz_type`, `biz_id`, `status`, `current_node`, `current_approver_id`) VALUES
 (1, 1, 'DEMAND', 1, 'APPROVED', NULL, NULL),
 (2, 1, 'DEMAND', 2, 'APPROVED', NULL, NULL),
-(3, 1, 'DEMAND', 3, 'RUNNING', 'HR_MANAGER', 3),
+(3, 1, 'DEMAND', 3, 'RUNNING', 'HR_MANAGER', 1),
 (4, 1, 'DEMAND', 6, 'REJECTED', NULL, NULL);
 
 INSERT IGNORE INTO `approval_record` (`tenant_id`, `instance_id`, `node_name`, `approver_id`, `action`, `comment`) VALUES
@@ -259,14 +262,14 @@ INSERT IGNORE INTO `interview_evaluation` (`tenant_id`, `interview_id`, `round`,
 INSERT IGNORE INTO `offer` (`id`, `tenant_id`, `candidate_id`, `job_id`, `interview_id`, `salary`, `bonus`, `level`, `onboard_date`, `status`, `bg_check_status`, `created_by`, `created_at`) VALUES
 (1, 1, 5, 1, 5, 52000, 5000, 'P7', '2026-07-01', 'SENT', 'PASSED', 2, '2026-06-04 10:00:00'),
 (2, 1, 6, 4, 8, 36000, 3000, 'P6', '2026-06-16', 'ACCEPTED', 'PASSED', 2, '2026-05-26 10:00:00'),
-(3, 1, 1, 1, 1, 45000, NULL, 'P7', '2026-07-15', 'PENDING_APPROVAL', 'PENDING', 2, '2026-06-06 10:00:00'),
+(3, 1, 1, 1, 1, 45000, NULL, 'P7', '2026-07-15', 'PENDING', 'PENDING', 2, '2026-06-06 10:00:00'),
 (4, 1, 4, 3, 6, 48000, 5000, 'P7', '2026-07-01', 'DRAFT', NULL, 2, '2026-06-06 14:00:00');
 
 -- ============================================================
 -- 11. 入职
 -- ============================================================
 INSERT IGNORE INTO `onboard` (`id`, `tenant_id`, `candidate_id`, `offer_id`, `onboard_date`, `status`, `remark`) VALUES
-(1, 1, 6, 2, '2026-06-16', 'IN_PROGRESS', '已发送入职通知'),
+(1, 1, 6, 2, '2026-06-16', 'CONFIRMED', '已发送入职通知'),
 (2, 1, 5, 1, '2026-07-01', 'PENDING', '待候选人确认');
 
 INSERT IGNORE INTO `onboard_task` (`tenant_id`, `onboard_id`, `task_type`, `task_name`, `assignee_type`, `due_date`, `status`) VALUES

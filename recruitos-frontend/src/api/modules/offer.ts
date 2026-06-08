@@ -39,3 +39,7 @@ export function acceptOffer(id: number) {
 export function rejectOfferByCandidate(id: number, reason: string) {
   return request.post(`/api/offer/${id}/reject-by-candidate`, { reason })
 }
+
+export function updateBgCheckStatus(id: number, status: string) {
+  return request.put(`/api/offer/${id}/bg-check`, null, { params: { status } })
+}

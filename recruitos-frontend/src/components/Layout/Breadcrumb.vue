@@ -1,6 +1,6 @@
 <template>
   <el-breadcrumb separator="/" class="breadcrumb">
-    <el-breadcrumb-item :to="{ path: '/dashboard' }">
+    <el-breadcrumb-item :to="{ path: '/workspace/dashboard' }">
       <el-icon><HomeFilled /></el-icon>
     </el-breadcrumb-item>
     <el-breadcrumb-item

@@ -37,4 +37,7 @@ public class Organization extends BaseEntity {
 
     @TableField("status")
     private Integer status;
+
+    @TableField(exist = false)
+    private java.util.List<Organization> children;
 }

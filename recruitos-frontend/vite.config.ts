@@ -24,7 +24,7 @@ export default defineConfig({
     },
   },
   server: {
-    port: 3000,
+    port: 5001,
     proxy: {
       '/api/auth': {
         target: 'http://localhost:8081',
@@ -50,6 +50,10 @@ export default defineConfig({
         target: 'http://localhost:8082',
         changeOrigin: true,
       },
+      '/api/notification': {
+        target: 'http://localhost:8082',
+        changeOrigin: true,
+      },
       '/api/demand': {
         target: 'http://localhost:8083',
         changeOrigin: true,
@@ -66,7 +70,19 @@ export default defineConfig({
         target: 'http://localhost:8085',
         changeOrigin: true,
       },
+      '/api/pipeline': {
+        target: 'http://localhost:8085',
+        changeOrigin: true,
+      },
       '/api/resume': {
+        target: 'http://localhost:8085',
+        changeOrigin: true,
+      },
+      '/storage': {
+        target: 'http://localhost:8085',
+        changeOrigin: true,
+      },
+      '/demo': {
         target: 'http://localhost:8085',
         changeOrigin: true,
       },

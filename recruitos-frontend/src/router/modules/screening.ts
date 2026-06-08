@@ -6,26 +6,14 @@ const screeningRoutes: RouteRecordRaw[] = [
   {
     path: '/screening',
     component: AppLayout,
-    redirect: '/screening/resume',
-    meta: { title: '筛选评估', icon: 'Filter' },
+    redirect: '/pipeline/decision',
+    meta: { title: '筛选评估', permission: 'pipeline', hidden: true },
     children: [
-      {
-        path: 'resume',
-        name: 'ScreeningResume',
-        component: () => import('@/views/candidate/CandidateList.vue'),
-        meta: { title: '简历筛选', icon: 'Document' },
-      },
-      {
-        path: 'business',
-        name: 'ScreeningBusiness',
-        component: () => import('@/views/candidate/CandidateList.vue'),
-        meta: { title: '业务筛选', icon: 'UserFilled' },
-      },
       {
         path: 'decision',
         name: 'ScreeningDecision',
         component: () => import('@/views/candidate/CandidateDecision.vue'),
-        meta: { title: '匹配度分析', icon: 'DataAnalysis' },
+        meta: { title: '候选人匹配评估', permission: 'pipeline:candidate', icon: 'DataAnalysis' },
       },
     ],
   },

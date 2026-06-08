@@ -2,7 +2,10 @@
   <div class="page-container">
     <!-- 页面头部 -->
     <div class="page-header">
-      <h2 class="page-title">行为日志</h2>
+      <div>
+        <h2 class="page-title">渠道运行日志</h2>
+        <p class="page-subtitle">查看自动招聘任务在 Boss、猎聘等渠道的执行记录</p>
+      </div>
     </div>
 
     <!-- 统计卡片 -->

@@ -12,6 +12,9 @@ public class AgentAccountVO implements Serializable {
 
     private Long id;
     private Long tenantId;
+    private Long channelId;
+    private String channelName;
+    private String channelCode;
     private String platform;
     private String accountName;
     private String accountId;
@@ -41,6 +44,30 @@ public class AgentAccountVO implements Serializable {
 
     public void setTenantId(Long tenantId) {
         this.tenantId = tenantId;
+    }
+
+    public Long getChannelId() {
+        return channelId;
+    }
+
+    public void setChannelId(Long channelId) {
+        this.channelId = channelId;
+    }
+
+    public String getChannelName() {
+        return channelName;
+    }
+
+    public void setChannelName(String channelName) {
+        this.channelName = channelName;
+    }
+
+    public String getChannelCode() {
+        return channelCode;
+    }
+
+    public void setChannelCode(String channelCode) {
+        this.channelCode = channelCode;
     }
 
     public String getPlatform() {

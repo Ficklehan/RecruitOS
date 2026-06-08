@@ -56,7 +56,16 @@ public class UserController {
 
     @ApiOperation("Assign roles to user")
     @PostMapping("/{id}/roles")
-    public R<Void> assignRoles(@PathVariable Long id, @RequestBody List<Long> roleIds) {
+    public R<Void> assignRoles(@PathVariable Long id, @RequestBody Object body) {
+        List<Long> roleIds;
+        if (body instanceof java.util.Map) {
+            Object ids = ((java.util.Map<?, ?>) body).get("roleIds");
+            roleIds = ids instanceof List ? (List<Long>) ids : java.util.Collections.emptyList();
+        } else if (body instanceof List) {
+            roleIds = (List<Long>) body;
+        } else {
+            roleIds = java.util.Collections.emptyList();
+        }
         userService.assignRoles(id, roleIds);
         return R.ok();
     }

@@ -93,19 +93,27 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { Search } from '@element-plus/icons-vue'
+import { getRoiData } from '@/api/modules/analytics'
 
 const dateRange = ref<string[]>([])
 
-// 渠道数据
-const channelData = ref([
-  { channelName: 'BOSS直聘', investment: 85000, hires: 15, costPerHire: 5667, conversionRate: 12.5, roiRating: 'A' },
-  { channelName: '拉勾', investment: 62000, hires: 8, costPerHire: 7750, conversionRate: 8.2, roiRating: 'B' },
-  { channelName: '智联', investment: 48000, hires: 5, costPerHire: 9600, conversionRate: 6.5, roiRating: 'C' },
-  { channelName: '猎头', investment: 180000, hires: 12, costPerHire: 15000, conversionRate: 24.0, roiRating: 'D' },
-  { channelName: '内推', investment: 25000, hires: 10, costPerHire: 2500, conversionRate: 35.7, roiRating: 'A' },
-])
+const channelData = ref<{
+  channelName: string
+  investment: number
+  hires: number
+  costPerHire: number
+  conversionRate: number
+  roiRating: string
+}[]>([])
+
+function roiRating(costPerHire: number): string {
+  if (costPerHire <= 5000) return 'A'
+  if (costPerHire <= 10000) return 'B'
+  if (costPerHire <= 15000) return 'C'
+  return 'D'
+}
 
 // 汇总计算
 const totalInvestment = computed(() =>
@@ -152,9 +160,33 @@ function getCostBarColor(rating: string): string {
   return map[rating] || '#64748B'
 }
 
-function handleSearch() {
-  // Mock: 重新加载数据
+async function loadRoi() {
+  try {
+    const params: { dateFrom?: string; dateTo?: string } = {}
+    if (dateRange.value?.length === 2) {
+      params.dateFrom = dateRange.value[0]
+      params.dateTo = dateRange.value[1]
+    }
+    const res: any = await getRoiData(params)
+    const channels = res.data?.channels || []
+    channelData.value = channels.map((c: any) => ({
+      channelName: c.channelName,
+      investment: c.cost || 0,
+      hires: c.hires || 0,
+      costPerHire: c.costPerHire || 0,
+      conversionRate: c.conversionRate || 0,
+      roiRating: roiRating(c.costPerHire || 0),
+    }))
+  } catch {
+    channelData.value = []
+  }
 }
+
+function handleSearch() {
+  loadRoi()
+}
+
+onMounted(loadRoi)
 </script>
 
 <style lang="scss" scoped>
