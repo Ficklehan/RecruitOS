@@ -31,6 +31,8 @@ public class SourcingCampaignService {
     @Resource
     private JobPositionReadMapper jobPositionReadMapper;
     @Resource
+    private OpsPackReadMapper opsPackReadMapper;
+    @Resource
     private CandidateImportMapper jobReadMapper;
     @Resource
     private CandidateImportService candidateImportService;
@@ -53,8 +55,21 @@ public class SourcingCampaignService {
         }
 
         String mode = StringUtils.hasText(dto.getMode()) ? dto.getMode() : "SEMI_AUTO";
+        Map<String, Object> activePack = resolveActiveOpsPack(dto.getJobId(), tenantId, dto.getOpsPackId());
+        if (activePack == null) {
+            throw new BizException("请先确认渠道运营包后再启动寻源");
+        }
+
+        String greetStrategy = StringUtils.hasText(dto.getGreetStrategy())
+                ? dto.getGreetStrategy() : greetStrategyFromPack(activePack);
+        if ("CARD_GREET".equals(greetStrategy) && !Boolean.TRUE.equals(dto.getCardGreetRiskAccepted())) {
+            throw new BizException("CARD_GREET 模式须勾选风险提示");
+        }
+
         JobSourcingCampaign campaign = new JobSourcingCampaign();
         campaign.setJobId(dto.getJobId());
+        campaign.setOpsPackId(toLong(activePack.get("id")));
+        campaign.setOpsPackVersion(toInt(activePack.get("version")));
         campaign.setName(StringUtils.hasText(dto.getName()) ? dto.getName()
                 : jobReadMapper.selectJobTitle(dto.getJobId(), tenantId) + "-寻源");
         campaign.setMode(mode);
@@ -64,10 +79,22 @@ public class SourcingCampaignService {
         campaign.setStartedAt(LocalDateTime.now());
 
         Map<String, Object> config = new LinkedHashMap<>();
-        config.put("keywords", dto.getKeywords() != null ? dto.getKeywords() : defaultKeywords(dto.getJobId(), tenantId));
-        config.put("dailyLimit", dto.getDailyLimit() != null ? dto.getDailyLimit() : 50);
+        List<String> keywords = dto.getKeywords() != null && !dto.getKeywords().isEmpty()
+                ? dto.getKeywords() : keywordsFromOpsPack(activePack, dto.getJobId(), tenantId);
+        config.put("keywords", keywords);
+        config.put("dailyLimit", dto.getDailyLimit() != null ? dto.getDailyLimit() : dailyLimitFromPack(activePack));
         config.put("templateId", dto.getTemplateId());
         config.put("platformConfigs", configs);
+        config.put("opsPackId", campaign.getOpsPackId());
+        config.put("opsPackVersion", campaign.getOpsPackVersion());
+        config.put("greetStrategy", greetStrategy);
+        config.put("searchSource", StringUtils.hasText(dto.getSearchSource()) ? dto.getSearchSource() : "RECOMMEND");
+        config.put("screeningProfile", nestedPack(activePack, "screeningProfile"));
+        config.put("rechatPolicy", nestedPack(activePack, "rechatPolicy"));
+        Object quotas = dto.getPlatformQuotas() != null && !dto.getPlatformQuotas().isEmpty()
+                ? dto.getPlatformQuotas() : nestedPack(activePack, "platformQuotas");
+        config.put("platformQuotas", quotas);
+        config.put("communicationProfile", nestedPack(activePack, "communicationProfile"));
         try {
             campaign.setConfigJson(objectMapper.writeValueAsString(config));
             campaign.setStatsJson(objectMapper.writeValueAsString(emptyStats()));
@@ -213,6 +240,104 @@ public class SourcingCampaignService {
         return accounts.isEmpty() ? null : accounts.get(0);
     }
 
+    private Map<String, Object> resolveActiveOpsPack(Long jobId, Long tenantId, Long opsPackId) {
+        if (opsPackId != null) {
+            Map<String, Object> pack = opsPackReadMapper.selectById(jobId, opsPackId, tenantId);
+            if (pack != null && "ACTIVE".equals(String.valueOf(pack.get("status")))) {
+                return pack;
+            }
+            throw new BizException("指定的运营包不存在或未确认生效");
+        }
+        return opsPackReadMapper.selectActive(jobId, tenantId);
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<String> keywordsFromOpsPack(Map<String, Object> pack, Long jobId, Long tenantId) {
+        try {
+            if (pack != null && pack.get("packJson") != null) {
+                Map<String, Object> body = objectMapper.readValue(pack.get("packJson").toString(),
+                        new TypeReference<Map<String, Object>>() {});
+                Object kw = body.get("searchKeywords");
+                if (kw instanceof List) {
+                    return (List<String>) kw;
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return defaultKeywords(jobId, tenantId);
+    }
+
+    private int dailyLimitFromPack(Map<String, Object> pack) {
+        try {
+            if (pack != null && pack.get("packJson") != null) {
+                Map<String, Object> body = objectMapper.readValue(pack.get("packJson").toString(),
+                        new TypeReference<Map<String, Object>>() {});
+                Object quotas = body.get("platformQuotas");
+                if (quotas instanceof Map) {
+                    Map<?, ?> q = (Map<?, ?>) quotas;
+                    int sum = 0;
+                    for (Object v : q.values()) {
+                        if (v instanceof Number) {
+                            sum += ((Number) v).intValue();
+                        }
+                    }
+                    if (sum > 0) {
+                        return sum;
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return 50;
+    }
+
+    private String greetStrategyFromPack(Map<String, Object> pack) {
+        try {
+            if (pack != null && pack.get("packJson") != null) {
+                Map<String, Object> body = objectMapper.readValue(pack.get("packJson").toString(),
+                        new TypeReference<Map<String, Object>>() {});
+                Object gs = body.get("greetStrategy");
+                if (gs != null) {
+                    return gs.toString();
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return "SCREEN_THEN_GREET";
+    }
+
+    private Object nestedPack(Map<String, Object> pack, String key) {
+        try {
+            if (pack != null && pack.get("packJson") != null) {
+                Map<String, Object> body = objectMapper.readValue(pack.get("packJson").toString(),
+                        new TypeReference<Map<String, Object>>() {});
+                return body.get(key);
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
+    }
+
+    private Long toLong(Object v) {
+        if (v == null) {
+            return null;
+        }
+        if (v instanceof Number) {
+            return ((Number) v).longValue();
+        }
+        return Long.parseLong(v.toString());
+    }
+
+    private Integer toInt(Object v) {
+        if (v == null) {
+            return null;
+        }
+        if (v instanceof Number) {
+            return ((Number) v).intValue();
+        }
+        return Integer.parseInt(v.toString());
+    }
+
     private List<String> defaultKeywords(Long jobId, Long tenantId) {
         String tags = jobReadMapper.selectJobTags(jobId, tenantId);
         if (StringUtils.hasText(tags)) {
@@ -294,6 +419,10 @@ public class SourcingCampaignService {
         vo.setPhone(t.getPhone());
         vo.setTraceStatus(t.getTraceStatus());
         vo.setSkipReason(t.getSkipReason());
+        vo.setScreenStage(t.getScreenStage());
+        vo.setSkipReasonSummary(summarizeSkipReason(t));
+        vo.setGreetStrategyApplied(t.getGreetStrategyApplied());
+        vo.setOpsPackVersion(t.getOpsPackVersion());
         vo.setLockedByAccountId(t.getLockedByAccountId());
         if (t.getLockedByAccountId() != null) {
             AgentAccount a = accountMapper.selectById(t.getLockedByAccountId());
@@ -349,7 +478,29 @@ public class SourcingCampaignService {
         m.put("imported", 0);
         m.put("pendingScreening", 0);
         m.put("duplicatesSkipped", 0);
+        m.put("screenSkipped", 0);
         m.put("alerts", 0);
         return m;
+    }
+
+    private String summarizeSkipReason(CampaignCandidateTrace t) {
+        if (StringUtils.hasText(t.getSkipReason())) {
+            return t.getSkipReason();
+        }
+        if (!StringUtils.hasText(t.getSkipReasonJson())) {
+            return null;
+        }
+        try {
+            Map<String, Object> m = objectMapper.readValue(t.getSkipReasonJson(),
+                    new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
+            Object stage = m.get("stage");
+            Object rule = m.get("rule");
+            Object evidence = m.get("evidence");
+            if (stage != null && rule != null) {
+                return stage + " · " + rule + (evidence != null ? " (" + evidence + ")" : "");
+            }
+        } catch (Exception ignored) {
+        }
+        return t.getSkipReasonJson();
     }
 }

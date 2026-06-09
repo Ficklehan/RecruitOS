@@ -2,39 +2,22 @@ package com.recruitos.evolution.dto;
 
 import java.io.Serializable;
 
-/**
- * DTO for querying evolution signals
- */
 public class SignalQueryDTO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    /** Filter by signal type */
-    private String signalType;
-
-    /** Filter by job ID */
+    private Integer signalLevel;
     private Long jobId;
-
-    /** Filter by tag ID */
-    private Long tagId;
-
-    /** Filter by processing status */
-    private Integer processed;
-
-    /** Page number (default 1) */
+    private String status;
     private Integer pageNum = 1;
-
-    /** Page size (default 10) */
     private Integer pageSize = 10;
 
-    // Getters and Setters
-
-    public String getSignalType() {
-        return signalType;
+    public Integer getSignalLevel() {
+        return signalLevel;
     }
 
-    public void setSignalType(String signalType) {
-        this.signalType = signalType;
+    public void setSignalLevel(Integer signalLevel) {
+        this.signalLevel = signalLevel;
     }
 
     public Long getJobId() {
@@ -45,20 +28,12 @@ public class SignalQueryDTO implements Serializable {
         this.jobId = jobId;
     }
 
-    public Long getTagId() {
-        return tagId;
+    public String getStatus() {
+        return status;
     }
 
-    public void setTagId(Long tagId) {
-        this.tagId = tagId;
-    }
-
-    public Integer getProcessed() {
-        return processed;
-    }
-
-    public void setProcessed(Integer processed) {
-        this.processed = processed;
+    public void setStatus(String status) {
+        this.status = status;
     }
 
     public Integer getPageNum() {

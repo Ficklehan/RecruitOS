@@ -1,5 +1,5 @@
 <template>
-  <div class="page-container">
+  <div class="page-container page-stack">
     <div class="page-header">
       <div>
         <h2 class="page-title">人才库</h2>
@@ -385,8 +385,8 @@ onMounted(async () => {
   border-radius: 8px;
   padding: 32px 32px 24px;
   margin-bottom: 20px;
-  .search-box { max-width: 720px; margin: 0 auto 20px; }
-  .skill-tags { display: flex; flex-wrap: wrap; gap: 8px; max-width: 720px; margin: 0 auto; }
+  .search-box { width: 100%; max-width: none; margin-bottom: 20px; }
+  .skill-tags { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; }
 }
 .pool-results .talent-cards {
   display: grid;

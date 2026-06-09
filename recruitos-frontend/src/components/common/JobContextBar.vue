@@ -1,12 +1,12 @@
 <template>
-  <div v-if="showBar" class="job-context-bar">
+  <div v-if="showBar" class="context-bar job-context-bar">
     <span class="ctx-label">当前在招职位</span>
     <el-select
       :model-value="modelValue"
       placeholder="选择在招职位"
       filterable
       clearable
-      style="width: min(360px, 100%)"
+      class="ctx-select"
       @update:model-value="onChange"
     >
       <el-option v-for="j in jobs" :key="j.id" :label="j.title" :value="j.id" />
@@ -14,7 +14,9 @@
     <el-button v-if="modelValue" link type="primary" @click="openJobWorkspace">
       进入职位工作台
     </el-button>
-    <slot />
+    <div v-if="$slots.default" class="context-bar-actions">
+      <slot />
+    </div>
   </div>
 </template>
 
@@ -55,20 +57,23 @@ onMounted(async () => {
 </script>
 
 <style scoped lang="scss">
+@import '@/assets/styles/variables.scss';
+
 .job-context-bar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-  padding: 12px 16px;
-  margin-bottom: 16px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  margin-bottom: 0;
 }
+
 .ctx-label {
   font-size: 13px;
-  color: #64748b;
+  font-weight: 500;
+  color: $text-secondary;
   flex-shrink: 0;
+}
+
+.ctx-select {
+  flex: 1 1 280px;
+  width: auto;
+  min-width: 200px;
+  max-width: none;
 }
 </style>

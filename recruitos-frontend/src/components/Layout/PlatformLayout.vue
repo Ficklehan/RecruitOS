@@ -4,18 +4,17 @@
       <div class="sidebar-brand">
         <div class="brand-icon">
           <svg viewBox="0 0 32 32" fill="none">
-            <rect width="32" height="32" rx="8" fill="url(#g1)"/>
+            <rect width="32" height="32" rx="8" fill="#3B82F6"/>
             <path d="M9 11h14M9 16h10M9 21h6" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
-            <defs><linearGradient id="g1" x1="0" y1="0" x2="32" y2="32"><stop stop-color="#6366f1"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient></defs>
           </svg>
         </div>
         <div class="brand-text">
           <span class="brand-name">RecruitOS</span>
-          <span class="brand-tag">Platform</span>
+          <span class="brand-tag">平台管理</span>
         </div>
       </div>
 
-      <nav class="sidebar-nav">
+      <nav class="sidebar-nav" aria-label="平台导航">
         <router-link
           v-for="item in menuItems"
           :key="item.path"
@@ -69,17 +68,19 @@ async function handleLogout() {
 }
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
+@import '@/assets/styles/variables.scss';
+
 .platform-layout {
   display: flex;
   height: 100vh;
-  background: #f8fafc;
+  background: $bg-page;
 }
 
-/* Sidebar */
 .sidebar {
-  width: 240px;
-  background: #0f172a;
+  width: $sidebar-width;
+  background: $bg-card;
+  border-right: 1px solid $border-color;
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -89,88 +90,89 @@ async function handleLogout() {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 24px 20px;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
+  padding: 20px 18px;
+  border-bottom: 1px solid $border-color-light;
 }
 
 .brand-icon {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   flex-shrink: 0;
+
+  svg {
+    width: 100%;
+    height: 100%;
+  }
 }
-.brand-icon svg { width: 100%; height: 100%; }
 
 .brand-text {
   display: flex;
   flex-direction: column;
+  gap: 2px;
 }
 
 .brand-name {
-  font-size: 16px;
-  font-weight: 700;
-  color: #f1f5f9;
-  letter-spacing: 0.5px;
+  font-size: 15px;
+  font-weight: 600;
+  color: $text-primary;
 }
 
 .brand-tag {
   font-size: 11px;
-  color: #6366f1;
-  font-weight: 600;
-  letter-spacing: 1px;
-  text-transform: uppercase;
+  color: $text-secondary;
+  font-weight: 500;
 }
 
 .sidebar-nav {
   flex: 1;
-  padding: 16px 12px;
+  padding: 12px 10px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 14px;
-  border-radius: 8px;
-  color: #94a3b8;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: $border-radius-sm;
+  color: $text-secondary;
   font-size: 14px;
   font-weight: 500;
   text-decoration: none;
-  transition: all 0.2s;
-}
+  transition: background-color $transition-fast, color $transition-fast;
 
-.nav-item:hover {
-  background: rgba(255,255,255,0.06);
-  color: #e2e8f0;
-}
+  &:hover {
+    background: $bg-muted;
+    color: $text-primary;
+  }
 
-.nav-item.active {
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
-  color: #fff;
-  box-shadow: 0 2px 8px rgba(99,102,241,0.3);
+  &.active {
+    background: $primary-lighter;
+    color: $primary-color;
+  }
 }
 
 .sidebar-footer {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 16px 20px;
-  border-top: 1px solid rgba(255,255,255,0.06);
+  gap: 10px;
+  padding: 14px 16px;
+  border-top: 1px solid $border-color-light;
 }
 
 .admin-avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  width: 32px;
+  height: 32px;
+  border-radius: $border-radius-sm;
+  background: $primary-color;
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 600;
   flex-shrink: 0;
 }
 
@@ -183,8 +185,8 @@ async function handleLogout() {
 
 .admin-name {
   font-size: 13px;
-  font-weight: 600;
-  color: #e2e8f0;
+  font-weight: 500;
+  color: $text-primary;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -192,25 +194,27 @@ async function handleLogout() {
 
 .admin-role {
   font-size: 11px;
-  color: #64748b;
+  color: $text-secondary;
 }
 
 .logout-btn {
-  color: #64748b;
+  color: $text-secondary;
   cursor: pointer;
   padding: 6px;
-  border-radius: 6px;
-  transition: all 0.2s;
-}
-.logout-btn:hover {
-  color: #f87171;
-  background: rgba(248,113,113,0.1);
+  border-radius: $border-radius-sm;
+  transition: color $transition-fast, background-color $transition-fast;
+
+  &:hover {
+    color: $danger-color;
+    background: $danger-lighter;
+  }
 }
 
-/* Main Content */
 .main-content {
   flex: 1;
   overflow-y: auto;
   min-width: 0;
+  width: 100%;
+  padding: 16px 20px 28px;
 }
 </style>

@@ -1,36 +1,35 @@
 <template>
-  <div class="page-container">
-    <!-- 页面头部 -->
-    <div class="page-header">
-      <div>
-        <h2 class="page-title">招聘需求</h2>
-        <p class="page-subtitle">部门提出的用人申请，审批通过后可创建在招职位</p>
-      </div>
+  <ListPageLayout
+    title="招聘需求"
+    subtitle="部门提出的用人申请，审批通过后可创建在招职位"
+  >
+    <template #actions>
       <el-button type="primary" @click="handleCreate">
         <el-icon><Plus /></el-icon>
         创建招聘需求
       </el-button>
-    </div>
+    </template>
 
-    <!-- 搜索栏 -->
-    <div class="filter-bar">
+    <template #filters>
       <el-input
         v-model="queryParams.title"
         placeholder="搜索招聘需求"
         :prefix-icon="Search"
         clearable
-        style="width: 240px"
+        class="filter-field filter-field--lg"
         @keyup.enter="handleSearch"
       />
-      <el-select v-model="queryParams.orgId" placeholder="所属部门" clearable style="width: 160px">
+      <el-select v-model="queryParams.orgId" placeholder="所属部门" clearable class="filter-field filter-field--md">
         <el-option v-for="dept in departmentOptions" :key="dept.value" :label="dept.label" :value="dept.value" />
       </el-select>
-      <el-select v-model="queryParams.status" placeholder="需求状态" clearable style="width: 140px">
+      <el-select v-model="queryParams.status" placeholder="需求状态" clearable class="filter-field filter-field--sm">
         <el-option v-for="s in statusOptions" :key="s.value" :label="s.label" :value="s.value" />
       </el-select>
-      <el-select v-model="queryParams.urgency" placeholder="紧急程度" clearable style="width: 140px">
+      <el-select v-model="queryParams.urgency" placeholder="紧急程度" clearable class="filter-field filter-field--sm">
         <el-option v-for="u in urgencyOptions" :key="u.value" :label="u.label" :value="u.value" />
       </el-select>
+    </template>
+    <template #filterActions>
       <el-button type="primary" @click="handleSearch">
         <el-icon><Search /></el-icon>
         搜索
@@ -39,11 +38,9 @@
         <el-icon><RefreshRight /></el-icon>
         重置
       </el-button>
-    </div>
+    </template>
 
-    <!-- 数据表格 -->
-    <div class="data-card">
-      <el-table v-if="demandList.length" :data="demandList" stripe highlight-current-row style="width: 100%">
+    <el-table v-if="demandList.length" :data="demandList" highlight-current-row style="width: 100%">
         <el-table-column prop="demandNo" label="需求编号" width="140" show-overflow-tooltip />
         <el-table-column prop="title" label="需求标题" min-width="200" show-overflow-tooltip>
           <template #default="{ row }">
@@ -106,9 +103,8 @@
         ]"
       />
 
-      <!-- 分页 -->
+    <div v-if="total > 0" class="data-card-footer">
       <el-pagination
-        v-if="total > 0"
         v-model:current-page="queryParams.pageNum"
         v-model:page-size="queryParams.pageSize"
         :page-sizes="[10, 20, 50, 100]"
@@ -118,7 +114,7 @@
         @current-change="handleSearch"
       />
     </div>
-  </div>
+  </ListPageLayout>
 </template>
 
 <script setup lang="ts">
@@ -126,6 +122,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Plus, RefreshRight } from '@element-plus/icons-vue'
+import ListPageLayout from '@/components/Layout/ListPageLayout.vue'
 import EmptyStateCta from '@/components/common/EmptyStateCta.vue'
 import { demandStatusLabel } from '@/constants/businessLabels'
 import { getDemandList, submitDemand, closeDemand } from '@/api/modules/demand'

@@ -69,6 +69,12 @@ knife4j:
         api-rule-resources:
           - com.recruitos.agent.controller
 
+recruitos:
+  evolution:
+    base-url: http://localhost:8090
+    enabled: true
+    timeout-ms: 3000
+
 logging:
   level:
     com.recruitos: debug

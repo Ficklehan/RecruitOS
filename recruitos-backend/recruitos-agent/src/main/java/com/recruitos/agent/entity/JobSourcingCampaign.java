@@ -9,6 +9,8 @@ import java.time.LocalDateTime;
 public class JobSourcingCampaign extends BaseEntity {
 
     private Long jobId;
+    private Long opsPackId;
+    private Integer opsPackVersion;
     private String name;
     private String mode;
     private String status;
@@ -22,6 +24,10 @@ public class JobSourcingCampaign extends BaseEntity {
 
     public Long getJobId() { return jobId; }
     public void setJobId(Long jobId) { this.jobId = jobId; }
+    public Long getOpsPackId() { return opsPackId; }
+    public void setOpsPackId(Long opsPackId) { this.opsPackId = opsPackId; }
+    public Integer getOpsPackVersion() { return opsPackVersion; }
+    public void setOpsPackVersion(Integer opsPackVersion) { this.opsPackVersion = opsPackVersion; }
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
     public String getMode() { return mode; }

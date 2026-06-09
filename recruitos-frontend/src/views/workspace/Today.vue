@@ -1,5 +1,5 @@
 <template>
-  <div class="page-container">
+  <div class="page-container page-stack">
     <div class="page-header">
       <div>
         <h2 class="page-title">今日安排</h2>
@@ -8,7 +8,27 @@
       <el-button type="primary" @click="$router.push('/pipeline/calendar')">面试日历</el-button>
     </div>
 
+    <div v-if="feedbackItems.length" class="data-card feedback-card" v-loading="loadingFeedback">
+      <div class="section-head">
+        <h3>待提交反馈</h3>
+        <span class="section-hint">已完成面试，请尽快提交评价</span>
+      </div>
+      <div class="today-list">
+        <div v-for="item in feedbackItems" :key="item.id" class="today-item">
+          <div class="today-time">{{ formatTime(item.scheduledStartTime) }}</div>
+          <div class="today-body">
+            <div class="today-title">{{ item.candidateName }} · {{ item.jobTitle }}</div>
+            <div class="today-meta">{{ roundLabel(item.round) }}</div>
+          </div>
+          <el-button type="primary" size="small" @click="openFeedback(item)">提交反馈</el-button>
+        </div>
+      </div>
+    </div>
+
     <div class="data-card" v-loading="loading">
+      <div class="section-head">
+        <h3>今日面试</h3>
+      </div>
       <div v-if="interviews.length" class="today-list">
         <div v-for="item in interviews" :key="item.id" class="today-item" @click="goInterview(item)">
           <div class="today-time">{{ formatTime(item.scheduledStartTime) }}</div>
@@ -19,7 +39,7 @@
               <span v-if="item.meetingPlatform || item.format"> · {{ item.meetingPlatform || item.format }}</span>
             </div>
           </div>
-          <el-button link type="primary" size="small">查看候选人</el-button>
+          <el-button link type="primary" size="small" @click.stop="goInterview(item)">查看候选人</el-button>
         </div>
       </div>
 
@@ -33,6 +53,12 @@
         ]"
       />
     </div>
+
+    <InterviewEvalDrawer
+      v-model="feedbackDrawerVisible"
+      :interview="activeFeedbackInterview"
+      @submitted="onFeedbackSubmitted"
+    />
   </div>
 </template>
 
@@ -40,11 +66,16 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import EmptyStateCta from '@/components/common/EmptyStateCta.vue'
-import { loadTodayInterviews } from '@/api/modules/workspace'
+import InterviewEvalDrawer from '@/components/interview/InterviewEvalDrawer.vue'
+import { loadPendingFeedbackInterviews, loadTodayInterviews } from '@/api/modules/workspace'
 
 const router = useRouter()
 const loading = ref(false)
+const loadingFeedback = ref(false)
 const interviews = ref<any[]>([])
+const feedbackItems = ref<any[]>([])
+const feedbackDrawerVisible = ref(false)
+const activeFeedbackInterview = ref<any | null>(null)
 
 const todayStr = computed(() => new Date().toLocaleDateString('zh-CN', {
   weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
@@ -70,10 +101,32 @@ function goInterview(item: any) {
   }
 }
 
+function openFeedback(item: any) {
+  activeFeedbackInterview.value = item
+  feedbackDrawerVisible.value = true
+}
+
+async function loadFeedback() {
+  loadingFeedback.value = true
+  try {
+    feedbackItems.value = await loadPendingFeedbackInterviews()
+  } finally {
+    loadingFeedback.value = false
+  }
+}
+
+async function onFeedbackSubmitted() {
+  await loadFeedback()
+}
+
 onMounted(async () => {
   loading.value = true
   try {
-    interviews.value = await loadTodayInterviews()
+    const [todayList] = await Promise.all([
+      loadTodayInterviews(),
+      loadFeedback(),
+    ])
+    interviews.value = todayList
   } finally {
     loading.value = false
   }
@@ -81,6 +134,15 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.section-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.section-head h3 { margin: 0; font-size: 15px; font-weight: 600; }
+.section-hint { font-size: 12px; color: #94a3b8; }
+.feedback-card { margin-bottom: 16px; }
 .today-list { display: flex; flex-direction: column; }
 .today-item {
   display: flex;

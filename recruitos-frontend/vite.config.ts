@@ -82,10 +82,6 @@ export default defineConfig({
         target: 'http://localhost:8085',
         changeOrigin: true,
       },
-      '/demo': {
-        target: 'http://localhost:8085',
-        changeOrigin: true,
-      },
       '/api/interview': {
         target: 'http://localhost:8086',
         changeOrigin: true,

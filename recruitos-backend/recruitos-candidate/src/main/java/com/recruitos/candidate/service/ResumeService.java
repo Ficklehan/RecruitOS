@@ -4,8 +4,11 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.recruitos.candidate.dto.CandidateCreateDTO;
 import com.recruitos.candidate.entity.Candidate;
+import com.recruitos.candidate.entity.CandidateJob;
 import com.recruitos.candidate.entity.Resume;
+import com.recruitos.candidate.mapper.CandidateJobMapper;
 import com.recruitos.candidate.mapper.CandidateMapper;
+import com.recruitos.candidate.mapper.JobPositionReadMapper;
 import com.recruitos.candidate.mapper.ResumeMapper;
 import com.recruitos.common.exception.BizException;
 import com.recruitos.common.result.PageResult;
@@ -26,6 +29,10 @@ public class ResumeService {
     private ResumeMapper resumeMapper;
     @Resource
     private CandidateMapper candidateMapper;
+    @Resource
+    private CandidateJobMapper candidateJobMapper;
+    @Resource
+    private JobPositionReadMapper jobPositionReadMapper;
     @Resource
     private CandidateService candidateService;
     @Resource
@@ -139,41 +146,114 @@ public class ResumeService {
         return m;
     }
 
-    /** Flatten parsed_json / linked candidate for list UI. */
+    /** Flatten parsed_json + candidate + match context for list/detail UI. */
     private void enrichDisplayFields(Map<String, Object> m, Resume r) {
+        Map<String, Object> parsed = readParsedJson(r.getParsedJson());
+
         if (r.getCandidateId() != null) {
             Candidate c = candidateMapper.selectById(r.getCandidateId());
             if (c != null) {
                 m.put("name", c.getName());
                 m.put("phone", c.getPhone());
+                m.put("email", c.getEmail());
                 m.put("company", c.getCurrentCompany());
                 m.put("position", c.getCurrentTitle());
                 m.put("workYears", c.getWorkYears());
                 m.put("education", normalizeEducation(c.getEducation()));
                 m.put("source", mapCandidateSource(c.getSource()));
+                if (c.getExpectedSalary() != null) {
+                    int k = c.getExpectedSalary().intValue() >= 1000
+                            ? c.getExpectedSalary().intValue() / 1000
+                            : c.getExpectedSalary().intValue();
+                    m.put("expectedSalary", k + "K");
+                }
+                m.put("school", c.getSchool());
+                m.put("major", c.getMajor());
+                m.put("workLocation", c.getWorkLocation());
+                m.put("status", c.getStatus());
+                attachMatchContext(m, c.getId());
             }
+        }
+
+        if (parsed != null) {
+            applyParsedJson(m, parsed);
+        }
+
+        if (!m.containsKey("name")) {
+            m.put("name", "未识别");
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void applyParsedJson(Map<String, Object> m, Map<String, Object> parsed) {
+        Object basicObj = parsed.get("basic");
+        if (basicObj instanceof Map) {
+            Map<String, Object> basic = (Map<String, Object>) basicObj;
+            putIfAbsent(m, "name", basic.get("name"));
+            putIfAbsent(m, "phone", basic.get("phone"));
+            putIfAbsent(m, "email", basic.get("email"));
+            putIfAbsent(m, "company", basic.get("company"));
+            putIfAbsent(m, "position", basic.get("position"));
+            putIfAbsent(m, "workYears", basic.get("workYears"));
+            putIfAbsent(m, "education", basic.get("education"));
+            putIfAbsent(m, "expectedSalary", basic.get("expectedSalary"));
+            putIfAbsent(m, "school", basic.get("school"));
+            putIfAbsent(m, "major", basic.get("major"));
+            putIfAbsent(m, "workLocation", basic.get("location"));
+        }
+        putIfAbsent(m, "skills", parsed.get("skills"));
+        putIfAbsent(m, "summary", parsed.get("summary"));
+        putIfAbsent(m, "workExperience", parsed.get("workExperience"));
+        putIfAbsent(m, "projectExperience", parsed.get("projectExperience"));
+        putIfAbsent(m, "educationHistory", parsed.get("education"));
+        putIfAbsent(m, "aiInsights", parsed.get("aiInsights"));
+    }
+
+    private void attachMatchContext(Map<String, Object> m, Long candidateId) {
+        Long tenantId = TenantContext.getTenantId();
+        if (tenantId == null) {
             return;
         }
-        if (!StringUtils.hasText(r.getParsedJson())) {
-            m.put("name", "未识别");
+        LambdaQueryWrapper<CandidateJob> w = new LambdaQueryWrapper<>();
+        w.eq(CandidateJob::getTenantId, tenantId)
+                .eq(CandidateJob::getCandidateId, candidateId)
+                .orderByDesc(CandidateJob::getMatchScore)
+                .last("LIMIT 3");
+        List<CandidateJob> jobs = candidateJobMapper.selectList(w);
+        if (jobs.isEmpty()) {
             return;
+        }
+        CandidateJob top = jobs.get(0);
+        m.put("matchScore", top.getMatchScore());
+        m.put("matchDetail", top.getMatchDetail());
+
+        List<Map<String, Object>> recommended = new ArrayList<>();
+        for (CandidateJob cj : jobs) {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("id", cj.getJobId());
+            item.put("title", jobPositionReadMapper.selectTitle(cj.getJobId(), tenantId));
+            item.put("matchScore", cj.getMatchScore());
+            item.put("matchDetail", cj.getMatchDetail());
+            recommended.add(item);
+        }
+        m.put("recommendedJobs", recommended);
+    }
+
+    private void putIfAbsent(Map<String, Object> m, String key, Object value) {
+        if (value != null && (!m.containsKey(key) || m.get(key) == null)) {
+            m.put(key, value);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> readParsedJson(String json) {
+        if (!StringUtils.hasText(json)) {
+            return null;
         }
         try {
-            Map<String, Object> parsed = objectMapper.readValue(r.getParsedJson(), Map.class);
-            Object basicObj = parsed.get("basic");
-            if (basicObj instanceof Map) {
-                @SuppressWarnings("unchecked")
-                Map<String, Object> basic = (Map<String, Object>) basicObj;
-                m.put("name", basic.getOrDefault("name", "未识别"));
-                m.put("phone", basic.get("phone"));
-                m.put("company", basic.get("company"));
-                m.put("position", basic.get("position"));
-                m.put("workYears", basic.get("workYears"));
-                m.put("education", basic.get("education"));
-            }
-            m.put("source", "MANUAL");
+            return objectMapper.readValue(json, Map.class);
         } catch (Exception ignored) {
-            m.put("name", "未识别");
+            return null;
         }
     }
 

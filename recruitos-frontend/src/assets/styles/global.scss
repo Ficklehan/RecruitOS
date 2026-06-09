@@ -1,5 +1,43 @@
 @import './variables.scss';
 
+/* ── CSS 变量（供运行时与组件引用）──────── */
+:root {
+  --color-primary: #{$primary-color};
+  --color-primary-light: #{$primary-lighter};
+  --color-text-primary: #{$text-primary};
+  --color-text-secondary: #{$text-secondary};
+  --color-text-placeholder: #{$text-placeholder};
+  --color-bg-page: #{$bg-page};
+  --color-bg-surface: #{$bg-card};
+  --color-bg-muted: #{$bg-muted};
+  --color-border: #{$border-color};
+  --color-border-light: #{$border-color-light};
+  --radius-md: #{$border-radius};
+  --radius-sm: #{$border-radius-sm};
+  --radius-lg: #{$border-radius-lg};
+  --shadow-elevated: #{$shadow-sm};
+  --shadow-hover: #{$shadow-md};
+  --shadow-float: #{$shadow-lg};
+  --focus-ring: #{$focus-ring};
+  --spacing-page-x: 20px;
+  --spacing-page-y: 16px;
+  --spacing-section: #{$spacing-section};
+  --spacing-page-block: #{$spacing-page-block};
+  --text-heading-lg: #{$text-heading-lg};
+  --text-heading-md: #{$text-heading-md};
+  --text-heading-sm: #{$text-heading-sm};
+  --text-caption: #{$text-caption};
+  --line-height-heading: #{$line-height-heading};
+  --line-height-body: #{$line-height-body};
+  --topnav-height: #{$topnav-height};
+  --sub-sidebar-width: #{$sub-sidebar-width};
+  --breadcrumb-height: 26px;
+  /* 顶栏 + 内容区上下 padding + 面包屑，供看板/会话等计算可视高度 */
+  --layout-chrome-height: calc(
+    #{$topnav-height} + var(--spacing-page-y) * 2 + var(--breadcrumb-height) + 24px
+  );
+}
+
 /* ── Reset ─────────────────────────────── */
 *,
 *::before,
@@ -12,8 +50,7 @@
 html, body, #app {
   height: 100%;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-    'Helvetica Neue', Arial, 'Noto Sans SC', sans-serif,
-    'Apple Color Emoji', 'Segoe UI Emoji';
+    'Helvetica Neue', Arial, 'PingFang SC', 'Noto Sans SC', sans-serif;
   color: $text-regular;
   background-color: $bg-page;
   -webkit-font-smoothing: antialiased;
@@ -31,25 +68,39 @@ a {
   }
 }
 
+/* ── 表面层级：边框优先，阴影仅浮层 ───── */
+@mixin surface-base {
+  background: $bg-card;
+  border: 1px solid $border-color;
+  border-radius: $border-radius;
+}
+
+@mixin surface-muted {
+  background: $bg-muted;
+  border: 1px solid $border-color-light;
+  border-radius: $border-radius;
+}
+
 /* ── Element Plus 覆写 ─────────────────── */
-// 按钮：去掉厚重感，用更轻的圆角和字重
 .el-button {
   border-radius: $border-radius-sm !important;
   font-weight: 500;
-  letter-spacing: 0.01em;
-  transition: all $transition-base;
+  height: 36px;
+  padding: 0 14px;
+  transition: background-color $transition-fast, border-color $transition-fast, color $transition-fast;
 
   &--primary {
     box-shadow: none;
-    &:hover {
-      box-shadow: $shadow-primary;
+    &:not(.is-disabled):hover {
+      background-color: $primary-dark;
+      border-color: $primary-dark;
     }
   }
 
-  // 默认按钮不要那么灰
   &:not(.is-disabled):not(.el-button--primary):not(.el-button--success):not(.el-button--warning):not(.el-button--danger):not(.el-button--info) {
     border-color: $border-color;
     color: $text-regular;
+    background: $bg-card;
     &:hover {
       border-color: $primary-light;
       color: $primary-color;
@@ -58,16 +109,15 @@ a {
   }
 }
 
-// 卡片：无边框
 .el-card {
-  border-radius: $border-radius !important;
-  border: none !important;
+  @include surface-base;
   box-shadow: none !important;
-  background: $bg-card;
 
   .el-card__header {
     border-bottom: 1px solid $border-color-light;
     padding: 16px 20px;
+    font-weight: 600;
+    color: $text-primary;
   }
 
   .el-card__body {
@@ -75,14 +125,14 @@ a {
   }
 }
 
-// 弹窗
 .el-dialog {
   border-radius: $border-radius-lg !important;
+  border: 1px solid $border-color;
   box-shadow: $shadow-lg;
   overflow: hidden;
 
   .el-dialog__header {
-    padding: 20px 24px 16px;
+    padding: 18px 24px 14px;
     border-bottom: 1px solid $border-color-light;
     margin-right: 0;
   }
@@ -98,19 +148,18 @@ a {
   }
 
   .el-dialog__footer {
-    padding: 16px 24px;
+    padding: 14px 24px;
     border-top: 1px solid $border-color-light;
   }
 }
 
-// 输入框
 .el-input__wrapper {
   border-radius: $border-radius-sm !important;
   box-shadow: 0 0 0 1px $border-color inset !important;
   transition: box-shadow $transition-base;
 
   &:hover {
-    box-shadow: 0 0 0 1px $text-placeholder inset !important;
+    box-shadow: 0 0 0 1px darken($border-color, 6%) inset !important;
   }
 
   &.is-focus {
@@ -122,12 +171,11 @@ a {
   border-radius: $border-radius-sm !important;
 }
 
-// 表格：无框线、轻盈扁平
 .el-table {
+  --el-table-border-color: transparent;
+  --el-table-header-bg-color: #{$bg-muted};
   border-radius: 0 !important;
-  overflow: hidden;
 
-  // 去掉所有框线
   &::before,
   &::after,
   &__border {
@@ -135,77 +183,43 @@ a {
   }
 
   th.el-table__cell {
-    background-color: transparent !important;
-    color: $text-placeholder;
-    font-weight: 500;
+    background-color: $bg-muted !important;
+    color: $text-secondary;
+    font-weight: 600;
     font-size: 12px;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    border-bottom: none !important;
-    padding: 10px 0;
+    letter-spacing: 0.02em;
+    border-bottom: 1px solid $border-color-light !important;
+    padding: 11px 12px;
   }
 
   td.el-table__cell {
-    border-bottom: none !important;
+    border-bottom: 1px solid $border-color-light !important;
     color: $text-regular;
-    padding: 12px 0;
+    padding: 12px;
   }
 
-  // 行 hover 用极淡底色
   tr:hover > td.el-table__cell {
     background-color: $primary-lighter !important;
   }
 
-  // 去掉 stripe
   &--striped .el-table__body tr.el-table__row--striped td.el-table__cell {
     background-color: transparent !important;
   }
 
-  // 去掉外边框
   .el-table__inner-wrapper::before,
   .el-table__inner-wrapper::after {
     display: none !important;
   }
-
-  // 列之间的分隔也去掉
-  td.el-table__cell.is-leaf,
-  th.el-table__cell.is-leaf {
-    border-bottom: none !important;
-  }
-
-  // 用极细的行底部分隔代替框线
-  .el-table__row > td.el-table__cell {
-    box-shadow: inset 0 -1px 0 $border-color-light;
-  }
-
-  // 最后一行不要底部分隔
-  .el-table__row:last-child > td.el-table__cell {
-    box-shadow: none;
-  }
-
-  // 表头底部分隔
-  thead th.el-table__cell {
-    box-shadow: inset 0 -1px 0 $border-color-light;
-  }
 }
 
-// el-descriptions：去掉框线
 .el-descriptions {
-  .el-descriptions__table {
-    border-collapse: separate !important;
-    border-spacing: 0 !important;
-  }
-
   .el-descriptions__cell {
     border: none !important;
     padding: 8px 0 !important;
   }
 
   &.is-bordered {
-    .el-descriptions__table {
-      border: none !important;
-    }
-
+    .el-descriptions__table,
     .el-descriptions__cell {
       border: none !important;
     }
@@ -222,10 +236,9 @@ a {
 }
 
 .el-tag {
-  border-radius: $border-radius-full !important;
+  border-radius: $border-radius-sm !important;
   border: none !important;
   font-weight: 500;
-  letter-spacing: 0.01em;
 
   &--info {
     background-color: $bg-muted;
@@ -238,7 +251,6 @@ a {
   justify-content: flex-end;
 }
 
-// Tabs
 .el-tabs__item {
   font-weight: 500;
   color: $text-secondary;
@@ -251,9 +263,9 @@ a {
 .el-tabs__active-bar {
   background-color: $primary-color;
   border-radius: 2px;
+  height: 2px;
 }
 
-// Drawer
 .el-drawer__header {
   border-bottom: 1px solid $border-color-light;
   padding: 16px 20px;
@@ -264,12 +276,18 @@ a {
   padding: 20px;
 }
 
+.el-alert {
+  border-radius: $border-radius-sm;
+  border: 1px solid $border-color-light;
+}
+
 /* ── 工具类 ────────────────────────────── */
 .flex { display: flex; }
 .flex-center { display: flex; align-items: center; justify-content: center; }
 .flex-between { display: flex; align-items: center; justify-content: space-between; }
 .flex-1 { flex: 1; }
 .flex-col { display: flex; flex-direction: column; }
+.flex-wrap { flex-wrap: wrap; }
 .items-center { align-items: center; }
 .gap-4 { gap: 4px; }
 .gap-8 { gap: 8px; }
@@ -309,48 +327,188 @@ a {
 .p-20 { padding: 20px; }
 .p-24 { padding: 24px; }
 
-/* ── 页面通用结构 ──────────────────────── */
+/* ── 页面通用结构：全宽铺满内容区 ───────── */
 .page-container {
-  padding: $spacing-xl;
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-section;
+}
+
+.page-stack {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-section;
+  width: 100%;
+  min-width: 0;
 }
 
 .page-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: $spacing-xl;
+  gap: $spacing-xl;
+  width: 100%;
 
   .page-title {
-    font-size: 20px;
+    font-size: $text-heading-lg;
     font-weight: 600;
     color: $text-primary;
-    line-height: 1.3;
+    line-height: $line-height-heading;
+    letter-spacing: -0.01em;
   }
 
   .page-subtitle {
-    font-size: 13px;
+    font-size: 14px;
     color: $text-secondary;
-    margin-top: 2px;
+    margin-top: 4px;
+    line-height: $line-height-body;
+  }
+}
+
+.page-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: $spacing-md;
+  width: 100%;
+}
+
+.context-bar,
+.filter-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: $spacing-md;
+  width: 100%;
+  padding: $spacing-md $spacing-lg;
+  @include surface-base;
+  background: $bg-card;
+
+  .filter-actions,
+  .context-bar-actions {
+    display: flex;
+    align-items: center;
+    gap: $spacing-sm;
+    margin-left: auto;
   }
 }
 
 .filter-bar {
-  display: flex;
-  align-items: center;
-  gap: $spacing-md;
-  margin-bottom: $spacing-lg;
-  padding: $spacing-lg $spacing-xl;
-  background: $bg-card;
-  border-radius: $border-radius;
+  margin-bottom: 0;
 }
 
 .data-card {
+  @include surface-base;
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+
+  .el-table {
+    width: 100% !important;
+  }
+
+  > .el-table {
+    border-radius: 0;
+  }
+
+  > .el-pagination,
+  .el-pagination {
+    margin-top: 0;
+    padding: 12px 16px 14px;
+    border-top: 1px solid $border-color-light;
+    justify-content: flex-end;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  &--padded {
+    padding: $spacing-xl;
+  }
+
+  &--plain {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    overflow: visible;
+  }
+}
+
+/* 看板/宽表格横向铺满内容区（抵消 content-area 左右 padding） */
+.page-full-bleed {
+  width: calc(100% + 2 * var(--spacing-page-x));
+  max-width: none;
+  margin-left: calc(-1 * var(--spacing-page-x));
+  margin-right: calc(-1 * var(--spacing-page-x));
+  padding-left: var(--spacing-page-x);
+  padding-right: var(--spacing-page-x);
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+/* 统计卡行：自适应列数，全宽 */
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  width: 100%;
+}
+
+/* 填满剩余视口（会话、日历等） */
+.page-viewport-fill {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: calc(100vh - var(--layout-chrome-height));
+  min-width: 0;
+}
+
+.page-viewport-fill__body {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 看板列体：在视口内滚动 */
+.kanban-column-body {
+  flex: 1;
+  min-height: 120px;
+  max-height: calc(100vh - var(--layout-chrome-height) - 200px);
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.data-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 12px 16px;
+  border-top: 1px solid $border-color-light;
   background: $bg-card;
-  border-radius: $border-radius;
+
+  .el-pagination {
+    margin-top: 0;
+  }
+}
+
+.section-card {
+  @include surface-base;
   padding: $spacing-xl;
 }
 
-/* ── 选中行链接样式 ────────────────────── */
+.section-title {
+  font-size: $text-heading-md;
+  font-weight: 600;
+  color: $text-primary;
+  margin-bottom: $spacing-lg;
+}
+
 .title-link {
   color: $primary-color;
   cursor: pointer;
@@ -360,4 +518,87 @@ a {
   &:hover {
     color: $primary-dark;
   }
+}
+
+.filter-field {
+  width: 150px;
+  flex: 0 1 auto;
+
+  &--xs { width: 120px; }
+  &--sm { width: 140px; }
+  &--md { width: 160px; }
+  &--lg { width: 240px; }
+  &--xl { width: 280px; }
+  &--date { width: 260px; }
+}
+
+/* ── 列表行 / 收件箱 ───────────────────── */
+.list-rows {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.list-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid $border-color-light;
+  cursor: pointer;
+  transition: background-color $transition-fast;
+
+  &:hover {
+    background: $primary-lighter;
+  }
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.list-row-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.list-row-title {
+  font-weight: 500;
+  color: $text-regular;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.list-row-meta {
+  font-size: 12px;
+  color: $text-placeholder;
+  flex-shrink: 0;
+}
+
+/* ── 页面内 Tabs ────────────────────────── */
+.page-container > .el-tabs {
+  width: 100%;
+}
+
+.page-container > .el-tabs .el-tabs__header {
+  margin-bottom: 0;
+}
+
+/* ── 无障碍：键盘焦点 ───────────────────── */
+.el-button:focus-visible,
+.el-dropdown:focus-visible,
+.nav-item:focus-visible,
+.sub-menu-item:focus-visible {
+  outline: 2px solid $primary-color;
+  outline-offset: 2px;
+}
+
+.text-muted {
+  color: $text-placeholder;
+  font-size: 13px;
 }

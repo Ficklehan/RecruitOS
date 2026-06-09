@@ -49,3 +49,28 @@ export function getTags(id: number) {
 export function updateTags(id: number, data: any) {
   return request.put(`/api/job/${id}/tags`, data)
 }
+
+// 渠道运营包
+export function generateOpsPack(jobId: number) {
+  return request.post(`/api/job/${jobId}/ops-pack/generate`)
+}
+
+export function getActiveOpsPack(jobId: number) {
+  return request.get(`/api/job/${jobId}/ops-pack/active`)
+}
+
+export function listOpsPackVersions(jobId: number) {
+  return request.get(`/api/job/${jobId}/ops-pack/versions`)
+}
+
+export function getOpsPackById(jobId: number, packId: number) {
+  return request.get(`/api/job/${jobId}/ops-pack/${packId}`)
+}
+
+export function updateOpsPack(jobId: number, packId: number, packBody: Record<string, unknown>) {
+  return request.put(`/api/job/${jobId}/ops-pack/${packId}`, packBody)
+}
+
+export function confirmOpsPack(jobId: number, packId: number) {
+  return request.post(`/api/job/${jobId}/ops-pack/${packId}/confirm`)
+}

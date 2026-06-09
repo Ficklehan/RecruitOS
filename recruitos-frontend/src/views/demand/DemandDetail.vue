@@ -1,5 +1,5 @@
 <template>
-  <div class="page-container">
+  <div class="page-container page-stack">
     <!-- 页面头部 -->
     <div class="page-header">
       <div class="header-left">
@@ -165,6 +165,27 @@
       </div>
     </div>
 
+    <!-- 关联职位招聘进展 -->
+    <div v-if="linkedJobs.length" class="info-card">
+      <h3 class="card-title">关联职位招聘进展</h3>
+      <p class="section-hint">部门负责人可在此查看各在招职位的候选人漏斗</p>
+      <div v-for="job in linkedJobs" :key="job.id" class="job-funnel-block">
+        <div class="job-funnel-head">
+          <router-link :to="`/planning/jobs/${job.id}`" class="job-link">{{ job.title }}</router-link>
+          <el-tag size="small" :type="job.status === 'ACTIVE' ? 'success' : 'info'">
+            {{ jobStatusLabel(job.status) }}
+          </el-tag>
+        </div>
+        <div v-if="jobFunnels[job.id]" class="funnel-row">
+          <div v-for="cell in jobFunnels[job.id]" :key="cell.stage" class="funnel-cell">
+            <span class="funnel-num">{{ cell.count }}</span>
+            <span class="funnel-label">{{ cell.label }}</span>
+          </div>
+        </div>
+        <div v-else class="empty-text">加载中…</div>
+      </div>
+    </div>
+
     <!-- 审批记录卡片 -->
     <div class="info-card">
       <h3 class="card-title">审批记录</h3>
@@ -209,8 +230,10 @@ import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, Edit, Promotion, Close, User, ChatLineSquare } from '@element-plus/icons-vue'
-import { demandStatusLabel } from '@/constants/businessLabels'
+import { demandStatusLabel, jobStatusLabel, pipelineStageLabel } from '@/constants/businessLabels'
 import { getDemandDetail, submitDemand, closeDemand } from '@/api/modules/demand'
+import { getJobList } from '@/api/modules/job'
+import { getPipelineBoard } from '@/api/modules/pipeline'
 
 const router = useRouter()
 const route = useRoute()
@@ -218,6 +241,8 @@ const demandId = Number(route.params.id)
 
 const detail = ref<any>({})
 const approvalRecords = ref<any[]>([])
+const linkedJobs = ref<any[]>([])
+const jobFunnels = ref<Record<number, { stage: string; label: string; count: number }[]>>({})
 
 // 格式化薪资
 function formatSalary(val: any): string {
@@ -302,6 +327,41 @@ function getApprovalLabel(action: string) {
   return map[action] || action
 }
 
+async function loadLinkedJobs() {
+  const demandNo = detail.value?.demandNo
+  if (!demandNo) {
+    linkedJobs.value = []
+    jobFunnels.value = {}
+    return
+  }
+  try {
+    const res: any = await getJobList({ demandNo, pageNum: 1, pageSize: 20 })
+    linkedJobs.value = res.data?.list || res.data?.records || []
+    const funnels: typeof jobFunnels.value = {}
+    await Promise.all(
+      linkedJobs.value.map(async (job: any) => {
+        try {
+          const boardRes: any = await getPipelineBoard(job.id)
+          const columns = boardRes.data?.columns || []
+          funnels[job.id] = columns
+            .filter((c: any) => (c.items?.length || 0) > 0)
+            .map((c: any) => ({
+              stage: c.stage,
+              label: pipelineStageLabel(c.stage, 'column'),
+              count: c.items?.length || 0,
+            }))
+        } catch {
+          funnels[job.id] = []
+        }
+      }),
+    )
+    jobFunnels.value = funnels
+  } catch {
+    linkedJobs.value = []
+    jobFunnels.value = {}
+  }
+}
+
 // 加载详情
 async function loadDetail() {
   if (!demandId || isNaN(demandId)) {
@@ -311,9 +371,12 @@ async function loadDetail() {
     const res: any = await getDemandDetail(demandId)
     detail.value = res.data || {}
     approvalRecords.value = res.data?.approvalRecords || []
+    await loadLinkedJobs()
   } catch {
     detail.value = {}
     approvalRecords.value = []
+    linkedJobs.value = []
+    jobFunnels.value = {}
   }
 }
 
@@ -451,6 +514,58 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+.section-hint {
+  font-size: 13px;
+  color: $text-secondary;
+  margin: -12px 0 16px;
+}
+
+.job-funnel-block {
+  padding: 12px 0;
+  border-bottom: 1px solid $border-color-light;
+  &:last-child { border-bottom: none; }
+}
+
+.job-funnel-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.job-link {
+  font-weight: 600;
+  color: $primary-color;
+  text-decoration: none;
+  &:hover { text-decoration: underline; }
+}
+
+.funnel-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.funnel-cell {
+  min-width: 72px;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.funnel-num {
+  display: block;
+  font-size: 18px;
+  font-weight: 700;
+  color: $text-primary;
+}
+
+.funnel-label {
+  font-size: 12px;
+  color: $text-secondary;
 }
 
 .empty-text {

@@ -3,42 +3,18 @@ package com.recruitos.evolution.entity;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.recruitos.common.mybatis.BaseEntity;
 
-/**
- * Job weight snapshot entity - stores weight snapshots for job-tag pairs
- */
+import java.math.BigDecimal;
+
 @TableName("job_weight_snapshot")
 public class JobWeightSnapshot extends BaseEntity {
 
     private static final long serialVersionUID = 1L;
 
-    /** Job ID */
     private Long jobId;
-
-    /** Job title */
-    private String jobTitle;
-
-    /** Tag ID */
-    private Long tagId;
-
-    /** Tag name */
-    private String tagName;
-
-    /** Match weight */
-    private Double matchWeight;
-
-    /** Search weight */
-    private Double searchWeight;
-
-    /** Decision weight */
-    private Double decisionWeight;
-
-    /** Version number */
-    private Integer version;
-
-    /** Created by user ID */
-    private Long createdBy;
-
-    // Getters and Setters
+    private String snapshotType;
+    private String tagsSnapshot;
+    private BigDecimal healthScore;
+    private Long signalId;
 
     public Long getJobId() {
         return jobId;
@@ -48,67 +24,35 @@ public class JobWeightSnapshot extends BaseEntity {
         this.jobId = jobId;
     }
 
-    public String getJobTitle() {
-        return jobTitle;
+    public String getSnapshotType() {
+        return snapshotType;
     }
 
-    public void setJobTitle(String jobTitle) {
-        this.jobTitle = jobTitle;
+    public void setSnapshotType(String snapshotType) {
+        this.snapshotType = snapshotType;
     }
 
-    public Long getTagId() {
-        return tagId;
+    public String getTagsSnapshot() {
+        return tagsSnapshot;
     }
 
-    public void setTagId(Long tagId) {
-        this.tagId = tagId;
+    public void setTagsSnapshot(String tagsSnapshot) {
+        this.tagsSnapshot = tagsSnapshot;
     }
 
-    public String getTagName() {
-        return tagName;
+    public BigDecimal getHealthScore() {
+        return healthScore;
     }
 
-    public void setTagName(String tagName) {
-        this.tagName = tagName;
+    public void setHealthScore(BigDecimal healthScore) {
+        this.healthScore = healthScore;
     }
 
-    public Double getMatchWeight() {
-        return matchWeight;
+    public Long getSignalId() {
+        return signalId;
     }
 
-    public void setMatchWeight(Double matchWeight) {
-        this.matchWeight = matchWeight;
-    }
-
-    public Double getSearchWeight() {
-        return searchWeight;
-    }
-
-    public void setSearchWeight(Double searchWeight) {
-        this.searchWeight = searchWeight;
-    }
-
-    public Double getDecisionWeight() {
-        return decisionWeight;
-    }
-
-    public void setDecisionWeight(Double decisionWeight) {
-        this.decisionWeight = decisionWeight;
-    }
-
-    public Integer getVersion() {
-        return version;
-    }
-
-    public void setVersion(Integer version) {
-        this.version = version;
-    }
-
-    public Long getCreatedBy() {
-        return createdBy;
-    }
-
-    public void setCreatedBy(Long createdBy) {
-        this.createdBy = createdBy;
+    public void setSignalId(Long signalId) {
+        this.signalId = signalId;
     }
 }

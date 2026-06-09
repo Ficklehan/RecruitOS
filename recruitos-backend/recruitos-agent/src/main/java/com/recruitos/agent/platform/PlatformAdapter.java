@@ -14,7 +14,14 @@ public interface PlatformAdapter {
 
     List<PlatformCandidate> searchCandidates(AgentAccount account, List<String> keywords, int limit);
 
+    default List<PlatformCandidate> searchCandidates(AgentAccount account, List<String> keywords,
+                                                       int limit, String searchSource) {
+        return searchCandidates(account, keywords, limit);
+    }
+
     void sendGreeting(AgentAccount account, String platformUserId, String candidateName, String jobTitle, String template);
+
+    void sendFollowUp(AgentAccount account, String platformUserId, String message);
 
     boolean hasResumeInChat(AgentAccount account, String platformUserId);
 

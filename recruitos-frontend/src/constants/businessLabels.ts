@@ -1,5 +1,5 @@
 /**
- * RecruitOS 招聘业务用语规范 v1
+ * RecruitOS 招聘业务用语规范 v2（v3.1 UX）
  * 全站 UI 文案唯一出口（禁止页面硬编码同义不同词）
  */
 
@@ -8,6 +8,7 @@ export const OBJECTS = {
   jobShort: '职位',
   demand: '招聘需求',
   candidate: '候选人',
+  activeCandidates: '在招候选人',
   resume: '简历',
   talentPool: '人才库',
   channel: '招聘渠道',
@@ -15,15 +16,29 @@ export const OBJECTS = {
   offer: '录用通知',
   jobDescription: '职位描述',
   jobRequirements: '任职要求',
+  sourcingMethod: '招人方式',
+  stagingPool: '待联系池',
+  platformTask: '平台招人任务',
+  commStyle: '对外沟通风格',
+  evolutionSuggestion: '招人方式优化建议',
+  rollbackSuggestion: '恢复上一版招人方式',
+} as const
+
+/** 职位工作台 4 业务 Tab */
+export const JOB_WORKSPACE_TABS = {
+  overview: '总览',
+  sourcing: '找人',
+  candidates: '管人',
+  rules: '规则',
 } as const
 
 export const PIPELINE_STAGE: Record<string, { label: string; column: string; hint?: string }> = {
-  SOURCED: { label: '待处理', column: '新候选人', hint: '刚进入本职位，尚未初筛' },
+  SOURCED: { label: '新人待筛选', column: '新人待筛选', hint: '刚纳入本职位，尚未初筛' },
   SCREENING: { label: '初筛中', column: '初筛中', hint: 'HR 初筛进行中' },
-  CONTACTED: { label: '已联系', column: '已联系', hint: '已与候选人取得联系' },
-  INTERVIEWING: { label: '面试中', column: '面试中' },
-  EVALUATED: { label: '待录用决策', column: '待录用决策', hint: '面试完成，等待是否发 Offer' },
-  OFFER: { label: 'Offer 阶段', column: 'Offer 阶段' },
+  CONTACTED: { label: '已联系上', column: '已联系上', hint: '已与候选人取得联系' },
+  INTERVIEWING: { label: '面试安排中', column: '面试安排中', hint: '面试已安排或进行中' },
+  EVALUATED: { label: '待决定是否录用', column: '待决定是否录用', hint: '面试完成，等待是否发录用通知' },
+  OFFER: { label: '录用通知中', column: '录用通知中', hint: '录用通知审批或发送中' },
   HIRED: { label: '已入职', column: '已入职' },
   ARCHIVED: { label: '已结束', column: '已结束', hint: '本职位流程已关闭（不合适或放弃）' },
 }
@@ -61,12 +76,37 @@ export const ACTIONS = {
   reserveToPool: '储备至人才库',
   contact: '联系候选人',
   scheduleInterview: '安排面试',
-  startChannelHire: '开始渠道招聘',
-  confirmGreet: '确认发送招呼',
-  importCandidate: '加入候选人',
+  startPlatformTask: '开始平台招人',
+  startChannelHire: '开始平台招人',
+  confirmGreet: '确认发送首次联系',
+  importCandidate: '纳入本职位候选人',
   editRequirements: '编辑任职要求',
+  editSourcingMethod: '设置招人方式',
   loadMatchEval: '查看匹配评估',
+  goProcess: '去处理',
+  goScreen: '去筛选',
 } as const
+
+export const GREET_STRATEGY_LABEL: Record<string, string> = {
+  SCREEN_THEN_GREET: '合适了再联系',
+  COLLECT_ONLY: '仅收藏到待联系池',
+  CARD_GREET: '卡片即联系（高风险）',
+}
+
+export const RUN_MODE_LABEL: Record<string, string> = {
+  SEMI_AUTO: '半自动（发送前请你确认）',
+  FULL_AUTO: '全自动',
+  PUBLISH_SEARCH_ONLY: '仅发布与搜索',
+  COLLECT_ONLY: '仅收藏到待联系池',
+}
+
+export const JOB_RECRUIT_CHIP: Record<string, string> = {
+  NO_METHOD: '待设置招人方式',
+  NO_TASK: '待开始招人',
+  RUNNING: '正在找人',
+  PENDING: '需处理',
+  PAUSED: '已暂停招人',
+}
 
 export const SOURCE_LABEL: Record<string, string> = {
   PLATFORM: '招聘平台',
@@ -96,12 +136,28 @@ export const DEMAND_STATUS: Record<string, string> = {
 /** 对外禁用词（代码审查/文案检查参考） */
 export const FORBIDDEN_UI_TERMS = [
   '获客', '寻源', '入库', 'Agent任务', '决策面板', '匹配分析', '已建岗', '保守档位',
+  'OpsPack', 'evolution', 'proposal', 'ROLLBACK', 'CARD_GREET', 'SCREEN_THEN_GREET',
+  'CommunicationProfile', '渠道暂存库', '策略进化', '运营包',
 ] as const
 
+/** 收件箱 Tab（动词导向 v3.1） */
+export const INBOX_TAB: Record<string, string> = {
+  all: '全部',
+  confirm: '待你确认',
+  interview: '待面试',
+  hiring: '录用相关',
+  evolution: '招人方式建议',
+  approval: '待审批',
+}
+
 export const INBOX_TYPE: Record<string, string> = {
+  confirm: '待你确认',
   approval: '待审批',
   interview: '待面试',
-  offer: '录用通知',
+  feedback: '待反馈',
+  offer: '录用相关',
+  onboard: '准备入职',
+  evolution: '招人方式建议',
   message: '系统消息',
 }
 
@@ -169,6 +225,21 @@ export function educationLabel(edu?: string | null): string {
   if (!edu) return '-'
   const key = edu.toUpperCase()
   return EDUCATION_LABEL[key] || edu
+}
+
+export function greetStrategyLabel(code?: string | null): string {
+  if (!code) return GREET_STRATEGY_LABEL.SCREEN_THEN_GREET
+  return GREET_STRATEGY_LABEL[code] || code
+}
+
+export function runModeLabel(code?: string | null): string {
+  if (!code) return RUN_MODE_LABEL.SEMI_AUTO
+  return RUN_MODE_LABEL[code] || code
+}
+
+export function inboxTabLabel(tab?: string | null): string {
+  if (!tab) return INBOX_TAB.all
+  return INBOX_TAB[tab] || tab
 }
 
 /** 将后端匹配档位文案映射到规范用语（兼容旧数据） */

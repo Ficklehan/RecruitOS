@@ -36,8 +36,8 @@ $sidebar-border: #F1F5F9;   // 右侧分隔线
 $header-bg: #FFFFFF;
 $header-border: #E2E8F0;
 $header-height: 56px;
-$topnav-height: 52px;
-$sub-sidebar-width: 200px;
+$topnav-height: 56px;
+$sub-sidebar-width: 216px;
 
 // ── 文字层级 ──────────────────────────────
 $text-primary: #0F172A;     // 标题，近黑但有蓝调
@@ -50,11 +50,11 @@ $text-disabled: #CBD5E1;    // 禁用态
 $border-color: #E2E8F0;
 $border-color-light: #F1F5F9;
 
-// ── 圆角 ─────────────────────────────────
-$border-radius: 10px;        // 卡片、弹窗
+// ── 圆角 — 专业扁平，克制不圆润 ─────────────
+$border-radius: 8px;         // 卡片、面板
 $border-radius-sm: 6px;      // 按钮、输入框、tag
-$border-radius-lg: 14px;     // 大卡片、特殊容器
-$border-radius-full: 9999px; // 胶囊形
+$border-radius-lg: 10px;     // 弹窗、大容器
+$border-radius-full: 9999px; // 胶囊形（仅小标签）
 
 // ── 阴影 — 不要那种"一看就是 AI 写的"的均匀大阴影 ──
 // 自然的阴影应该偏上、偏小、带一点颜色
@@ -73,6 +73,8 @@ $spacing-md: 12px;
 $spacing-lg: 16px;
 $spacing-xl: 24px;
 $spacing-2xl: 32px;
+$spacing-section: 24px;       // 区块之间的标准节拍
+$spacing-page-block: 32px;    // 页面主区块之间的更大节拍
 
 // ── 侧栏尺寸 ─────────────────────────────
 $sidebar-width: 240px;
@@ -82,3 +84,26 @@ $sidebar-collapsed-width: 68px;
 $transition-fast: 0.15s ease;
 $transition-base: 0.2s ease;
 $transition-slow: 0.3s ease;
+
+// ── 聚焦 / 语义辅助 ─────────────────────
+$focus-ring: 0 0 0 2px rgba(59, 130, 246, 0.24);
+
+// ── 排版层级 ─────────────────────────────
+$text-heading-lg: 20px;
+$text-heading-md: 15px;
+$text-heading-sm: 14px;
+$text-caption: 12px;
+$line-height-heading: 1.35;
+$line-height-body: 1.6;
+
+// ── 中性色阶补充 ─────────────────────────
+$neutral-50: #F8FAFC;
+$neutral-100: #F1F5F9;
+$neutral-200: #E2E8F0;
+$neutral-300: #CBD5E1;
+$neutral-400: #94A3B8;
+$neutral-500: #64748B;
+$neutral-600: #475569;
+$neutral-700: #334155;
+$neutral-800: #1E293B;
+$neutral-900: #0F172A;

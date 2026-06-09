@@ -111,3 +111,31 @@ export function confirmWorkflowGreet(traceId: number | string) {
 export function confirmWorkflowImport(traceId: number | string) {
   return request.post(`/api/agent/workflow/trace/${traceId}/confirm-import`)
 }
+
+export function getChannelStagingList(params?: any) {
+  return request.get('/api/agent/channel-staging', { params })
+}
+
+export function getChannelStagingDetail(id: number) {
+  return request.get(`/api/agent/channel-staging/${id}`)
+}
+
+export function updateChannelStagingFields(id: number, fields: Record<string, unknown>) {
+  return request.put(`/api/agent/channel-staging/${id}/fields`, fields)
+}
+
+export function askChannelStaging(id: number, question: string) {
+  return request.post(`/api/agent/channel-staging/${id}/ask`, { question })
+}
+
+export function batchStagingGreet(ids: number[]) {
+  return request.post('/api/agent/channel-staging/batch/greet', { ids })
+}
+
+export function batchStagingImport(ids: number[]) {
+  return request.post('/api/agent/channel-staging/batch/import', { ids })
+}
+
+export function batchStagingReject(ids: number[], reason?: string) {
+  return request.post('/api/agent/channel-staging/batch/reject', { ids, reason })
+}

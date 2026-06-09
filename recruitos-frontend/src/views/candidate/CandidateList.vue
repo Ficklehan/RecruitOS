@@ -1,53 +1,51 @@
 <template>
-  <div class="page-container">
-    <!-- 页面头部 -->
-    <div class="page-header">
-      <div>
-        <h2 class="page-title">候选人列表</h2>
-        <p class="page-subtitle">管理候选人信息；选择在招职位后可查看本职位进展与匹配评估</p>
-      </div>
+  <ListPageLayout
+    title="候选人列表"
+    subtitle="管理候选人信息；选择在招职位后可查看本职位进展与匹配评估"
+  >
+    <template #actions>
       <el-button type="primary" @click="handleCreate">
         <el-icon><Plus /></el-icon>
         添加候选人
       </el-button>
-    </div>
+    </template>
 
-    <JobContextBar v-model="queryParams.jobId" @update:model-value="handleSearch" />
+    <template #toolbar>
+      <JobContextBar v-model="queryParams.jobId" @update:model-value="handleSearch" />
+      <el-alert
+        v-if="!queryParams.jobId"
+        type="info"
+        :closable="false"
+        show-icon
+        class="job-hint-alert"
+        title="未选择在招职位时，列表仅显示候选人全局信息。选择职位后可查看本职位进展与匹配建议。"
+      />
+    </template>
 
-    <el-alert
-      v-if="!queryParams.jobId"
-      type="info"
-      :closable="false"
-      show-icon
-      class="job-hint-alert"
-      title="未选择在招职位时，列表仅显示候选人全局信息。选择职位后可查看本职位进展与匹配建议。"
-    />
-
-    <!-- 搜索栏 -->
-    <div class="filter-bar">
+    <template #filters>
       <el-input
         v-model="queryParams.name"
         placeholder="候选人姓名"
         :prefix-icon="Search"
         clearable
-        style="width: 170px"
+        class="filter-field filter-field--md"
         @keyup.enter="handleSearch"
       />
       <el-input
         v-model="queryParams.phone"
         placeholder="电话号码"
         clearable
-        style="width: 150px"
+        class="filter-field filter-field--sm"
         @keyup.enter="handleSearch"
       />
       <el-input
         v-model="queryParams.company"
         placeholder="当前公司"
         clearable
-        style="width: 150px"
+        class="filter-field filter-field--sm"
         @keyup.enter="handleSearch"
       />
-      <el-select v-model="queryParams.status" placeholder="状态" clearable style="width: 120px">
+      <el-select v-model="queryParams.status" placeholder="状态" clearable class="filter-field filter-field--xs">
         <el-option
           v-for="s in statusOptions"
           :key="s.value"
@@ -55,7 +53,7 @@
           :value="s.value"
         />
       </el-select>
-      <el-select v-model="queryParams.source" placeholder="来源" clearable style="width: 120px">
+      <el-select v-model="queryParams.source" placeholder="来源" clearable class="filter-field filter-field--xs">
         <el-option
           v-for="s in sourceOptions"
           :key="s.value"
@@ -63,18 +61,16 @@
           :value="s.value"
         />
       </el-select>
-      <div class="filter-actions">
-        <el-button type="primary" @click="handleSearch">
-          <el-icon><Search /></el-icon>
-          搜索
-        </el-button>
-        <el-button @click="handleReset">重置</el-button>
-      </div>
-    </div>
+    </template>
+    <template #filterActions>
+      <el-button type="primary" @click="handleSearch">
+        <el-icon><Search /></el-icon>
+        搜索
+      </el-button>
+      <el-button @click="handleReset">重置</el-button>
+    </template>
 
-    <!-- 数据表格 -->
-    <div class="data-card">
-      <el-table :data="candidateList" style="width: 100%">
+    <el-table :data="candidateList" style="width: 100%">
         <el-table-column prop="name" label="姓名" width="100" show-overflow-tooltip>
           <template #default="{ row }">
             <span class="title-link" @click="handleView(row)">{{ row.name }}</span>
@@ -145,7 +141,7 @@
         </el-table-column>
       </el-table>
 
-      <!-- 分页 -->
+    <div class="data-card-footer">
       <el-pagination
         v-model:current-page="queryParams.pageNum"
         v-model:page-size="queryParams.pageSize"
@@ -157,6 +153,7 @@
       />
     </div>
 
+    <template #below>
     <!-- 添加/编辑候选人 -->
     <el-dialog v-model="formVisible" :title="isEditing ? '编辑候选人' : '添加候选人'" width="560px" destroy-on-close>
       <el-form ref="formRef" :model="candidateForm" :rules="formRules" label-width="100px">
@@ -223,7 +220,8 @@
         <el-button type="primary" :loading="linkJobLoading" @click="confirmLinkJob">确定关联</el-button>
       </template>
     </el-dialog>
-  </div>
+    </template>
+  </ListPageLayout>
 </template>
 
 <script setup lang="ts">
@@ -231,7 +229,8 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
-import { Search, Plus, RefreshRight } from '@element-plus/icons-vue'
+import { Search, Plus } from '@element-plus/icons-vue'
+import ListPageLayout from '@/components/Layout/ListPageLayout.vue'
 import MatchVerdict from '@/components/match/MatchVerdict.vue'
 import JobContextBar from '@/components/common/JobContextBar.vue'
 import {
@@ -483,14 +482,17 @@ onMounted(async () => {
 @import '@/assets/styles/variables.scss';
 
 .job-hint-alert {
-  margin-bottom: 16px;
+  margin-top: $spacing-md;
 }
 
-.filter-actions {
-  margin-left: auto;
-  display: flex;
-  gap: 8px;
+.filter-field {
+  width: 160px;
+
+  &--md { width: 170px; }
+  &--sm { width: 150px; }
+  &--xs { width: 120px; }
 }
+
 
 .salary-text {
   font-weight: 500;

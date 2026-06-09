@@ -59,12 +59,19 @@ public class CampaignOrchestratorService {
     private AgentAutomationGuard automationGuard;
     @Resource
     private RpaProperties rpaProperties;
+    @Resource
+    private ScreeningEngine screeningEngine;
+    @Resource
+    private CampaignEvolutionEmitter evolutionEmitter;
+    @Resource
+    private ChannelStagingCandidateMapper stagingMapper;
+    @Resource
+    private GreetingComposer greetingComposer;
+    @Resource
+    private CampaignQuotaGuard quotaGuard;
 
     @Scheduled(fixedDelay = 4000)
     public void tick() {
-        if (!rpaEnabled()) {
-            return;
-        }
         LambdaQueryWrapper<JobSourcingCampaign> w = new LambdaQueryWrapper<>();
         w.eq(JobSourcingCampaign::getStatus, "RUNNING");
         List<JobSourcingCampaign> campaigns = campaignMapper.selectList(w);
@@ -219,7 +226,7 @@ public class CampaignOrchestratorService {
             if (account == null) {
                 continue;
             }
-            List<PlatformCandidate> found = adapter.searchCandidates(account, keywords, 3);
+            List<PlatformCandidate> found = adapter.searchCandidates(account, keywords, 3, readSearchSource(campaign));
             logBehavior(run, accountId, "SEARCH", run.getPlatform(),
                     "搜索命中 " + found.size() + " 人", true, null);
             for (PlatformCandidate pc : found) {
@@ -233,7 +240,7 @@ public class CampaignOrchestratorService {
         String dedupKey = buildDedupKey(run.getPlatform(), pc);
         Long existing = importService.findExistingCandidateId(campaign.getTenantId(), pc.getPhone(), pc.getEmail());
         if (existing != null) {
-            createSkippedTrace(campaign, run, account, pc, dedupKey, "ALREADY_IN_TALENT_POOL");
+            createSkippedTrace(campaign, run, account, pc, dedupKey, "ALREADY_IN_TALENT_POOL", null, null);
             logBehavior(run, account.getId(), "DUPLICATE_SKIPPED", run.getPlatform(),
                     pc.getName() + " 已在人才库", true, null);
             return;
@@ -243,9 +250,43 @@ public class CampaignOrchestratorService {
         lockW.eq(CandidateAcquireLock::getCampaignId, campaign.getId())
                 .eq(CandidateAcquireLock::getDedupKey, dedupKey);
         if (lockMapper.selectCount(lockW) > 0) {
-            createSkippedTrace(campaign, run, account, pc, dedupKey, "LOCKED_BY_OTHER_ACCOUNT");
+            createSkippedTrace(campaign, run, account, pc, dedupKey, "LOCKED_BY_OTHER_ACCOUNT", null, null);
             logBehavior(run, account.getId(), "DUPLICATE_SKIPPED", run.getPlatform(),
                     pc.getName() + " 已被其他账号锁定", true, null);
+            return;
+        }
+
+        Object screeningProfile = readScreeningProfile(campaign);
+        String greetStrategy = readGreetStrategy(campaign);
+        boolean cardGreet = "CARD_GREET".equals(greetStrategy);
+
+        ScreeningEngine.ScreeningResult stage1 = screeningEngine.evaluateStage1(screeningProfile, pc);
+        if (!stage1.isPassed()) {
+            createScreenSkippedTrace(campaign, run, account, pc, dedupKey, stage1);
+            emitScreenSignal(campaign, null, pc, stage1, false);
+            logBehavior(run, account.getId(), "SCREEN_SKIP", run.getPlatform(),
+                    pc.getName() + " 卡片筛选淘汰: " + stage1.getHumanReason(), true, null);
+            return;
+        }
+
+        ScreeningEngine.ScreeningResult stage2 = stage1;
+        if (!cardGreet) {
+            stage2 = screeningEngine.evaluateStage2(screeningProfile, pc);
+            if (!stage2.isPassed()) {
+                createScreenSkippedTrace(campaign, run, account, pc, dedupKey, stage2);
+                emitScreenSignal(campaign, null, pc, stage2, false);
+                logBehavior(run, account.getId(), "SCREEN_SKIP", run.getPlatform(),
+                        pc.getName() + " 简历筛选淘汰: " + stage2.getHumanReason(), true, null);
+                return;
+            }
+        }
+
+        if (quotaGuard.isQuotaExhausted(campaign.getId(), run.getPlatform(), readPlatformQuotas(campaign))) {
+            run.setStatus("PAUSED");
+            run.setErrorMessage(run.getPlatform() + " 今日打招呼配额已用尽");
+            platformRunMapper.updateById(run);
+            logBehavior(run, account.getId(), "QUOTA_EXCEEDED", run.getPlatform(),
+                    "配额耗尽，平台运行已暂停", false, null);
             return;
         }
 
@@ -262,15 +303,36 @@ public class CampaignOrchestratorService {
         lockMapper.insert(lock);
 
         CampaignCandidateTrace trace = newTrace(campaign, run, account, pc, dedupKey);
+        trace.setScreenStage(cardGreet ? "CARD" : "PASSED");
         trace.setTraceStatus("LOCKED");
         trace.setLockedByAccountId(account.getId());
+        trace.setOpsPackVersion(readOpsPackVersion(campaign));
+        appendTimeline(trace, "SCREEN_PASS", cardGreet ? "卡片筛选通过(CARD_GREET)" : "两阶段筛选通过");
         traceMapper.insert(trace);
+
+        emitScreenSignal(campaign, trace, pc, stage2, true);
+
+        trace.setGreetStrategyApplied(greetStrategy);
+
+        if ("COLLECT_ONLY".equals(greetStrategy)) {
+            saveStagingCandidate(campaign, trace, pc);
+            trace.setTraceStatus("STAGED");
+            traceMapper.updateById(trace);
+            logBehavior(run, account.getId(), "STAGE_COLLECT", run.getPlatform(),
+                    pc.getName() + " 已入库待人工处理", true, null);
+            return;
+        }
+
+        if ("PUBLISH_SEARCH_ONLY".equals(campaign.getMode())) {
+            traceMapper.updateById(trace);
+            return;
+        }
 
         boolean semi = "SEMI_AUTO".equals(campaign.getMode());
         if (semi) {
             trace.setTraceStatus("PENDING_GREET_CONFIRM");
             traceMapper.updateById(trace);
-        } else if (!"PUBLISH_SEARCH_ONLY".equals(campaign.getMode())) {
+        } else {
             sendGreet(campaign, run, account, trace, pc, jobTitle);
         }
     }
@@ -301,7 +363,14 @@ public class CampaignOrchestratorService {
             } else if ("MONITORING".equals(trace.getTraceStatus())) {
                 if (adapter.hasResumeInChat(account, pc.getPlatformUserId())) {
                     trace.setTraceStatus("RESUME_READY");
+                    appendTimeline(trace, "RESUME_RECEIVED", "收到简历");
                     traceMapper.updateById(trace);
+                    evolutionEmitter.emitResumeReceived(campaign.getJobId(), campaign.getId(),
+                            trace.getId(), trace.getCandidateId());
+                    evolutionEmitter.emitCandidateReply(campaign.getJobId(), campaign.getId(),
+                            trace.getId(), trace.getCandidateId());
+                } else if (shouldRechat(campaign, trace)) {
+                    sendRechat(campaign, run, account, trace, jobTitle);
                 }
             } else if ("RESUME_READY".equals(trace.getTraceStatus())) {
                 PlatformResume resume = adapter.fetchResume(account, pc.getPlatformUserId(), pc.getName());
@@ -348,11 +417,105 @@ public class CampaignOrchestratorService {
     private void sendGreet(JobSourcingCampaign campaign, CampaignPlatformRun run, AgentAccount account,
                            CampaignCandidateTrace trace, PlatformCandidate pc, String jobTitle) {
         PlatformAdapter adapter = adapterRegistry.get(run.getPlatform());
-        adapter.sendGreeting(account, pc.getPlatformUserId(), pc.getName(), jobTitle, "您好，看到您的经历与岗位很匹配");
+        quotaGuard.assertGreetAllowed(campaign.getId(), run.getPlatform(), readPlatformQuotas(campaign));
+        String message = greetingComposer.composeGreeting(campaign.getJobId(), jobTitle, pc.getName(), "GREET");
+        adapter.sendGreeting(account, pc.getPlatformUserId(), pc.getName(), jobTitle, message);
         trace.setTraceStatus("GREETED");
         trace.setAccountId(account.getId());
+        appendTimeline(trace, "GREET_SENT", "已发送打招呼");
+        trace.setUpdatedAt(LocalDateTime.now());
         traceMapper.updateById(trace);
+        evolutionEmitter.emitGreet(campaign.getJobId(), campaign.getId(), trace.getId(), trace.getCandidateId());
         logBehavior(run, account.getId(), "GREET", run.getPlatform(), "打招呼 " + pc.getName(), true, null);
+    }
+
+    private void sendRechat(JobSourcingCampaign campaign, CampaignPlatformRun run, AgentAccount account,
+                            CampaignCandidateTrace trace, String jobTitle) {
+        PlatformAdapter adapter = adapterRegistry.get(run.getPlatform());
+        int attempt = countRechatAttempts(trace) + 1;
+        String message = greetingComposer.composeGreeting(campaign.getJobId(), jobTitle,
+                trace.getCandidateName(), "RECHAT");
+        adapter.sendFollowUp(account, trace.getPlatformUserId(), message);
+        appendTimeline(trace, "RECHAT", "第" + attempt + "次复聊");
+        trace.setUpdatedAt(LocalDateTime.now());
+        traceMapper.updateById(trace);
+        evolutionEmitter.emitRechat(campaign.getJobId(), campaign.getId(), trace.getId(),
+                trace.getCandidateId(), attempt);
+        logBehavior(run, account.getId(), "RECHAT", trace.getPlatform(),
+                "复聊 " + trace.getCandidateName() + " 第" + attempt + "次", true, null);
+    }
+
+    private boolean shouldRechat(JobSourcingCampaign campaign, CampaignCandidateTrace trace) {
+        Map<String, Object> policy = readRechatPolicy(campaign);
+        int maxAttempts = policy.get("maxAttempts") instanceof Number
+                ? ((Number) policy.get("maxAttempts")).intValue() : 2;
+        if (countRechatAttempts(trace) >= maxAttempts) {
+            return false;
+        }
+        long intervalMs = rechatIntervalMs(policy);
+        LocalDateTime last = lastOutboundAt(trace);
+        if (last == null) {
+            return false;
+        }
+        return LocalDateTime.now().isAfter(last.plus(intervalMs, java.time.temporal.ChronoUnit.MILLIS));
+    }
+
+    private long rechatIntervalMs(Map<String, Object> policy) {
+        int hours = policy.get("intervalHours") instanceof Number
+                ? ((Number) policy.get("intervalHours")).intValue() : 48;
+        if (!rpaEnabled()) {
+            return 2 * 60 * 1000L;
+        }
+        return hours * 3600_000L;
+    }
+
+    private int countRechatAttempts(CampaignCandidateTrace trace) {
+        return countTimelineEvents(trace, "RECHAT");
+    }
+
+    private LocalDateTime lastOutboundAt(CampaignCandidateTrace trace) {
+        try {
+            if (!StringUtils.hasText(trace.getTimelineJson())) {
+                return trace.getUpdatedAt();
+            }
+            List<Map<String, Object>> timeline = objectMapper.readValue(trace.getTimelineJson(),
+                    new TypeReference<List<Map<String, Object>>>() {});
+            LocalDateTime last = null;
+            for (Map<String, Object> entry : timeline) {
+                String event = entry.get("event") != null ? entry.get("event").toString() : "";
+                if ("GREET_SENT".equals(event) || "RECHAT".equals(event)) {
+                    Object at = entry.get("at");
+                    if (at != null) {
+                        LocalDateTime t = LocalDateTime.parse(at.toString());
+                        if (last == null || t.isAfter(last)) {
+                            last = t;
+                        }
+                    }
+                }
+            }
+            return last != null ? last : trace.getUpdatedAt();
+        } catch (Exception e) {
+            return trace.getUpdatedAt();
+        }
+    }
+
+    private int countTimelineEvents(CampaignCandidateTrace trace, String eventName) {
+        try {
+            if (!StringUtils.hasText(trace.getTimelineJson())) {
+                return 0;
+            }
+            List<Map<String, Object>> timeline = objectMapper.readValue(trace.getTimelineJson(),
+                    new TypeReference<List<Map<String, Object>>>() {});
+            int count = 0;
+            for (Map<String, Object> entry : timeline) {
+                if (eventName.equals(String.valueOf(entry.get("event")))) {
+                    count++;
+                }
+            }
+            return count;
+        } catch (Exception e) {
+            return 0;
+        }
     }
 
     private void maybeImport(JobSourcingCampaign campaign, CampaignCandidateTrace trace,
@@ -389,11 +552,146 @@ public class CampaignOrchestratorService {
     }
 
     private void createSkippedTrace(JobSourcingCampaign campaign, CampaignPlatformRun run,
-                                    AgentAccount account, PlatformCandidate pc, String dedupKey, String reason) {
+                                    AgentAccount account, PlatformCandidate pc, String dedupKey,
+                                    String reason, String screenStage, String skipSummary) {
         CampaignCandidateTrace trace = newTrace(campaign, run, account, pc, dedupKey);
         trace.setTraceStatus("DUPLICATE_SKIPPED");
         trace.setSkipReason(reason);
+        trace.setScreenStage(screenStage);
+        if (StringUtils.hasText(skipSummary)) {
+            trace.setSkipReason(skipSummary);
+        }
+        trace.setOpsPackVersion(readOpsPackVersion(campaign));
         traceMapper.insert(trace);
+    }
+
+    private void createScreenSkippedTrace(JobSourcingCampaign campaign, CampaignPlatformRun run,
+                                          AgentAccount account, PlatformCandidate pc, String dedupKey,
+                                          ScreeningEngine.ScreeningResult result) {
+        CampaignCandidateTrace trace = newTrace(campaign, run, account, pc, dedupKey);
+        trace.setTraceStatus("SCREEN_SKIPPED");
+        trace.setScreenStage(result.getStage());
+        trace.setSkipReason(result.getHumanReason());
+        trace.setOpsPackVersion(readOpsPackVersion(campaign));
+        try {
+            if (result.getSkipReasonJson() != null) {
+                trace.setSkipReasonJson(objectMapper.writeValueAsString(result.getSkipReasonJson()));
+            }
+        } catch (Exception ignored) {
+        }
+        appendTimeline(trace, "SCREEN_SKIP", result.getHumanReason());
+        traceMapper.insert(trace);
+    }
+
+    private void saveStagingCandidate(JobSourcingCampaign campaign, CampaignCandidateTrace trace,
+                                      PlatformCandidate pc) {
+        ChannelStagingCandidate staging = new ChannelStagingCandidate();
+        staging.setId(IdWorker.getId());
+        staging.setTenantId(campaign.getTenantId());
+        staging.setJobId(campaign.getJobId());
+        staging.setCampaignId(campaign.getId());
+        staging.setTraceId(trace.getId());
+        staging.setPlatform(trace.getPlatform());
+        staging.setPlatformUserId(pc.getPlatformUserId());
+        staging.setCandidateName(pc.getName());
+        staging.setMatchScore(pc.getMatchScore());
+        staging.setStatus("STAGED");
+        staging.setCreatedAt(LocalDateTime.now());
+        staging.setUpdatedAt(LocalDateTime.now());
+        stagingMapper.insert(staging);
+    }
+
+    private void emitScreenSignal(JobSourcingCampaign campaign, CampaignCandidateTrace trace,
+                                  PlatformCandidate pc, ScreeningEngine.ScreeningResult result, boolean passed) {
+        Map<String, Object> adj = new LinkedHashMap<>();
+        if (result.getSkipReasonJson() != null && result.getSkipReasonJson().get("rule") != null) {
+            adj.put(result.getSkipReasonJson().get("rule").toString(), passed ? 0.05 : -0.08);
+        } else {
+            adj.put("_screen", passed ? 0.05 : -0.05);
+        }
+        Long traceId = trace != null ? trace.getId() : null;
+        evolutionEmitter.emitScreen(campaign.getJobId(), campaign.getId(), traceId, null, passed, adj);
+    }
+
+    private void appendTimeline(CampaignCandidateTrace trace, String event, String detail) {
+        try {
+            List<Map<String, Object>> timeline = new ArrayList<>();
+            if (StringUtils.hasText(trace.getTimelineJson())) {
+                timeline = objectMapper.readValue(trace.getTimelineJson(),
+                        new TypeReference<List<Map<String, Object>>>() {});
+            }
+            Map<String, Object> entry = new LinkedHashMap<>();
+            entry.put("event", event);
+            entry.put("detail", detail);
+            entry.put("at", LocalDateTime.now().toString());
+            timeline.add(entry);
+            trace.setTimelineJson(objectMapper.writeValueAsString(timeline));
+        } catch (Exception ignored) {
+        }
+    }
+
+    private Object readScreeningProfile(JobSourcingCampaign campaign) {
+        Map<String, Object> cfg = readCampaignConfig(campaign);
+        return cfg != null ? cfg.get("screeningProfile") : null;
+    }
+
+    private String readGreetStrategy(JobSourcingCampaign campaign) {
+        Map<String, Object> cfg = readCampaignConfig(campaign);
+        if (cfg != null && cfg.get("greetStrategy") != null) {
+            return cfg.get("greetStrategy").toString();
+        }
+        return "SCREEN_THEN_GREET";
+    }
+
+    private String readSearchSource(JobSourcingCampaign campaign) {
+        Map<String, Object> cfg = readCampaignConfig(campaign);
+        if (cfg != null && cfg.get("searchSource") != null) {
+            return cfg.get("searchSource").toString();
+        }
+        return "RECOMMEND";
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> readPlatformQuotas(JobSourcingCampaign campaign) {
+        Map<String, Object> cfg = readCampaignConfig(campaign);
+        if (cfg != null && cfg.get("platformQuotas") instanceof Map) {
+            return (Map<String, Object>) cfg.get("platformQuotas");
+        }
+        return Collections.emptyMap();
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> readRechatPolicy(JobSourcingCampaign campaign) {
+        Map<String, Object> cfg = readCampaignConfig(campaign);
+        if (cfg != null && cfg.get("rechatPolicy") instanceof Map) {
+            return (Map<String, Object>) cfg.get("rechatPolicy");
+        }
+        Map<String, Object> def = new LinkedHashMap<>();
+        def.put("maxAttempts", 2);
+        def.put("intervalHours", 48);
+        return def;
+    }
+
+    private Integer readOpsPackVersion(JobSourcingCampaign campaign) {
+        if (campaign.getOpsPackVersion() != null) {
+            return campaign.getOpsPackVersion();
+        }
+        Map<String, Object> cfg = readCampaignConfig(campaign);
+        if (cfg != null && cfg.get("opsPackVersion") instanceof Number) {
+            return ((Number) cfg.get("opsPackVersion")).intValue();
+        }
+        return null;
+    }
+
+    private Map<String, Object> readCampaignConfig(JobSourcingCampaign campaign) {
+        try {
+            if (!StringUtils.hasText(campaign.getConfigJson())) {
+                return null;
+            }
+            return objectMapper.readValue(campaign.getConfigJson(), new TypeReference<Map<String, Object>>() {});
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private CampaignCandidateTrace newTrace(JobSourcingCampaign campaign, CampaignPlatformRun run,
@@ -507,7 +805,7 @@ public class CampaignOrchestratorService {
         w.eq(CampaignCandidateTrace::getCampaignId, campaignId)
                 .eq(CampaignCandidateTrace::getPlatformRunId, platformRunId)
                 .notIn(CampaignCandidateTrace::getTraceStatus,
-                        Arrays.asList("IMPORTED", "DUPLICATE_SKIPPED"));
+                        Arrays.asList("IMPORTED", "DUPLICATE_SKIPPED", "SCREEN_SKIPPED", "STAGED"));
         return traceMapper.selectCount(w) == 0 && readRunFlag(platformRunMapper.selectById(platformRunId), "searchDone");
     }
 
@@ -535,6 +833,7 @@ public class CampaignOrchestratorService {
         stats.put("imported", 0);
         stats.put("pendingScreening", 0);
         stats.put("duplicatesSkipped", 0);
+        stats.put("screenSkipped", 0);
         stats.put("alerts", 0);
 
         LambdaQueryWrapper<CampaignPlatformRun> pr = new LambdaQueryWrapper<>();
@@ -552,7 +851,10 @@ public class CampaignOrchestratorService {
             if ("DUPLICATE_SKIPPED".equals(st)) {
                 stats.put("duplicatesSkipped", stats.get("duplicatesSkipped") + 1);
             }
-            if (!"DUPLICATE_SKIPPED".equals(st)) {
+            if ("SCREEN_SKIPPED".equals(st)) {
+                stats.put("screenSkipped", stats.get("screenSkipped") + 1);
+            }
+            if (!Arrays.asList("DUPLICATE_SKIPPED", "SCREEN_SKIPPED").contains(st)) {
                 stats.put("searched", stats.get("searched") + 1);
             }
             if (Arrays.asList("LOCKED", "PENDING_GREET_CONFIRM", "GREETED", "MONITORING", "RESUME_READY", "PENDING_IMPORT", "IMPORTED").contains(st)) {

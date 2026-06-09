@@ -72,3 +72,9 @@ knife4j:
 logging:
   level:
     com.recruitos: debug
+
+recruitos:
+  job:
+    base-url: http://localhost:8084
+  evolution:
+    min-signals: 15

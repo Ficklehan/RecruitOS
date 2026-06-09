@@ -1,5 +1,5 @@
 <template>
-  <div class="page" v-loading="loading">
+  <div class="page-container page-stack" v-loading="loading">
     <!-- Header -->
     <div class="page-top">
       <div class="page-nav">
@@ -224,11 +224,8 @@ async function toggleStatus() {
 onMounted(() => loadDetail())
 </script>
 
-<style scoped>
-.page {
-  padding: 28px 32px;
-  min-height: 100%;
-}
+<style lang="scss" scoped>
+@import '@/assets/styles/variables.scss';
 
 /* Page Top */
 .page-top {

@@ -1,5 +1,5 @@
 <template>
-  <div class="page-container" v-loading="loading">
+  <div class="page-container page-stack" v-loading="loading">
     <div class="page-header">
       <el-button text @click="$router.back()"><el-icon><ArrowLeft /></el-icon>返回</el-button>
       <h2 class="page-title">录用通知详情</h2>

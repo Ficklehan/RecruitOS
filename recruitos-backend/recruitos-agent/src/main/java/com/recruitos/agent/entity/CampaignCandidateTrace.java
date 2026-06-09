@@ -31,6 +31,10 @@ public class CampaignCandidateTrace implements Serializable {
     private Long candidateId;
     private Long resumeId;
     private String skipReason;
+    private String screenStage;
+    private String skipReasonJson;
+    private String greetStrategyApplied;
+    private Integer opsPackVersion;
     private Long lockedByAccountId;
     private String timelineJson;
     @TableField("created_at")
@@ -72,6 +76,14 @@ public class CampaignCandidateTrace implements Serializable {
     public void setResumeId(Long resumeId) { this.resumeId = resumeId; }
     public String getSkipReason() { return skipReason; }
     public void setSkipReason(String skipReason) { this.skipReason = skipReason; }
+    public String getScreenStage() { return screenStage; }
+    public void setScreenStage(String screenStage) { this.screenStage = screenStage; }
+    public String getSkipReasonJson() { return skipReasonJson; }
+    public void setSkipReasonJson(String skipReasonJson) { this.skipReasonJson = skipReasonJson; }
+    public String getGreetStrategyApplied() { return greetStrategyApplied; }
+    public void setGreetStrategyApplied(String greetStrategyApplied) { this.greetStrategyApplied = greetStrategyApplied; }
+    public Integer getOpsPackVersion() { return opsPackVersion; }
+    public void setOpsPackVersion(Integer opsPackVersion) { this.opsPackVersion = opsPackVersion; }
     public Long getLockedByAccountId() { return lockedByAccountId; }
     public void setLockedByAccountId(Long lockedByAccountId) { this.lockedByAccountId = lockedByAccountId; }
     public String getTimelineJson() { return timelineJson; }

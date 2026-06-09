@@ -1,9 +1,9 @@
 <template>
-  <div class="page">
+  <div class="page page-container">
     <!-- Stats Cards -->
     <div class="stats-row">
       <div class="stat-card" v-for="s in stats" :key="s.label">
-        <div class="stat-icon" :style="{ background: s.bg }">
+        <div class="stat-icon" :style="{ background: s.bg, color: s.color }">
           <el-icon :size="20"><component :is="s.icon" /></el-icon>
         </div>
         <div class="stat-body">
@@ -220,9 +220,9 @@ const pageSize = ref(10)
 const keyword = ref('')
 
 const stats = computed(() => [
-  { label: '总租户', value: total.value, icon: OfficeBuilding, bg: 'linear-gradient(135deg,#6366f1,#8b5cf6)' },
-  { label: '已启用', value: tenantList.value.filter(t => t.status === 1).length, icon: OfficeBuilding, bg: 'linear-gradient(135deg,#10b981,#34d399)' },
-  { label: '已禁用', value: tenantList.value.filter(t => t.status !== 1).length, icon: OfficeBuilding, bg: 'linear-gradient(135deg,#f59e0b,#fbbf24)' },
+  { label: '总租户', value: total.value, icon: OfficeBuilding, bg: '#EFF6FF', color: '#2563EB' },
+  { label: '已启用', value: tenantList.value.filter(t => t.status === 1).length, icon: OfficeBuilding, bg: '#D1FAE5', color: '#059669' },
+  { label: '已禁用', value: tenantList.value.filter(t => t.status !== 1).length, icon: OfficeBuilding, bg: '#FEF3C7', color: '#D97706' },
 ])
 
 const planOptions = [
@@ -320,43 +320,37 @@ async function toggleStatus(row: any) {
 onMounted(() => loadData())
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
+@import '@/assets/styles/variables.scss';
+
 .page {
-  padding: 28px 32px;
   min-height: 100%;
 }
 
-/* Stats */
 .stats-row {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
+  gap: 16px;
   margin-bottom: 24px;
 }
 
 .stat-card {
   background: $bg-card;
-  border-radius: 14px;
-  padding: 22px 24px;
+  border: 1px solid $border-color;
+  border-radius: $border-radius;
+  padding: 18px 20px;
   display: flex;
   align-items: center;
-  gap: 16px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-  transition: box-shadow 0.2s, transform 0.2s;
-}
-.stat-card:hover {
-  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
-  transform: translateY(-1px);
+  gap: 14px;
 }
 
 .stat-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
+  width: 40px;
+  height: 40px;
+  border-radius: $border-radius-sm;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
   flex-shrink: 0;
 }
 
@@ -366,23 +360,23 @@ onMounted(() => loadData())
 }
 
 .stat-value {
-  font-size: 28px;
-  font-weight: 700;
-  color: #0f172a;
+  font-size: 24px;
+  font-weight: 600;
+  color: $text-primary;
   line-height: 1.2;
+  font-variant-numeric: tabular-nums;
 }
 
 .stat-label {
   font-size: 13px;
-  color: #94a3b8;
+  color: $text-secondary;
   margin-top: 2px;
 }
 
-/* Table Card */
 .table-card {
   background: $bg-card;
-  border-radius: 14px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  border: 1px solid $border-color;
+  border-radius: $border-radius;
   overflow: hidden;
 }
 
@@ -390,14 +384,16 @@ onMounted(() => loadData())
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px 24px;
-  border-bottom: 1px solid #f1f5f9;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 18px 20px;
+  border-bottom: 1px solid $border-color-light;
 }
 
 .table-header h3 {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
-  color: #0f172a;
+  color: $text-primary;
 }
 
 .table-actions {
@@ -410,77 +406,73 @@ onMounted(() => loadData())
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  background: $bg-card;
+  border: 1px solid $border-color;
+  border-radius: $border-radius-sm;
   padding: 0 12px;
   height: 36px;
-  transition: border-color 0.2s;
+  transition: border-color $transition-fast;
 }
-.search-box:focus-within { border-color: #6366f1; }
-.search-box .el-icon { color: #94a3b8; font-size: 16px; }
+.search-box:focus-within { border-color: $primary-color; }
+.search-box .el-icon { color: $text-placeholder; font-size: 16px; }
 .search-box input {
   border: none;
   background: none;
   outline: none;
   font-size: 13px;
-  color: #334155;
+  color: $text-regular;
   width: 200px;
 }
-.search-box input::placeholder { color: #94a3b8; }
+.search-box input::placeholder { color: $text-placeholder; }
 
-/* Buttons */
 .btn-primary {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   height: 36px;
-  padding: 0 18px;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  padding: 0 16px;
+  background: $primary-color;
   color: #fff;
   border: none;
-  border-radius: 8px;
+  border-radius: $border-radius-sm;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
-  transition: opacity 0.2s, box-shadow 0.2s;
+  transition: background-color $transition-fast;
 }
-.btn-primary:hover {
-  opacity: 0.9;
-  box-shadow: 0 2px 8px rgba(99,102,241,0.3);
-}
+.btn-primary:hover { background: $primary-dark; }
 .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .btn-cancel {
   height: 36px;
-  padding: 0 18px;
-  background: #f1f5f9;
-  color: #475569;
-  border: none;
-  border-radius: 8px;
+  padding: 0 16px;
+  background: $bg-card;
+  color: $text-regular;
+  border: 1px solid $border-color;
+  border-radius: $border-radius-sm;
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background-color $transition-fast, border-color $transition-fast;
 }
-.btn-cancel:hover { background: #e2e8f0; }
+.btn-cancel:hover { background: $bg-muted; }
 
 .btn-ghost {
   padding: 4px 10px;
   background: none;
   border: none;
-  color: #6366f1;
+  color: $primary-color;
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  border-radius: 6px;
-  transition: background 0.2s;
+  border-radius: $border-radius-sm;
+  transition: background-color $transition-fast;
 }
-.btn-ghost:hover { background: #f1f5f9; }
-.btn-ghost.danger { color: #ef4444; }
-.btn-ghost.danger:hover { background: #fef2f2; }
-.btn-ghost.success { color: #10b981; }
-.btn-ghost.success:hover { background: #f0fdf4; }
+.btn-ghost:hover { background: $primary-lighter; }
+.btn-ghost.danger { color: $danger-color; }
+.btn-ghost.danger:hover { background: $danger-lighter; }
+.btn-ghost.success { color: $success-color; }
+.btn-ghost.success:hover { background: $success-lighter; }
 
 /* Table */
 .table-wrap { overflow-x: auto; }
@@ -491,25 +483,24 @@ table {
 }
 
 th {
-  padding: 12px 24px;
+  padding: 11px 20px;
   text-align: left;
   font-size: 12px;
   font-weight: 600;
-  color: #94a3b8;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  background: #fafbfc;
-  border-bottom: 1px solid #f1f5f9;
+  color: $text-secondary;
+  letter-spacing: 0.02em;
+  background: $bg-muted;
+  border-bottom: 1px solid $border-color-light;
 }
 
 td {
-  padding: 16px 24px;
+  padding: 14px 20px;
   font-size: 13px;
-  color: #334155;
-  border-bottom: 1px solid #f8fafc;
+  color: $text-regular;
+  border-bottom: 1px solid $border-color-light;
 }
 
-tr:hover td { background: #fafbff; }
+tr:hover td { background: $primary-lighter; }
 
 .tenant-cell {
   display: flex;

@@ -1,28 +1,25 @@
 <template>
-  <div class="page-container">
-    <!-- 页面头部 -->
-    <div class="page-header">
-      <div>
-        <h2 class="page-title">录用通知</h2>
-        <p class="page-subtitle">管理候选人录用通知（Offer）的发送与审批状态</p>
-      </div>
+  <ListPageLayout
+    title="录用通知"
+    subtitle="管理候选人录用通知（Offer）的发送与审批状态"
+  >
+    <template #actions>
       <el-button type="primary" @click="handleCreate">
         <el-icon><Plus /></el-icon>
         创建录用通知
       </el-button>
-    </div>
+    </template>
 
-    <!-- 搜索栏 -->
-    <div class="filter-bar">
+    <template #filters>
       <el-input
         v-model="queryParams.keyword"
         placeholder="搜索候选人 / 在招职位"
         :prefix-icon="Search"
         clearable
-        style="width: 240px"
+        class="filter-field filter-field--lg"
         @keyup.enter="handleSearch"
       />
-      <el-select v-model="queryParams.status" placeholder="通知状态" clearable style="width: 140px">
+      <el-select v-model="queryParams.status" placeholder="通知状态" clearable class="filter-field filter-field--sm">
         <el-option label="全部" value="" />
         <el-option label="待审批" value="PENDING" />
         <el-option label="已通过" value="APPROVED" />
@@ -36,9 +33,11 @@
         range-separator="至"
         start-placeholder="开始日期"
         end-placeholder="结束日期"
-        style="width: 260px"
+        class="filter-field filter-field--date"
         value-format="YYYY-MM-DD"
       />
+    </template>
+    <template #filterActions>
       <el-button type="primary" @click="handleSearch">
         <el-icon><Search /></el-icon>
         搜索
@@ -47,36 +46,34 @@
         <el-icon><RefreshRight /></el-icon>
         重置
       </el-button>
-    </div>
+    </template>
 
-    <!-- 数据表格 -->
-    <div class="data-card">
-      <el-table :data="offerList" stripe highlight-current-row style="width: 100%">
-        <el-table-column prop="candidateName" label="候选人" width="100">
-          <template #default="{ row }">
-            <span class="title-link">{{ row.candidateName }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="jobTitle" label="在招职位" min-width="160" show-overflow-tooltip />
-        <el-table-column prop="department" label="部门" width="120" />
-        <el-table-column prop="salary" label="薪资" width="120" align="center" />
-        <el-table-column prop="status" label="状态" width="100" align="center">
-          <template #default="{ row }">
-            <el-tag :type="getStatusType(row.status)" size="small" disable-transitions>
-              {{ getStatusLabel(row.status) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="createdAt" label="创建时间" width="180" />
-        <el-table-column label="操作" width="180" fixed="right">
-          <template #default="{ row }">
-            <el-button type="primary" link size="small" @click="handleView(row)">查看</el-button>
-            <el-button type="primary" link size="small" @click="handleEdit(row)">编辑</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+    <el-table :data="offerList" highlight-current-row style="width: 100%">
+      <el-table-column prop="candidateName" label="候选人" width="100">
+        <template #default="{ row }">
+          <span class="title-link">{{ row.candidateName }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column prop="jobTitle" label="在招职位" min-width="160" show-overflow-tooltip />
+      <el-table-column prop="department" label="部门" width="120" />
+      <el-table-column prop="salary" label="薪资" width="120" align="center" />
+      <el-table-column prop="status" label="状态" width="100" align="center">
+        <template #default="{ row }">
+          <el-tag :type="getStatusType(row.status)" size="small" disable-transitions>
+            {{ getStatusLabel(row.status) }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column prop="createdAt" label="创建时间" width="180" />
+      <el-table-column label="操作" width="180" fixed="right">
+        <template #default="{ row }">
+          <el-button type="primary" link size="small" @click="handleView(row)">查看</el-button>
+          <el-button type="primary" link size="small" @click="handleEdit(row)">编辑</el-button>
+        </template>
+      </el-table-column>
+    </el-table>
 
-      <!-- 分页 -->
+    <div v-if="total > 0" class="data-card-footer">
       <el-pagination
         v-model:current-page="queryParams.pageNum"
         v-model:page-size="queryParams.pageSize"
@@ -88,41 +85,42 @@
       />
     </div>
 
-    <!-- 创建/编辑对话框 -->
-    <el-dialog
-      v-model="dialogVisible"
-      :title="dialogTitle"
-      width="520px"
-      destroy-on-close
-    >
-      <el-form ref="formRef" :model="formData" :rules="formRules" label-width="80px">
-        <el-form-item label="候选人" prop="candidateName">
-          <el-input v-model="formData.candidateName" placeholder="请输入候选人姓名" />
-        </el-form-item>
-        <el-form-item label="在招职位" prop="jobTitle">
-          <el-input v-model="formData.jobTitle" placeholder="请输入职位名称" />
-        </el-form-item>
-        <el-form-item label="部门" prop="department">
-          <el-input v-model="formData.department" placeholder="请输入所属部门" />
-        </el-form-item>
-        <el-form-item label="薪资" prop="salary">
-          <el-input v-model="formData.salary" placeholder="例如: 30K/月" />
-        </el-form-item>
-        <el-form-item label="备注" prop="remark">
-          <el-input
-            v-model="formData.remark"
-            type="textarea"
-            :rows="3"
-            placeholder="请输入备注信息"
-          />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitLoading" @click="handleSubmit">确定</el-button>
-      </template>
-    </el-dialog>
-  </div>
+    <template #below>
+      <el-dialog
+        v-model="dialogVisible"
+        :title="dialogTitle"
+        width="520px"
+        destroy-on-close
+      >
+        <el-form ref="formRef" :model="formData" :rules="formRules" label-width="80px">
+          <el-form-item label="候选人" prop="candidateName">
+            <el-input v-model="formData.candidateName" placeholder="请输入候选人姓名" />
+          </el-form-item>
+          <el-form-item label="在招职位" prop="jobTitle">
+            <el-input v-model="formData.jobTitle" placeholder="请输入职位名称" />
+          </el-form-item>
+          <el-form-item label="部门" prop="department">
+            <el-input v-model="formData.department" placeholder="请输入所属部门" />
+          </el-form-item>
+          <el-form-item label="薪资" prop="salary">
+            <el-input v-model="formData.salary" placeholder="例如: 30K/月" />
+          </el-form-item>
+          <el-form-item label="备注" prop="remark">
+            <el-input
+              v-model="formData.remark"
+              type="textarea"
+              :rows="3"
+              placeholder="请输入备注信息"
+            />
+          </el-form-item>
+        </el-form>
+        <template #footer>
+          <el-button @click="dialogVisible = false">取消</el-button>
+          <el-button type="primary" :loading="submitLoading" @click="handleSubmit">确定</el-button>
+        </template>
+      </el-dialog>
+    </template>
+  </ListPageLayout>
 </template>
 
 <script setup lang="ts">
@@ -131,12 +129,12 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { Search, Plus, RefreshRight } from '@element-plus/icons-vue'
+import ListPageLayout from '@/components/Layout/ListPageLayout.vue'
 import { offerStatusLabel } from '@/constants/businessLabels'
 import { getOfferList, createOffer } from '@/api/modules/offer'
 
 const router = useRouter()
 
-// 查询参数
 const queryParams = reactive({
   keyword: '',
   status: '',
@@ -148,7 +146,6 @@ const queryParams = reactive({
 const total = ref(0)
 const offerList = ref<any[]>([])
 
-// 对话框
 const dialogVisible = ref(false)
 const dialogType = ref<'create' | 'edit'>('create')
 const submitLoading = ref(false)
@@ -172,7 +169,6 @@ const formRules: FormRules = {
   salary: [{ required: true, message: '请输入薪资', trigger: 'blur' }],
 }
 
-// 状态映射
 function getStatusType(status: string): string {
   const map: Record<string, string> = {
     DRAFT: 'info',
@@ -190,7 +186,6 @@ function getStatusLabel(status: string): string {
   return offerStatusLabel(status)
 }
 
-// 加载数据
 async function loadData() {
   const res: any = await getOfferList(queryParams)
   offerList.value = res.data?.list || res.data?.records || []

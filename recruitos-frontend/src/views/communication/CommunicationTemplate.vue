@@ -1,34 +1,36 @@
 <template>
-  <div class="page-container">
+  <div class="page-container page-stack">
     <div class="page-header">
-      <h2 class="page-title">话术管理</h2>
+      <div>
+        <h2 class="page-title">话术管理</h2>
+        <p class="page-subtitle">管理多渠道沟通话术与 A/B 测试变体</p>
+      </div>
       <el-button type="primary" :icon="Plus" @click="openDialog()">新建话术</el-button>
     </div>
 
-    <!-- Filter Bar -->
     <div class="filter-bar">
       <el-input
         v-model="filters.keyword"
         placeholder="搜索模板名称"
         :prefix-icon="Search"
         clearable
-        style="width: 240px"
+        class="filter-field filter-field--lg"
       />
-      <el-select v-model="filters.type" placeholder="类型" clearable style="width: 140px">
+      <el-select v-model="filters.type" placeholder="类型" clearable class="filter-field filter-field--sm">
         <el-option label="全部" value="" />
         <el-option label="短信" value="SMS" />
         <el-option label="邮件" value="EMAIL" />
         <el-option label="企微" value="WECHAT" />
         <el-option label="飞书" value="FEISHU" />
       </el-select>
-      <el-select v-model="filters.status" placeholder="状态" clearable style="width: 140px">
+      <el-select v-model="filters.status" placeholder="状态" clearable class="filter-field filter-field--sm">
         <el-option label="全部" value="" />
         <el-option label="启用" value="active" />
         <el-option label="停用" value="inactive" />
       </el-select>
     </div>
 
-    <!-- Table -->
+    <div class="data-card">
     <el-table :data="filteredTemplates" style="width: 100%">
       <el-table-column prop="name" label="模板名称" min-width="150" />
       <el-table-column prop="type" label="类型" width="100">
@@ -75,8 +77,6 @@
       </el-table-column>
     </el-table>
 
-    <!-- Pagination -->
-    <div class="pagination-wrap">
       <el-pagination
         v-model:current-page="pagination.page"
         v-model:page-size="pagination.pageSize"
@@ -314,33 +314,6 @@ async function handleDelete(row: Template) {
 
 <style scoped lang="scss">
 @import '@/assets/styles/variables.scss';
-.page-container {
-  padding: 20px;
-  background: $bg-card;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-}
-
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.page-title {
-  font-size: 20px;
-  font-weight: 600;
-  color: $text-primary;
-  margin: 0;
-}
-
-.filter-bar {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
-  flex-wrap: wrap;
-}
 
 .content-preview {
   display: -webkit-box;
@@ -355,12 +328,6 @@ async function handleDelete(row: Template) {
 
 .text-muted {
   color: $text-placeholder;
-}
-
-.pagination-wrap {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 16px;
 }
 
 .variable-hints {

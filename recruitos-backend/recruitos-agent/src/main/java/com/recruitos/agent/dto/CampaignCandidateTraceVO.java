@@ -12,6 +12,10 @@ public class CampaignCandidateTraceVO implements Serializable {
     private String phone;
     private String traceStatus;
     private String skipReason;
+    private String screenStage;
+    private String skipReasonSummary;
+    private String greetStrategyApplied;
+    private Integer opsPackVersion;
     private Long lockedByAccountId;
     private String lockedByAccountName;
     private BigDecimal matchScore;
@@ -32,6 +36,14 @@ public class CampaignCandidateTraceVO implements Serializable {
     public void setTraceStatus(String traceStatus) { this.traceStatus = traceStatus; }
     public String getSkipReason() { return skipReason; }
     public void setSkipReason(String skipReason) { this.skipReason = skipReason; }
+    public String getScreenStage() { return screenStage; }
+    public void setScreenStage(String screenStage) { this.screenStage = screenStage; }
+    public String getSkipReasonSummary() { return skipReasonSummary; }
+    public void setSkipReasonSummary(String skipReasonSummary) { this.skipReasonSummary = skipReasonSummary; }
+    public String getGreetStrategyApplied() { return greetStrategyApplied; }
+    public void setGreetStrategyApplied(String greetStrategyApplied) { this.greetStrategyApplied = greetStrategyApplied; }
+    public Integer getOpsPackVersion() { return opsPackVersion; }
+    public void setOpsPackVersion(Integer opsPackVersion) { this.opsPackVersion = opsPackVersion; }
     public Long getLockedByAccountId() { return lockedByAccountId; }
     public void setLockedByAccountId(Long lockedByAccountId) { this.lockedByAccountId = lockedByAccountId; }
     public String getLockedByAccountName() { return lockedByAccountName; }

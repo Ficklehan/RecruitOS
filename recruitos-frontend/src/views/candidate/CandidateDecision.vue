@@ -1,5 +1,5 @@
 <template>
-  <div class="page-container">
+  <div class="page-container page-stack">
     <div v-if="!ready" class="data-card picker-card mb-12">
       <h3 class="picker-title">选择候选人与在招职位</h3>
       <p class="picker-desc">匹配评估需同时指定在招职位与候选人，系统将给出匹配建议、符合点与待确认项。</p>

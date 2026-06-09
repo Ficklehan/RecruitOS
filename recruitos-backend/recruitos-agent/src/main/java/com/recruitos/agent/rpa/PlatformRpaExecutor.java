@@ -16,6 +16,10 @@ public interface PlatformRpaExecutor {
 
     void sendGreeting(AgentAccount account, String platformUserId, String candidateName, String jobTitle, String template);
 
+    default void sendFollowUp(AgentAccount account, String platformUserId, String message) {
+        sendGreeting(account, platformUserId, "", "", message);
+    }
+
     boolean hasResumeInChat(AgentAccount account, String platformUserId);
 
     PlatformResume fetchResume(AgentAccount account, String platformUserId, String candidateName);

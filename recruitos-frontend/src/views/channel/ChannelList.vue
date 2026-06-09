@@ -1,5 +1,5 @@
 <template>
-  <div class="page-container">
+  <div class="page-container page-stack">
     <div class="page-header">
       <div>
         <h2 class="page-title">渠道与账号</h2>

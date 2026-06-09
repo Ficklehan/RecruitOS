@@ -3,7 +3,7 @@
     <div class="sub-sidebar-header">
       <span class="sub-sidebar-title">{{ sidebarMenu.label }}</span>
     </div>
-    <div class="sub-menu-list">
+    <nav class="sub-menu-list" aria-label="子导航">
       <div
         v-for="child in sidebarMenu.children"
         :key="child.path"
@@ -14,7 +14,7 @@
         <el-icon v-if="child.icon" :size="16"><component :is="child.icon" /></el-icon>
         <span>{{ child.label }}</span>
       </div>
-    </div>
+    </nav>
   </aside>
 </template>
 
@@ -49,6 +49,7 @@ function isActive(path: string) {
   bottom: 0;
   width: $sub-sidebar-width;
   background: $bg-card;
+  border-right: 1px solid $border-color;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
@@ -56,43 +57,66 @@ function isActive(path: string) {
 }
 
 .sub-sidebar-header {
-  padding: 20px 18px 12px;
+  padding: 18px 16px 10px;
 }
 
 .sub-sidebar-title {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   color: $text-placeholder;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
 }
 
 .sub-menu-list {
-  padding: 0 10px;
+  padding: 4px 10px 16px;
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
 .sub-menu-item {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   padding: 9px 12px;
   border-radius: $border-radius-sm;
   font-size: 14px;
   font-weight: 450;
   color: $text-secondary;
   cursor: pointer;
-  transition: all $transition-fast;
+  transition: background-color $transition-fast, color $transition-fast;
 
-  .el-icon { color: inherit; opacity: 0.6; }
-  &:hover { background: $bg-muted; color: $text-primary; }
+  .el-icon {
+    color: inherit;
+    opacity: 0.65;
+  }
+
+  &:hover {
+    background: $bg-muted;
+    color: $text-primary;
+  }
+
   &.active {
     background: $primary-lighter;
     color: $primary-color;
     font-weight: 500;
-    .el-icon { opacity: 1; }
+
+    &::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 8px;
+      bottom: 8px;
+      width: 3px;
+      border-radius: 0 2px 2px 0;
+      background: $sidebar-active-bar;
+    }
+
+    .el-icon {
+      opacity: 1;
+    }
   }
 }
 </style>

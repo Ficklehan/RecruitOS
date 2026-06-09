@@ -1,5 +1,5 @@
 <template>
-  <div class="page-container">
+  <div class="page-container page-stack">
     <!-- 页面头部 -->
     <div class="page-header">
       <div>
@@ -19,7 +19,7 @@
     </div>
 
     <!-- 统计卡片 -->
-    <div class="stat-cards">
+    <div class="stat-row">
       <StatCard label="待安排" :value="stats.pending" icon="Clock" color="#D97706" />
       <StatCard label="已安排" :value="stats.arranged" icon="Calendar" color="#3B82F6" />
       <StatCard label="进行中" :value="stats.inProgress" icon="VideoCamera" color="#059669" />
@@ -35,7 +35,7 @@
     </div>
 
     <!-- 看板列 -->
-    <div class="kanban-board">
+    <div class="kanban-board page-full-bleed">
       <div v-for="col in columns" :key="col.status" class="kanban-column">
         <div class="column-header">
           <div class="column-title-row">
@@ -44,7 +44,7 @@
           </div>
           <span class="column-count">{{ getColumnData(col.status).length }}</span>
         </div>
-        <div class="column-body">
+        <div class="column-body kanban-column-body">
           <div
             v-for="item in getColumnData(col.status)"
             :key="item.id"
@@ -333,13 +333,6 @@ onMounted(() => { loadData() })
 <style lang="scss" scoped>
 @import '@/assets/styles/variables.scss';
 
-.stat-cards {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-  margin-bottom: $spacing-xl;
-}
-
 .header-actions {
   display: flex;
   gap: 8px;
@@ -364,11 +357,13 @@ onMounted(() => { loadData() })
 }
 
 .kanban-column {
-  background: $bg-page;
+  background: $bg-muted;
+  border: 1px solid $border-color;
   border-radius: $border-radius;
   display: flex;
   flex-direction: column;
   min-height: 400px;
+  min-width: 0;
 }
 
 .column-header {
@@ -407,13 +402,12 @@ onMounted(() => { loadData() })
 }
 
 .column-body {
-  padding: 12px;
+  padding: 0;
   flex: 1;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  overflow-y: auto;
-  max-height: calc(100vh - 380px);
+  min-height: 0;
 }
 
 .column-empty {

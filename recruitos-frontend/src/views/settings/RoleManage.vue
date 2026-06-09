@@ -1,5 +1,5 @@
 <template>
-  <div class="page-container">
+  <div class="page-container page-stack">
     <div class="page-header">
       <h2 class="page-title">角色管理</h2>
       <el-button type="primary" @click="handleAdd">

@@ -1,7 +1,7 @@
 <template>
   <div class="stat-card">
     <div class="stat-icon-wrap" :style="iconStyle">
-      <el-icon :size="22">
+      <el-icon :size="20">
         <component :is="icon" />
       </el-icon>
     </div>
@@ -13,7 +13,7 @@
           <el-icon :size="12"><Top v-if="trend >= 0" /><Bottom v-else /></el-icon>
           {{ Math.abs(trend) }}%
         </span>
-        <span class="trend-label">较昨日</span>
+        <span class="trend-label">较上周</span>
       </div>
     </div>
   </div>
@@ -43,7 +43,7 @@ const formattedValue = computed(() => {
 })
 
 const iconStyle = computed(() => ({
-  background: `${props.color}12`,
+  background: `${props.color}14`,
   color: props.color,
 }))
 </script>
@@ -53,17 +53,19 @@ const iconStyle = computed(() => ({
 
 .stat-card {
   background: $bg-card;
+  border: 1px solid $border-color;
   border-radius: $border-radius;
-  padding: 20px;
+  padding: $spacing-lg $spacing-xl;
   display: flex;
   align-items: flex-start;
-  gap: 14px;
+  gap: $spacing-md;
+  min-height: 88px;
 }
 
 .stat-icon-wrap {
-  width: 44px;
-  height: 44px;
-  border-radius: 10px;
+  width: 40px;
+  height: 40px;
+  border-radius: $border-radius-sm;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -78,16 +80,16 @@ const iconStyle = computed(() => ({
 .stat-label {
   font-size: 13px;
   color: $text-secondary;
-  margin-bottom: 4px;
-  font-weight: 400;
+  margin-bottom: $spacing-sm;
 }
 
 .stat-value {
-  font-size: 26px;
-  font-weight: 700;
+  font-size: 24px;
+  font-weight: 600;
   color: $text-primary;
   line-height: 1.2;
   letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
 }
 
 .stat-trend {
@@ -95,13 +97,13 @@ const iconStyle = computed(() => ({
   font-size: 12px;
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
 
   .trend-up {
     color: $success-color;
     display: inline-flex;
     align-items: center;
-    gap: 1px;
+    gap: 2px;
     font-weight: 500;
   }
 
@@ -109,13 +111,12 @@ const iconStyle = computed(() => ({
     color: $danger-color;
     display: inline-flex;
     align-items: center;
-    gap: 1px;
+    gap: 2px;
     font-weight: 500;
   }
 
   .trend-label {
     color: $text-placeholder;
-    margin-left: 3px;
   }
 }
 </style>

@@ -25,14 +25,18 @@ const legacyRedirects: RouteRecordRaw[] = [
   { path: '/onboard/:pathMatch(.*)*', redirect: to => (to.path.includes('task') ? '/pipeline/onboards/tasks' : '/pipeline/onboards') },
   { path: '/ai-tools/:pathMatch(.*)*', redirect: to => {
     const p = String(to.params.pathMatch || '')
-    if (p.startsWith('evolution')) return '/planning/jobs'
+    if (p.startsWith('evolution/proposals')) return '/planning/evolution/proposals'
+    if (p.startsWith('evolution/health')) return '/settings/compliance/safety'
+    if (p.startsWith('evolution')) return '/planning/evolution/proposals'
+    if (p.startsWith('profile')) return '/talent/communication-profile'
     if (p.startsWith('workflow')) return '/talent/channels/workflows'
     if (p.startsWith('conversation')) return '/talent/conversations'
     if (p.startsWith('safety')) return '/settings/compliance/safety'
     return '/talent/templates'
   }},
   { path: '/agent/:pathMatch(.*)*', redirect: to => `/talent/channels/${to.params.pathMatch}` },
-  { path: '/evolution/:pathMatch(.*)*', redirect: '/planning/jobs' },
+  { path: '/evolution/proposals', redirect: '/planning/evolution/proposals' },
+  { path: '/evolution/:pathMatch(.*)*', redirect: '/planning/evolution/proposals' },
   { path: '/communication/:pathMatch(.*)*', redirect: to => `/talent/${to.path.includes('template') ? 'templates' : 'conversations'}` },
   { path: '/analytics/:pathMatch(.*)*', redirect: to => `/insight/${to.params.pathMatch}` },
   { path: '/referral/:pathMatch(.*)*', redirect: to => `/talent/referral${to.path.includes('reward') ? '/rewards' : ''}` },

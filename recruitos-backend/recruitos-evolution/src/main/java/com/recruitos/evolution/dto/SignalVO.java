@@ -1,30 +1,28 @@
 package com.recruitos.evolution.dto;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-/**
- * Value Object for evolution signal response
- */
 public class SignalVO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
     private Long id;
     private Long tenantId;
-    private String signalType;
     private Long jobId;
-    private String jobTitle;
-    private Long tagId;
-    private String tagName;
-    private Double signalValue;
-    private String source;
-    private Integer processed;
-    private Long createdBy;
+    private Integer signalLevel;
+    private BigDecimal confidence;
+    private Long candidateId;
+    private String sourceModule;
+    private String sourceEvent;
+    private Long campaignId;
+    private Long traceId;
+    private String tagAdjustments;
+    private String status;
+    private String abGroup;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-
-    // Getters and Setters
 
     public Long getId() {
         return id;
@@ -42,14 +40,6 @@ public class SignalVO implements Serializable {
         this.tenantId = tenantId;
     }
 
-    public String getSignalType() {
-        return signalType;
-    }
-
-    public void setSignalType(String signalType) {
-        this.signalType = signalType;
-    }
-
     public Long getJobId() {
         return jobId;
     }
@@ -58,60 +48,84 @@ public class SignalVO implements Serializable {
         this.jobId = jobId;
     }
 
-    public String getJobTitle() {
-        return jobTitle;
+    public Integer getSignalLevel() {
+        return signalLevel;
     }
 
-    public void setJobTitle(String jobTitle) {
-        this.jobTitle = jobTitle;
+    public void setSignalLevel(Integer signalLevel) {
+        this.signalLevel = signalLevel;
     }
 
-    public Long getTagId() {
-        return tagId;
+    public BigDecimal getConfidence() {
+        return confidence;
     }
 
-    public void setTagId(Long tagId) {
-        this.tagId = tagId;
+    public void setConfidence(BigDecimal confidence) {
+        this.confidence = confidence;
     }
 
-    public String getTagName() {
-        return tagName;
+    public Long getCandidateId() {
+        return candidateId;
     }
 
-    public void setTagName(String tagName) {
-        this.tagName = tagName;
+    public void setCandidateId(Long candidateId) {
+        this.candidateId = candidateId;
     }
 
-    public Double getSignalValue() {
-        return signalValue;
+    public String getSourceModule() {
+        return sourceModule;
     }
 
-    public void setSignalValue(Double signalValue) {
-        this.signalValue = signalValue;
+    public void setSourceModule(String sourceModule) {
+        this.sourceModule = sourceModule;
     }
 
-    public String getSource() {
-        return source;
+    public String getSourceEvent() {
+        return sourceEvent;
     }
 
-    public void setSource(String source) {
-        this.source = source;
+    public void setSourceEvent(String sourceEvent) {
+        this.sourceEvent = sourceEvent;
     }
 
-    public Integer getProcessed() {
-        return processed;
+    public Long getCampaignId() {
+        return campaignId;
     }
 
-    public void setProcessed(Integer processed) {
-        this.processed = processed;
+    public void setCampaignId(Long campaignId) {
+        this.campaignId = campaignId;
     }
 
-    public Long getCreatedBy() {
-        return createdBy;
+    public Long getTraceId() {
+        return traceId;
     }
 
-    public void setCreatedBy(Long createdBy) {
-        this.createdBy = createdBy;
+    public void setTraceId(Long traceId) {
+        this.traceId = traceId;
+    }
+
+    public String getTagAdjustments() {
+        return tagAdjustments;
+    }
+
+    public void setTagAdjustments(String tagAdjustments) {
+        this.tagAdjustments = tagAdjustments;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public String getAbGroup() {
+        return abGroup;
+    }
+
+    public void setAbGroup(String abGroup) {
+        this.abGroup = abGroup;
     }
 
     public LocalDateTime getCreatedAt() {

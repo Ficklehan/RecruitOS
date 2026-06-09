@@ -63,6 +63,12 @@ const planningRoutes: RouteRecordRaw[] = [
         component: () => import('@/views/job/JdEditor.vue'),
         meta: { title: '任职要求', hidden: true },
       },
+      {
+        path: 'evolution/proposals',
+        name: 'PlanningEvolutionProposals',
+        component: () => import('@/views/evolution/EvolutionProposal.vue'),
+        meta: { title: '招人方式建议', permission: 'planning:job', icon: 'Bell' },
+      },
     ],
   },
 ]

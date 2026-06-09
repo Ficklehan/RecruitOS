@@ -38,8 +38,8 @@ watch(breadcrumbs, (val) => {
 @import '@/assets/styles/variables.scss';
 
 .breadcrumb {
-  margin-bottom: $spacing-lg;
-  font-size: 13px;
+  margin-bottom: 0;
+  font-size: 12px;
 
   :deep(.el-breadcrumb__item) {
     .el-breadcrumb__inner {

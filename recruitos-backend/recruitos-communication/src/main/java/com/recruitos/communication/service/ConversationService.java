@@ -116,7 +116,7 @@ public class ConversationService {
             if (template != null && template.getTenantId().equals(tenantId)) {
                 messageContent = template.getContent();
                 // Increment template usage count
-                template.setUsageCount(template.getUsageCount() != null ? template.getUsageCount() + 1 : 1);
+                template.setSendCount(template.getSendCount() != null ? template.getSendCount() + 1 : 1);
                 templateMapper.updateById(template);
             }
         }

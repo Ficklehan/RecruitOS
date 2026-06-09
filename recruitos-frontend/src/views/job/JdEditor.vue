@@ -155,6 +155,18 @@
             </el-button>
           </div>
         </div>
+
+        <div class="ops-pack-panel">
+          <div class="panel-header">
+            <h3 class="panel-title">{{ OBJECTS.sourcingMethod }}</h3>
+          </div>
+          <div class="ops-pack-body">
+            <p class="req-hint">招人方式已迁移至在招职位工作台。请在工作台「规则 → 招人方式」中设置。</p>
+            <el-button v-if="jobId" type="primary" @click="goSourcingMethod">
+              前往设置招人方式
+            </el-button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -180,6 +192,9 @@ import {
   parseJd as parseJdApi,
   getTags,
   updateTags,
+  generateOpsPack,
+  getActiveOpsPack,
+  confirmOpsPack,
 } from '@/api/modules/job'
 
 const router = useRouter()
@@ -189,6 +204,11 @@ const jobId = ref<number | null>(null)
 const saving = ref(false)
 const parsing = ref(false)
 const savingTags = ref(false)
+const generatingOps = ref(false)
+const confirmingOps = ref(false)
+const activeOpsPack = ref<any>(null)
+const draftOpsPack = ref<any>(null)
+const opsPackPreview = ref('')
 
 const jobForm = reactive({
   title: '',
@@ -345,12 +365,72 @@ function goBack() {
   router.push('/planning/jobs')
 }
 
+async function loadOpsPacks() {
+  if (!jobId.value) return
+  activeOpsPack.value = null
+  draftOpsPack.value = null
+  opsPackPreview.value = ''
+  try {
+    const activeRes: any = await getActiveOpsPack(jobId.value)
+    const active = activeRes.data
+    if (active) {
+      activeOpsPack.value = active
+      opsPackPreview.value = JSON.stringify(active.pack, null, 2)
+    }
+  } catch { /* no active */ }
+}
+
+async function handleGenerateOpsPack() {
+  if (!jobId.value) return
+  generatingOps.value = true
+  try {
+    const res: any = await generateOpsPack(jobId.value)
+    draftOpsPack.value = res.data
+    opsPackPreview.value = JSON.stringify(res.data?.pack, null, 2)
+    ElMessage.success('运营包草案已生成')
+  } catch (e: any) {
+    ElMessage.error(e?.message || '生成失败，请先保存任职要求')
+  } finally {
+    generatingOps.value = false
+  }
+}
+
+async function handleConfirmOpsPack() {
+  if (!jobId.value || !draftOpsPack.value?.id) return
+  confirmingOps.value = true
+  try {
+    const res: any = await confirmOpsPack(jobId.value, draftOpsPack.value.id)
+    activeOpsPack.value = res.data
+    draftOpsPack.value = null
+    opsPackPreview.value = JSON.stringify(res.data?.pack, null, 2)
+    ElMessage.success('运营包已确认生效')
+  } catch {
+    ElMessage.error('确认失败')
+  } finally {
+    confirmingOps.value = false
+  }
+}
+
+function goSourcingMethod() {
+  if (!jobId.value) return
+  router.push({ path: `/planning/jobs/${jobId.value}`, query: { tab: 'rules', sub: 'method' } })
+}
+
+function goSourcing() {
+  if (!jobId.value || !activeOpsPack.value?.id) return
+  router.push({
+    path: `/planning/jobs/${jobId.value}/sourcing`,
+    query: { opsPackId: String(activeOpsPack.value.id), opsPackVersion: String(activeOpsPack.value.version) },
+  })
+}
+
 onMounted(() => {
   const id = route.params.id || route.query.id
   if (id) {
     jobId.value = Number(id)
     loadJobDetail()
     loadTags()
+    loadOpsPacks()
   }
 })
 </script>
@@ -360,8 +440,8 @@ onMounted(() => {
 .jd-editor { padding-bottom: 24px; }
 .editor-layout { display: flex; gap: 24px; min-height: calc(100vh - 200px); }
 .editor-left { flex: 0 0 58%; min-width: 0; }
-.editor-right { flex: 0 0 42%; min-width: 0; }
-.editor-panel, .tag-panel {
+.editor-right { flex: 0 0 42%; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+.editor-panel, .tag-panel, .ops-pack-panel {
   background: $bg-card;
   border-radius: 8px;
   box-shadow: 0 1px 6px 0 rgba(0, 0, 0, 0.04);
@@ -392,6 +472,12 @@ onMounted(() => {
 .tag-footer {
   display: flex; justify-content: flex-end; gap: 12px;
   padding: 16px; border-top: 1px solid $border-color-light;
+}
+.ops-pack-body { padding: 16px; display: flex; flex-wrap: wrap; gap: 8px; }
+.ops-preview { width: 100%; margin-top: 8px; }
+.ops-json {
+  font-size: 11px; line-height: 1.5; max-height: 240px; overflow: auto;
+  background: #f8fafc; padding: 8px; border-radius: 6px;
 }
 @media (max-width: 1200px) {
   .editor-layout { flex-direction: column; }

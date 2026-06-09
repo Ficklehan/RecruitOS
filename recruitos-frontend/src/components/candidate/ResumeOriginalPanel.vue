@@ -19,11 +19,20 @@
     </div>
 
     <div v-if="showPdfFrame" class="pdf-frame-wrap">
-      <iframe :src="pdfSrc" class="pdf-frame" title="简历 PDF 预览" />
+      <iframe :src="pdfSrc" class="pdf-frame" title="简历 PDF 预览" @error="pdfLoadFailed = true" />
     </div>
 
     <el-alert
-      v-else-if="resume.fileUrl"
+      v-else-if="resume.fileUrl && pdfLoadFailed"
+      type="warning"
+      :closable="false"
+      show-icon
+      title="PDF 文件加载失败，请查看下方简历原文"
+      class="mb-12"
+    />
+
+    <el-alert
+      v-else-if="resume.fileUrl && !showPdfFrame"
       type="info"
       :closable="false"
       show-icon
@@ -46,7 +55,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { Document, View, Download } from '@element-plus/icons-vue'
 import EmptyStateCta from '@/components/common/EmptyStateCta.vue'
 import type { NormalizedResume } from '@/utils/resumeParser'
@@ -56,6 +65,7 @@ const props = defineProps<{
   resume: NormalizedResume
 }>()
 
+const pdfLoadFailed = ref(false)
 const pdfSrc = computed(() => resumeFileUrl(props.resume.fileUrl))
 const showPdfFrame = computed(() => isPdfResume(props.resume) && !!pdfSrc.value)
 

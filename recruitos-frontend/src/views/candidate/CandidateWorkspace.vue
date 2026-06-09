@@ -116,6 +116,24 @@
               <el-button class="rail-btn" @click="advanceActiveJob('INTERVIEWING')">
                 安排面试
               </el-button>
+              <el-button
+                v-if="pendingFeedbackInterview"
+                type="warning"
+                plain
+                class="rail-btn"
+                @click="openFeedbackDrawer"
+              >
+                提交面试反馈
+              </el-button>
+              <el-button
+                v-if="canPrepareOffer"
+                type="success"
+                plain
+                class="rail-btn"
+                @click="openOfferDialog"
+              >
+                准备录用通知
+              </el-button>
               <el-button class="rail-btn" @click="handleReserve">
                 储备至人才库
               </el-button>
@@ -149,11 +167,41 @@
         </aside>
       </div>
     </template>
+
+    <el-dialog v-model="offerDialogVisible" title="准备录用通知" width="480px" destroy-on-close>
+      <el-form label-width="88px">
+        <el-form-item label="候选人">
+          <span>{{ candidate?.name }}</span>
+        </el-form-item>
+        <el-form-item label="在招职位">
+          <span>{{ activeJobId ? jobTitle(activeJobId) : '—' }}</span>
+        </el-form-item>
+        <el-form-item label="部门">
+          <el-input v-model="offerForm.department" placeholder="如：技术部" />
+        </el-form-item>
+        <el-form-item label="薪资">
+          <el-input v-model="offerForm.salary" placeholder="如：35K · 15薪" />
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="offerForm.remark" type="textarea" :rows="2" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="offerDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="offerSubmitting" @click="submitOffer">创建并提交审批</el-button>
+      </template>
+    </el-dialog>
+
+    <InterviewEvalDrawer
+      v-model="feedbackDrawerVisible"
+      :interview="pendingFeedbackInterview"
+      @submitted="onFeedbackSubmitted"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft } from '@element-plus/icons-vue'
@@ -163,6 +211,7 @@ import ParsedResumePanel from '@/components/candidate/ParsedResumePanel.vue'
 import ResumeOriginalPanel from '@/components/candidate/ResumeOriginalPanel.vue'
 import MatchEvalPanel from '@/components/candidate/MatchEvalPanel.vue'
 import EmptyStateCta from '@/components/common/EmptyStateCta.vue'
+import InterviewEvalDrawer from '@/components/interview/InterviewEvalDrawer.vue'
 import {
   pipelineStageLabel,
   sourceLabel,
@@ -173,6 +222,8 @@ import { getDecisionPanel, screening } from '@/api/modules/candidate'
 import { getCandidate360, advancePipelineStage } from '@/api/modules/pipeline'
 import { getJobList } from '@/api/modules/job'
 import { getResumeDetail } from '@/api/modules/resume'
+import { createOffer, submitOfferApproval } from '@/api/modules/offer'
+import { getInterviewList } from '@/api/modules/interview'
 
 const props = withDefaults(defineProps<{
   candidateIdProp?: number
@@ -203,6 +254,20 @@ const resumeRaw = ref<Record<string, unknown> | null>(null)
 const resumeLoaded = ref(false)
 const jobTitleMap = ref<Record<number, string>>({})
 const matchPanelRef = ref<InstanceType<typeof MatchEvalPanel> | null>(null)
+const offerDialogVisible = ref(false)
+const offerSubmitting = ref(false)
+const feedbackDrawerVisible = ref(false)
+const pendingFeedbackInterview = ref<any | null>(null)
+const offerForm = reactive({
+  department: '',
+  salary: '',
+  remark: '',
+})
+
+const canPrepareOffer = computed(() => {
+  const stage = activeJob.value?.pipelineStage
+  return stage === 'EVALUATED' || stage === 'INTERVIEWING' || stage === 'OFFER'
+})
 
 const candidateId = computed(() => {
   if (props.candidateIdProp) return props.candidateIdProp
@@ -281,7 +346,38 @@ async function loadQuickMatch() {
 
 function onJobChange() {
   loadQuickMatch()
+  loadPendingFeedback()
   matchPanelRef.value?.reload()
+}
+
+async function loadPendingFeedback() {
+  if (!candidateId.value || !activeJobId.value) {
+    pendingFeedbackInterview.value = null
+    return
+  }
+  try {
+    const res: any = await getInterviewList({
+      candidateId: candidateId.value,
+      jobId: activeJobId.value,
+      status: 'COMPLETED',
+      pageNum: 1,
+      pageSize: 10,
+    })
+    const list = res.data?.list || []
+    pendingFeedbackInterview.value = list.find((i: any) => !i.evaluation) || null
+  } catch {
+    pendingFeedbackInterview.value = null
+  }
+}
+
+function openFeedbackDrawer() {
+  if (!pendingFeedbackInterview.value) return
+  feedbackDrawerVisible.value = true
+}
+
+async function onFeedbackSubmitted() {
+  await loadPendingFeedback()
+  load()
 }
 
 async function loadResume() {
@@ -322,7 +418,7 @@ async function load() {
       activeTab.value = tab === 'overview' ? 'resume' : tab
     }
 
-    await Promise.all([loadResume(), loadQuickMatch()])
+    await Promise.all([loadResume(), loadQuickMatch(), loadPendingFeedback()])
     emit('loaded', { name: candidate.value?.name || '候选人', candidateId: candidateId.value })
   } finally {
     loading.value = false
@@ -377,6 +473,48 @@ async function handleReserve() {
     await screening(activeJob.value.candidateId, activeJob.value.jobId, { screeningStatus: 'RESERVE' })
     ElMessage.success('已储备至人才库')
   } catch { /* cancel */ }
+}
+
+function openOfferDialog() {
+  offerForm.department = ''
+  offerForm.salary = ''
+  offerForm.remark = ''
+  offerDialogVisible.value = true
+}
+
+async function submitOffer() {
+  if (!candidate.value || !activeJobId.value) return
+  if (!offerForm.salary.trim()) {
+    ElMessage.warning('请填写薪资')
+    return
+  }
+  offerSubmitting.value = true
+  try {
+    const res: any = await createOffer({
+      candidateId: candidateId.value,
+      candidateName: candidate.value.name,
+      jobId: activeJobId.value,
+      jobTitle: jobTitle(activeJobId.value),
+      department: offerForm.department,
+      salary: offerForm.salary,
+      remark: offerForm.remark,
+    })
+    const offerId = res.data?.id || res?.id
+    if (offerId) {
+      await submitOfferApproval(offerId).catch(() => null)
+    }
+    if (activeJob.value && activeJob.value.pipelineStage !== 'OFFER') {
+      await advancePipelineStage(activeJob.value.id, { toStage: 'OFFER' })
+    }
+    ElMessage.success('录用通知已创建，可在「录用相关」待办中跟进')
+    offerDialogVisible.value = false
+    load()
+    router.push('/pipeline/offers')
+  } catch (e: any) {
+    ElMessage.error(e?.message || '创建失败')
+  } finally {
+    offerSubmitting.value = false
+  }
 }
 
 watch(() => candidateId.value, load)

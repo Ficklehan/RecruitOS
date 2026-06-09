@@ -41,3 +41,23 @@ export function reviewSafetyLog(id: number, action: string) {
 export function getSafetyLogList(params?: any) {
   return request.get('/api/communication/safety/list', { params })
 }
+
+export function getCommunicationProfileTenantDefault() {
+  return request.get('/api/communication/profile/tenant-default')
+}
+
+export function saveCommunicationProfileTenantDefault(data: any) {
+  return request.put('/api/communication/profile/tenant-default', data)
+}
+
+export function getCommunicationProfileJob(jobId: number) {
+  return request.get(`/api/communication/profile/job/${jobId}`)
+}
+
+export function saveCommunicationProfileJob(jobId: number, data: any) {
+  return request.put(`/api/communication/profile/job/${jobId}`, data)
+}
+
+export function resolveCommunicationProfile(jobId?: number) {
+  return request.get('/api/communication/profile/resolve', { params: { jobId } })
+}

@@ -147,7 +147,7 @@ async function handleCommand(cmd: string) {
   justify-content: space-between;
   padding: 0 20px;
   z-index: 200;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  border-bottom: 1px solid $header-border;
 }
 
 .nav-left {
@@ -210,8 +210,8 @@ async function handleCommand(cmd: string) {
 .user-avatar {
   width: 28px;
   height: 28px;
-  border-radius: 7px;
-  background: linear-gradient(135deg, $primary-color, $primary-dark);
+  border-radius: $border-radius-sm;
+  background: $primary-color;
   color: #fff;
   font-size: 12px;
   font-weight: 600;

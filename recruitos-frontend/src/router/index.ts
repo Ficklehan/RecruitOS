@@ -11,6 +11,7 @@ import settingsRoutes from './modules/settings'
 import platformRoutes from './modules/platform'
 import legacyRedirects from './modules/legacy-redirects'
 import screeningRoutes from './modules/screening'
+import aiToolsRoutes from './modules/ai-tools'
 
 const LoginRoute: RouteRecordRaw = {
   path: '/login',
@@ -28,6 +29,15 @@ const RootRoute: RouteRecordRaw = {
   },
 }
 
+const DevDesignPreviewRoute: RouteRecordRaw | null = import.meta.env.DEV
+  ? {
+      path: '/dev/design-preview',
+      name: 'DesignPreview',
+      component: () => import('@/views/system/DesignPreview.vue'),
+      meta: { title: 'UI 体系预览', hidden: true },
+    }
+  : null
+
 function extractRoleCodes(roles: any[]): string[] {
   if (!roles?.length) return []
   if (typeof roles[0] === 'string') return roles as string[]
@@ -43,9 +53,11 @@ const routes: RouteRecordRaw[] = [
   ...planningRoutes,
   ...talentRoutes,
   ...insightRoutes,
+  ...aiToolsRoutes,
   ...settingsRoutes,
   ...platformRoutes,
   ...legacyRedirects,
+  ...(DevDesignPreviewRoute ? [DevDesignPreviewRoute] : []),
 ]
 
 const router = createRouter({

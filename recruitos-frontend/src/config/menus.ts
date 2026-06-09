@@ -44,6 +44,7 @@ export const topNavMenus: MenuItem[] = [
       { key: 'demand-board', label: '需求看板', path: '/planning/demands/board', permission: 'planning:demand:board', icon: 'Grid' },
       { key: 'approvals', label: '审批', path: '/planning/approvals/pending', permission: 'planning:approval', icon: 'Checked' },
       { key: 'jobs', label: '在招职位', path: '/planning/jobs', permission: 'planning:job', icon: 'Briefcase' },
+      { key: 'evolution-proposals', label: '招人方式建议', path: '/planning/evolution/proposals', permission: 'planning:job', icon: 'Bell' },
     ],
   },
   {
@@ -55,7 +56,9 @@ export const topNavMenus: MenuItem[] = [
       { key: 'pool', label: '人才库', path: '/talent/pool', permission: 'talent:pool', icon: 'Files' },
       { key: 'resumes', label: '简历收件', path: '/talent/resumes', permission: 'talent:resume', icon: 'Document' },
       { key: 'channels', label: '渠道与账号', path: '/talent/channels', permission: 'talent:channel', icon: 'Share' },
+      { key: 'channel-staging', label: '跨职位待联系池', path: '/talent/channel-staging', permission: 'talent:channel', icon: 'Box' },
       { key: 'agents', label: '自动招聘任务', path: '/talent/channels/agents', permission: 'talent:channel:agent', icon: 'Connection' },
+      { key: 'comm-profile', label: '对外沟通风格', path: '/talent/communication-profile', permission: 'talent:template', icon: 'ChatDotRound' },
       { key: 'referral', label: '内推', path: '/talent/referral', permission: 'talent:referral', icon: 'Share' },
       { key: 'headhunter', label: '猎头', path: '/talent/headhunters', permission: 'talent:headhunter', icon: 'OfficeBuilding' },
       { key: 'templates', label: '话术模板', path: '/talent/templates', permission: 'talent:template', icon: 'ChatLineRound' },

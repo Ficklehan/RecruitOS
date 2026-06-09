@@ -45,9 +45,14 @@ public class RpaPlatformBridge {
     }
 
     public List<PlatformCandidate> searchCandidates(AgentAccount account, List<String> keywords, int limit) {
+        return searchCandidates(account, keywords, limit, "RECOMMEND");
+    }
+
+    public List<PlatformCandidate> searchCandidates(AgentAccount account, List<String> keywords, int limit,
+                                                    String searchSource) {
         return run(account,
                 () -> executor(account).searchCandidates(account, keywords, limit),
-                () -> simulated.searchCandidates(account, keywords, limit));
+                () -> simulated.searchCandidates(account, keywords, limit, searchSource));
     }
 
     public void sendGreeting(AgentAccount account, String platformUserId, String candidateName,
@@ -57,6 +62,16 @@ public class RpaPlatformBridge {
             return null;
         }, () -> {
             simulated.sendGreeting(account, platformUserId, candidateName, jobTitle, template);
+            return null;
+        });
+    }
+
+    public void sendFollowUp(AgentAccount account, String platformUserId, String message) {
+        run(account, () -> {
+            executor(account).sendFollowUp(account, platformUserId, message);
+            return null;
+        }, () -> {
+            simulated.sendFollowUp(account, platformUserId, message);
             return null;
         });
     }

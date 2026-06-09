@@ -1,5 +1,5 @@
 <template>
-  <div class="page-container">
+  <div class="page-container page-stack">
     <!-- 页面头部 -->
     <div class="page-header">
       <h2 class="page-title">供应商管理</h2>

@@ -1,11 +1,13 @@
 <template>
-  <div class="page-container">
+  <div class="page-container page-stack">
     <div class="page-header">
-      <h2 class="page-title">安全审查</h2>
+      <div>
+        <h2 class="page-title">安全审查</h2>
+        <p class="page-subtitle">监控沟通内容合规与风险拦截记录</p>
+      </div>
     </div>
 
-    <!-- Stats Cards -->
-    <div class="stats-row">
+    <div class="stat-row">
       <div class="stat-card">
         <div class="stat-icon" style="background: #EFF6FF; color: #3B82F6">
           <el-icon :size="24"><Document /></el-icon>
@@ -75,7 +77,7 @@
       </el-select>
     </div>
 
-    <!-- Table -->
+    <div class="data-card">
     <el-table :data="filteredRecords" style="width: 100%">
       <el-table-column prop="conversationId" label="会话ID" width="120" />
       <el-table-column prop="checkType" label="检查类型" width="100">
@@ -116,8 +118,6 @@
       </el-table-column>
     </el-table>
 
-    <!-- Pagination -->
-    <div class="pagination-wrap">
       <el-pagination
         v-model:current-page="pagination.page"
         v-model:page-size="pagination.pageSize"
@@ -329,44 +329,15 @@ function highlightKeywords(content: string, keywords: string[]): string {
 
 <style scoped lang="scss">
 @import '@/assets/styles/variables.scss';
-.page-container {
-  padding: 20px;
-  background: $bg-card;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-}
-
-.page-header {
-  margin-bottom: 20px;
-}
-
-.page-title {
-  font-size: 20px;
-  font-weight: 600;
-  color: $text-primary;
-  margin: 0;
-}
-
-/* Stats Cards */
-.stats-row {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-  margin-bottom: 20px;
-}
 
 .stat-card {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 20px;
-  border: 1px solid $border-color-light;
-  border-radius: 8px;
-  transition: box-shadow 0.2s;
-
-  &:hover {
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-  }
+  gap: 14px;
+  padding: 18px 20px;
+  background: $bg-card;
+  border: 1px solid $border-color;
+  border-radius: $border-radius;
 }
 
 .stat-icon {
@@ -385,10 +356,11 @@ function highlightKeywords(content: string, keywords: string[]): string {
 }
 
 .stat-value {
-  font-size: 24px;
-  font-weight: 700;
+  font-size: 22px;
+  font-weight: 600;
   color: $text-primary;
   line-height: 1.2;
+  font-variant-numeric: tabular-nums;
 }
 
 .stat-label {
@@ -397,22 +369,8 @@ function highlightKeywords(content: string, keywords: string[]): string {
   margin-top: 4px;
 }
 
-/* Filter Bar */
-.filter-bar {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
-  flex-wrap: wrap;
-}
-
 .text-muted {
   color: $text-placeholder;
-}
-
-.pagination-wrap {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 16px;
 }
 
 .detail-matched {

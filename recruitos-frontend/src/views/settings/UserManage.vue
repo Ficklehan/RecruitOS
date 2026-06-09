@@ -1,5 +1,5 @@
 <template>
-  <div class="page-container">
+  <div class="page-container page-stack">
     <div class="page-header">
       <h2 class="page-title">用户管理</h2>
       <el-button type="primary" @click="handleAdd">
@@ -281,13 +281,6 @@ onMounted(async () => {
 </script>
 
 <style lang="scss" scoped>
-.filter-bar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
 .role-tag {
   margin-right: 4px;
   margin-bottom: 4px;

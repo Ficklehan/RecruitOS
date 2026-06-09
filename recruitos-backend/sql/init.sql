@@ -488,15 +488,20 @@ CREATE TABLE `conversation_message` (
 CREATE TABLE `safety_log` (
     `id` BIGINT NOT NULL AUTO_INCREMENT,
     `tenant_id` BIGINT NOT NULL,
+    `conversation_id` BIGINT DEFAULT NULL COMMENT '会话ID',
     `message_id` BIGINT DEFAULT NULL,
-    `check_type` VARCHAR(32) NOT NULL COMMENT 'SALARY/PROMPT_INJECTION/SENSITIVE_TOPIC/COMPLAINT',
+    `check_type` VARCHAR(32) NOT NULL COMMENT 'KEYWORD/AI/SENSITIVE/SALARY/PROMPT_INJECTION',
+    `check_result` VARCHAR(16) DEFAULT 'PASS' COMMENT 'PASS/BLOCK/WARN',
+    `matched_content` TEXT DEFAULT NULL COMMENT '命中内容',
     `risk_level` VARCHAR(8) NOT NULL COMMENT 'LOW/MEDIUM/HIGH/CRITICAL',
-    `action` VARCHAR(16) NOT NULL COMMENT 'PASS/BLOCK/ESCALATE',
+    `action` VARCHAR(16) NOT NULL COMMENT 'ALLOW/BLOCKED/REVIEW/PASS/BLOCK',
+    `checked_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '审查时间',
     `detail` JSON DEFAULT NULL,
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
-    INDEX `idx_tenant_type` (`tenant_id`, `check_type`)
+    INDEX `idx_tenant_type` (`tenant_id`, `check_type`),
+    INDEX `idx_conversation` (`conversation_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='安全审查日志表';
 
 -- ============================================================

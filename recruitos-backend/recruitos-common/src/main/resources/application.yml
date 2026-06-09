@@ -1,0 +1,14 @@
+# Shared config from recruitos-common — merged into each microservice classpath
+spring:
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never

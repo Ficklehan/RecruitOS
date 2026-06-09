@@ -1,5 +1,5 @@
 <template>
-  <div class="page-container">
+  <div class="page-container page-stack">
     <!-- 页面头部 -->
     <div class="page-header">
       <h2 class="page-title">效果对比</h2>

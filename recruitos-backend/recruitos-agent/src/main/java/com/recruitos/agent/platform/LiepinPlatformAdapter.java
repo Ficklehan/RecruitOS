@@ -28,13 +28,19 @@ public class LiepinPlatformAdapter implements PlatformAdapter {
     }
 
     @Override
-    public List<PlatformCandidate> searchCandidates(AgentAccount account, List<String> keywords, int limit) {
-        return bridge.searchCandidates(account, keywords, limit);
+    public List<PlatformCandidate> searchCandidates(AgentAccount account, List<String> keywords, int limit,
+                                                    String searchSource) {
+        return bridge.searchCandidates(account, keywords, limit, searchSource);
     }
 
     @Override
     public void sendGreeting(AgentAccount account, String platformUserId, String candidateName, String jobTitle, String template) {
         bridge.sendGreeting(account, platformUserId, candidateName, jobTitle, template);
+    }
+
+    @Override
+    public void sendFollowUp(AgentAccount account, String platformUserId, String message) {
+        bridge.sendFollowUp(account, platformUserId, message);
     }
 
     @Override

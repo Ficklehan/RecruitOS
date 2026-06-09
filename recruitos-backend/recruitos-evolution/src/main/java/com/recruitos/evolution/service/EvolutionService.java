@@ -2,7 +2,9 @@ package com.recruitos.evolution.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.recruitos.common.auth.CurrentUser;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.recruitos.common.evolution.EvolutionSignalLevel;
 import com.recruitos.common.exception.BizException;
 import com.recruitos.common.result.PageResult;
 import com.recruitos.common.tenant.TenantContext;
@@ -16,17 +18,19 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import javax.annotation.Resource;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Evolution service - core business logic for signal processing and weight management
- */
 @Service
 public class EvolutionService {
+
+    private static final String STATUS_PENDING = "PENDING";
+    private static final String STATUS_APPLIED = "APPLIED";
 
     @Resource
     private EvolutionSignalMapper evolutionSignalMapper;
@@ -34,257 +38,298 @@ public class EvolutionService {
     @Resource
     private JobWeightSnapshotMapper jobWeightSnapshotMapper;
 
-    /**
-     * Submit a new evolution signal
-     */
+    @Resource
+    private ObjectMapper objectMapper;
+
     @Transactional
-    public SignalVO submitSignal(SignalSubmitDTO dto) {
+    public SignalVO emitSignal(SignalEmitDTO dto) {
         Long tenantId = TenantContext.getTenantId();
-        Long userId = CurrentUser.getCurrentUserId();
-        if (tenantId == null || userId == null) {
-            throw new BizException("User not authenticated");
+        if (tenantId == null) {
+            throw new BizException("Tenant context required for signal emit");
         }
 
         EvolutionSignal signal = new EvolutionSignal();
         signal.setTenantId(tenantId);
-        signal.setSignalType(dto.getSignalType());
         signal.setJobId(dto.getJobId());
-        signal.setJobTitle(dto.getJobTitle());
-        signal.setTagId(dto.getTagId());
-        signal.setTagName(dto.getTagName());
-        signal.setSignalValue(dto.getSignalValue());
-        signal.setSource(dto.getSource());
-        signal.setProcessed(0);
-        signal.setCreatedBy(userId);
+        signal.setSignalLevel(dto.getSignalLevel());
+        double conf = dto.getConfidence() != null
+                ? dto.getConfidence()
+                : EvolutionSignalLevel.defaultConfidence(dto.getSignalLevel());
+        signal.setConfidence(BigDecimal.valueOf(conf).setScale(2, RoundingMode.HALF_UP));
+        signal.setCandidateId(dto.getCandidateId());
+        signal.setSourceModule(dto.getSourceModule());
+        signal.setSourceEvent(dto.getSourceEvent());
+        signal.setCampaignId(dto.getCampaignId());
+        signal.setTraceId(dto.getTraceId());
+        signal.setAbGroup(dto.getAbGroup());
+        signal.setStatus(STATUS_PENDING);
+        signal.setLearningRate(resolveLearningRate(dto.getJobId(), tenantId));
+
+        if (dto.getTagAdjustments() != null && !dto.getTagAdjustments().isEmpty()) {
+            try {
+                signal.setTagAdjustments(objectMapper.writeValueAsString(dto.getTagAdjustments()));
+            } catch (Exception e) {
+                throw new BizException("Invalid tagAdjustments JSON");
+            }
+        }
 
         evolutionSignalMapper.insert(signal);
-
-        return convertToSignalVO(signal);
+        return toSignalVO(signal);
     }
 
     /**
-     * Get paginated list of signals with filters
+     * @deprecated 兼容旧接口，内部转 emit
      */
+    @Transactional
+    @Deprecated
+    public SignalVO submitSignal(SignalSubmitDTO dto) {
+        SignalEmitDTO emit = new SignalEmitDTO();
+        emit.setJobId(dto.getJobId());
+        emit.setSignalLevel(mapLegacySignalType(dto.getSignalType()));
+        emit.setConfidence(dto.getSignalValue());
+        emit.setSourceModule("legacy");
+        emit.setSourceEvent(dto.getSource());
+        Map<String, Object> adj = new LinkedHashMap<>();
+        if (StringUtils.hasText(dto.getTagName())) {
+            adj.put(dto.getTagName(), dto.getSignalValue());
+        }
+        emit.setTagAdjustments(adj);
+        return emitSignal(emit);
+    }
+
     public PageResult<SignalVO> getSignalList(SignalQueryDTO query) {
         Long tenantId = TenantContext.getTenantId();
-
         Page<EvolutionSignal> page = new Page<>(query.getPageNum(), query.getPageSize());
 
         LambdaQueryWrapper<EvolutionSignal> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(EvolutionSignal::getTenantId, tenantId);
-
-        if (StringUtils.hasText(query.getSignalType())) {
-            wrapper.eq(EvolutionSignal::getSignalType, query.getSignalType());
+        if (query.getSignalLevel() != null) {
+            wrapper.eq(EvolutionSignal::getSignalLevel, query.getSignalLevel());
         }
         if (query.getJobId() != null) {
             wrapper.eq(EvolutionSignal::getJobId, query.getJobId());
         }
-        if (query.getTagId() != null) {
-            wrapper.eq(EvolutionSignal::getTagId, query.getTagId());
+        if (StringUtils.hasText(query.getStatus())) {
+            wrapper.eq(EvolutionSignal::getStatus, query.getStatus());
         }
-        if (query.getProcessed() != null) {
-            wrapper.eq(EvolutionSignal::getProcessed, query.getProcessed());
-        }
-
         wrapper.orderByDesc(EvolutionSignal::getCreatedAt);
 
         Page<EvolutionSignal> result = evolutionSignalMapper.selectPage(page, wrapper);
-
         List<SignalVO> voList = new ArrayList<>();
         for (EvolutionSignal signal : result.getRecords()) {
-            voList.add(convertToSignalVO(signal));
+            voList.add(toSignalVO(signal));
         }
-
         return new PageResult<>(result.getTotal(), voList, query.getPageNum(), query.getPageSize());
     }
 
-    /**
-     * Get current weight snapshot for a job
-     */
     public List<WeightSnapshotVO> getWeightSnapshot(Long jobId) {
-        Long tenantId = TenantContext.getTenantId();
-
-        LambdaQueryWrapper<JobWeightSnapshot> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(JobWeightSnapshot::getTenantId, tenantId)
-                .eq(JobWeightSnapshot::getJobId, jobId)
-                .orderByDesc(JobWeightSnapshot::getVersion)
-                .last("LIMIT 1");
-
-        // Get the latest version
-        JobWeightSnapshot latest = jobWeightSnapshotMapper.selectOne(wrapper);
-        if (latest == null) {
-            return new ArrayList<>();
+        JobWeightSnapshot latest = latestSnapshot(jobId);
+        List<WeightSnapshotVO> list = new ArrayList<>();
+        if (latest != null) {
+            list.add(toWeightSnapshotVO(latest));
         }
-
-        // Get all snapshots with the latest version
-        LambdaQueryWrapper<JobWeightSnapshot> versionWrapper = new LambdaQueryWrapper<>();
-        versionWrapper.eq(JobWeightSnapshot::getTenantId, tenantId)
-                .eq(JobWeightSnapshot::getJobId, jobId)
-                .eq(JobWeightSnapshot::getVersion, latest.getVersion());
-
-        List<JobWeightSnapshot> snapshots = jobWeightSnapshotMapper.selectList(versionWrapper);
-
-        List<WeightSnapshotVO> voList = new ArrayList<>();
-        for (JobWeightSnapshot snapshot : snapshots) {
-            voList.add(convertToWeightSnapshotVO(snapshot));
-        }
-
-        return voList;
+        return list;
     }
 
-    /**
-     * Get weight change history for a job
-     */
     public List<WeightSnapshotVO> getWeightHistory(Long jobId) {
         Long tenantId = TenantContext.getTenantId();
-
         LambdaQueryWrapper<JobWeightSnapshot> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(JobWeightSnapshot::getTenantId, tenantId)
                 .eq(JobWeightSnapshot::getJobId, jobId)
-                .orderByDesc(JobWeightSnapshot::getVersion)
-                .orderByAsc(JobWeightSnapshot::getTagId);
-
-        List<JobWeightSnapshot> snapshots = jobWeightSnapshotMapper.selectList(wrapper);
-
-        List<WeightSnapshotVO> voList = new ArrayList<>();
-        for (JobWeightSnapshot snapshot : snapshots) {
-            voList.add(convertToWeightSnapshotVO(snapshot));
+                .orderByDesc(JobWeightSnapshot::getCreatedAt);
+        List<WeightSnapshotVO> list = new ArrayList<>();
+        for (JobWeightSnapshot s : jobWeightSnapshotMapper.selectList(wrapper)) {
+            list.add(toWeightSnapshotVO(s));
         }
-
-        return voList;
+        return list;
     }
 
-    /**
-     * Trigger evolution - simulate weight update based on signals
-     * Calculates new tri-weights (match/search/decision) from unprocessed signals
-     */
     @Transactional
     public List<WeightSnapshotVO> triggerEvolution(Long jobId) {
         Long tenantId = TenantContext.getTenantId();
-        Long userId = CurrentUser.getCurrentUserId();
 
-        // Get unprocessed signals for this job
         LambdaQueryWrapper<EvolutionSignal> signalWrapper = new LambdaQueryWrapper<>();
         signalWrapper.eq(EvolutionSignal::getTenantId, tenantId)
                 .eq(EvolutionSignal::getJobId, jobId)
-                .eq(EvolutionSignal::getProcessed, 0);
-
+                .eq(EvolutionSignal::getStatus, STATUS_PENDING);
         List<EvolutionSignal> signals = evolutionSignalMapper.selectList(signalWrapper);
-
         if (signals.isEmpty()) {
-            throw new BizException("No unprocessed signals found for job " + jobId);
+            throw new BizException("No pending signals found for job " + jobId);
         }
 
-        // Aggregate signals by tag and type
-        Map<Long, Map<String, Double>> tagSignals = new HashMap<>();
-        Map<Long, String> tagNames = new HashMap<>();
-        String jobTitle = null;
-
+        Map<String, Double> mergedAdjustments = new LinkedHashMap<>();
         for (EvolutionSignal signal : signals) {
-            if (jobTitle == null && signal.getJobTitle() != null) {
-                jobTitle = signal.getJobTitle();
-            }
-            if (signal.getTagId() != null) {
-                tagNames.put(signal.getTagId(), signal.getTagName());
-                tagSignals.computeIfAbsent(signal.getTagId(), k -> new HashMap<>())
-                        .merge(signal.getSignalType(), signal.getSignalValue(), Double::sum);
-            }
+            mergeTagAdjustments(mergedAdjustments, signal);
         }
 
-        // Get current version
-        LambdaQueryWrapper<JobWeightSnapshot> versionWrapper = new LambdaQueryWrapper<>();
-        versionWrapper.eq(JobWeightSnapshot::getTenantId, tenantId)
-                .eq(JobWeightSnapshot::getJobId, jobId)
-                .orderByDesc(JobWeightSnapshot::getVersion)
-                .last("LIMIT 1");
+        JobWeightSnapshot base = latestSnapshot(jobId);
+        String newTagsJson = applyAdjustments(base, mergedAdjustments, signals.size());
 
-        JobWeightSnapshot latestSnapshot = jobWeightSnapshotMapper.selectOne(versionWrapper);
-        int newVersion = (latestSnapshot != null) ? latestSnapshot.getVersion() + 1 : 1;
+        JobWeightSnapshot snapshot = new JobWeightSnapshot();
+        snapshot.setTenantId(tenantId);
+        snapshot.setJobId(jobId);
+        snapshot.setSnapshotType("EVOLUTION");
+        snapshot.setTagsSnapshot(newTagsJson);
+        snapshot.setHealthScore(null);
+        snapshot.setSignalId(signals.get(signals.size() - 1).getId());
+        jobWeightSnapshotMapper.insert(snapshot);
 
-        // Create new weight snapshots based on signal aggregation
-        List<WeightSnapshotVO> newSnapshots = new ArrayList<>();
-
-        for (Map.Entry<Long, Map<String, Double>> entry : tagSignals.entrySet()) {
-            Long tagId = entry.getKey();
-            Map<String, Double> typeValues = entry.getValue();
-
-            // Calculate weights from signals (simple average-based approach)
-            double matchWeight = calculateWeight(typeValues.getOrDefault("MATCH", 0.0), 0.5);
-            double searchWeight = calculateWeight(typeValues.getOrDefault("SEARCH", 0.0), 0.3);
-            double decisionWeight = calculateWeight(typeValues.getOrDefault("DECISION", 0.0), 0.2);
-
-            JobWeightSnapshot snapshot = new JobWeightSnapshot();
-            snapshot.setTenantId(tenantId);
-            snapshot.setJobId(jobId);
-            snapshot.setJobTitle(jobTitle);
-            snapshot.setTagId(tagId);
-            snapshot.setTagName(tagNames.get(tagId));
-            snapshot.setMatchWeight(matchWeight);
-            snapshot.setSearchWeight(searchWeight);
-            snapshot.setDecisionWeight(decisionWeight);
-            snapshot.setVersion(newVersion);
-            snapshot.setCreatedBy(userId);
-
-            jobWeightSnapshotMapper.insert(snapshot);
-            newSnapshots.add(convertToWeightSnapshotVO(snapshot));
-        }
-
-        // Mark signals as processed
+        LocalDateTime now = LocalDateTime.now();
         for (EvolutionSignal signal : signals) {
-            signal.setProcessed(1);
+            signal.setStatus(STATUS_APPLIED);
+            signal.setAppliedAt(now);
             evolutionSignalMapper.updateById(signal);
         }
 
-        return newSnapshots;
+        List<WeightSnapshotVO> result = new ArrayList<>();
+        result.add(toWeightSnapshotVO(snapshot));
+        return result;
     }
 
-    /**
-     * Calculate weight from signal value with a base weight
-     */
-    private double calculateWeight(double signalValue, double baseWeight) {
-        // Simple weight calculation: base weight adjusted by signal
-        double adjusted = baseWeight + (signalValue * 0.1);
-        // Clamp to [0.01, 1.0]
-        return Math.max(0.01, Math.min(1.0, adjusted));
+    private JobWeightSnapshot latestSnapshot(Long jobId) {
+        Long tenantId = TenantContext.getTenantId();
+        LambdaQueryWrapper<JobWeightSnapshot> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(JobWeightSnapshot::getTenantId, tenantId)
+                .eq(JobWeightSnapshot::getJobId, jobId)
+                .orderByDesc(JobWeightSnapshot::getCreatedAt)
+                .last("LIMIT 1");
+        return jobWeightSnapshotMapper.selectOne(wrapper);
     }
 
-    /**
-     * Convert entity to SignalVO
-     */
-    private SignalVO convertToSignalVO(EvolutionSignal signal) {
+    private BigDecimal resolveLearningRate(Long jobId, Long tenantId) {
+        LambdaQueryWrapper<EvolutionSignal> w = new LambdaQueryWrapper<>();
+        w.eq(EvolutionSignal::getTenantId, tenantId).eq(EvolutionSignal::getJobId, jobId);
+        long count = evolutionSignalMapper.selectCount(w);
+        double alpha;
+        if (count <= 20) {
+            alpha = 0.15;
+        } else if (count <= 50) {
+            alpha = 0.08;
+        } else {
+            alpha = 0.02;
+        }
+        return BigDecimal.valueOf(alpha);
+    }
+
+    private void mergeTagAdjustments(Map<String, Double> target, EvolutionSignal signal) {
+        if (!StringUtils.hasText(signal.getTagAdjustments())) {
+            return;
+        }
+        try {
+            Map<String, Object> raw = objectMapper.readValue(
+                    signal.getTagAdjustments(), new TypeReference<Map<String, Object>>() {});
+            double weight = signal.getConfidence() != null ? signal.getConfidence().doubleValue() : 0.5;
+            for (Map.Entry<String, Object> e : raw.entrySet()) {
+                double delta = toDouble(e.getValue()) * weight;
+                target.merge(e.getKey(), delta, Double::sum);
+            }
+        } catch (Exception ignored) {
+            // skip malformed
+        }
+    }
+
+    private String applyAdjustments(JobWeightSnapshot base, Map<String, Double> adjustments, int signalCount) {
+        try {
+            List<Map<String, Object>> tags = new ArrayList<>();
+            if (base != null && StringUtils.hasText(base.getTagsSnapshot())) {
+                tags = objectMapper.readValue(base.getTagsSnapshot(),
+                        new TypeReference<List<Map<String, Object>>>() {});
+            }
+            Map<String, Map<String, Object>> byTag = new LinkedHashMap<>();
+            for (Map<String, Object> tag : tags) {
+                Object name = tag.get("tag");
+                if (name != null) {
+                    byTag.put(name.toString(), tag);
+                }
+            }
+            for (Map.Entry<String, Double> adj : adjustments.entrySet()) {
+                Map<String, Object> tag = byTag.computeIfAbsent(adj.getKey(), k -> {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("tag", k);
+                    m.put("match_weight", 0.3);
+                    m.put("search_weight", 0.3);
+                    m.put("decision_weight", 0.3);
+                    return m;
+                });
+                double delta = clamp(adj.getValue() * 0.1, -0.12, 0.12);
+                tag.put("match_weight", clamp(toDouble(tag.get("match_weight")) + delta, 0.01, 1.0));
+                tag.put("search_weight", clamp(toDouble(tag.get("search_weight")) + delta * 0.8, 0.01, 1.0));
+                tag.put("decision_weight", clamp(toDouble(tag.get("decision_weight")) + delta * 0.6, 0.01, 1.0));
+            }
+            if (byTag.isEmpty() && adjustments.isEmpty()) {
+                throw new BizException("No tag data to evolve");
+            }
+            return objectMapper.writeValueAsString(new ArrayList<>(byTag.values()));
+        } catch (BizException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new BizException("Failed to apply evolution adjustments");
+        }
+    }
+
+    private int mapLegacySignalType(String signalType) {
+        if (!StringUtils.hasText(signalType)) {
+            return EvolutionSignalLevel.L3_SCREEN;
+        }
+        switch (signalType.toUpperCase()) {
+            case "MATCH":
+                return EvolutionSignalLevel.L3_SCREEN;
+            case "SEARCH":
+                return EvolutionSignalLevel.L5_GREET_RESUME;
+            case "DECISION":
+                return EvolutionSignalLevel.L2_INTERVIEW;
+            default:
+                return EvolutionSignalLevel.L3_SCREEN;
+        }
+    }
+
+    private double toDouble(Object v) {
+        if (v == null) {
+            return 0;
+        }
+        if (v instanceof Number) {
+            return ((Number) v).doubleValue();
+        }
+        try {
+            return Double.parseDouble(v.toString());
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    private double clamp(double v, double min, double max) {
+        return Math.max(min, Math.min(max, v));
+    }
+
+    private SignalVO toSignalVO(EvolutionSignal signal) {
         SignalVO vo = new SignalVO();
         vo.setId(signal.getId());
         vo.setTenantId(signal.getTenantId());
-        vo.setSignalType(signal.getSignalType());
         vo.setJobId(signal.getJobId());
-        vo.setJobTitle(signal.getJobTitle());
-        vo.setTagId(signal.getTagId());
-        vo.setTagName(signal.getTagName());
-        vo.setSignalValue(signal.getSignalValue());
-        vo.setSource(signal.getSource());
-        vo.setProcessed(signal.getProcessed());
-        vo.setCreatedBy(signal.getCreatedBy());
+        vo.setSignalLevel(signal.getSignalLevel());
+        vo.setConfidence(signal.getConfidence());
+        vo.setCandidateId(signal.getCandidateId());
+        vo.setSourceModule(signal.getSourceModule());
+        vo.setSourceEvent(signal.getSourceEvent());
+        vo.setCampaignId(signal.getCampaignId());
+        vo.setTraceId(signal.getTraceId());
+        vo.setTagAdjustments(signal.getTagAdjustments());
+        vo.setStatus(signal.getStatus());
+        vo.setAbGroup(signal.getAbGroup());
         vo.setCreatedAt(signal.getCreatedAt());
         vo.setUpdatedAt(signal.getUpdatedAt());
         return vo;
     }
 
-    /**
-     * Convert entity to WeightSnapshotVO
-     */
-    private WeightSnapshotVO convertToWeightSnapshotVO(JobWeightSnapshot snapshot) {
+    private WeightSnapshotVO toWeightSnapshotVO(JobWeightSnapshot snapshot) {
         WeightSnapshotVO vo = new WeightSnapshotVO();
         vo.setId(snapshot.getId());
         vo.setTenantId(snapshot.getTenantId());
         vo.setJobId(snapshot.getJobId());
-        vo.setJobTitle(snapshot.getJobTitle());
-        vo.setTagId(snapshot.getTagId());
-        vo.setTagName(snapshot.getTagName());
-        vo.setMatchWeight(snapshot.getMatchWeight());
-        vo.setSearchWeight(snapshot.getSearchWeight());
-        vo.setDecisionWeight(snapshot.getDecisionWeight());
-        vo.setVersion(snapshot.getVersion());
-        vo.setCreatedBy(snapshot.getCreatedBy());
+        vo.setSnapshotType(snapshot.getSnapshotType());
+        vo.setTagsSnapshot(snapshot.getTagsSnapshot());
+        vo.setHealthScore(snapshot.getHealthScore());
+        vo.setSignalId(snapshot.getSignalId());
         vo.setCreatedAt(snapshot.getCreatedAt());
         return vo;
     }

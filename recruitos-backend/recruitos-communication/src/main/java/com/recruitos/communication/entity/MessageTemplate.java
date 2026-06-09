@@ -1,61 +1,77 @@
 package com.recruitos.communication.entity;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.recruitos.common.mybatis.BaseEntity;
 
-import java.math.BigDecimal;
-
 /**
- * Message template entity
+ * Message template entity mapped to message_template table (init.sql schema).
  */
 @TableName("message_template")
 public class MessageTemplate extends BaseEntity {
 
     private static final long serialVersionUID = 1L;
 
-    /** Template name */
-    private String templateName;
+    /** Scene / channel type: INITIAL, CHASE, SMS, EMAIL, etc. */
+    @TableField("scene")
+    private String scene;
 
-    /** Template type: SMS / EMAIL / WECHAT / FEISHU */
-    private String templateType;
+    @TableField("candidate_type")
+    private String candidateType;
 
-    /** Template content */
+    @TableField("title")
+    private String title;
+
+    @TableField("content")
     private String content;
 
-    /** Variables - JSON array of variable names */
-    private String variables;
+    @TableField("priority")
+    private Integer priority;
 
-    /** Status: ACTIVE / DISABLED */
-    private String status;
+    @TableField("send_count")
+    private Integer sendCount;
 
-    /** A/B test group variant label */
-    private String abTestGroup;
+    @TableField("reply_count")
+    private Integer replyCount;
 
-    /** Usage count */
-    private Integer usageCount;
+    @TableField("resume_count")
+    private Integer resumeCount;
 
-    /** Success rate */
-    private BigDecimal successRate;
+    @TableField("hire_count")
+    private Integer hireCount;
 
-    /** Created by user ID */
-    private Long createdBy;
+    @TableField("is_ab_test")
+    private Integer isAbTest;
 
-    // Getters and Setters
+    @TableField("ab_group")
+    private String abGroup;
 
-    public String getTemplateName() {
-        return templateName;
+    /** 1=enabled, 0=disabled */
+    @TableField("status")
+    private Integer status;
+
+    public String getScene() {
+        return scene;
     }
 
-    public void setTemplateName(String templateName) {
-        this.templateName = templateName;
+    public void setScene(String scene) {
+        this.scene = scene;
     }
 
-    public String getTemplateType() {
-        return templateType;
+    public String getCandidateType() {
+        return candidateType;
     }
 
-    public void setTemplateType(String templateType) {
-        this.templateType = templateType;
+    public void setCandidateType(String candidateType) {
+        this.candidateType = candidateType;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public void setTitle(String title) {
+        this.title = title;
     }
 
     public String getContent() {
@@ -66,51 +82,67 @@ public class MessageTemplate extends BaseEntity {
         this.content = content;
     }
 
-    public String getVariables() {
-        return variables;
+    public Integer getPriority() {
+        return priority;
     }
 
-    public void setVariables(String variables) {
-        this.variables = variables;
+    public void setPriority(Integer priority) {
+        this.priority = priority;
     }
 
-    public String getStatus() {
+    public Integer getSendCount() {
+        return sendCount;
+    }
+
+    public void setSendCount(Integer sendCount) {
+        this.sendCount = sendCount;
+    }
+
+    public Integer getReplyCount() {
+        return replyCount;
+    }
+
+    public void setReplyCount(Integer replyCount) {
+        this.replyCount = replyCount;
+    }
+
+    public Integer getResumeCount() {
+        return resumeCount;
+    }
+
+    public void setResumeCount(Integer resumeCount) {
+        this.resumeCount = resumeCount;
+    }
+
+    public Integer getHireCount() {
+        return hireCount;
+    }
+
+    public void setHireCount(Integer hireCount) {
+        this.hireCount = hireCount;
+    }
+
+    public Integer getIsAbTest() {
+        return isAbTest;
+    }
+
+    public void setIsAbTest(Integer isAbTest) {
+        this.isAbTest = isAbTest;
+    }
+
+    public String getAbGroup() {
+        return abGroup;
+    }
+
+    public void setAbGroup(String abGroup) {
+        this.abGroup = abGroup;
+    }
+
+    public Integer getStatus() {
         return status;
     }
 
-    public void setStatus(String status) {
+    public void setStatus(Integer status) {
         this.status = status;
-    }
-
-    public String getAbTestGroup() {
-        return abTestGroup;
-    }
-
-    public void setAbTestGroup(String abTestGroup) {
-        this.abTestGroup = abTestGroup;
-    }
-
-    public Integer getUsageCount() {
-        return usageCount;
-    }
-
-    public void setUsageCount(Integer usageCount) {
-        this.usageCount = usageCount;
-    }
-
-    public BigDecimal getSuccessRate() {
-        return successRate;
-    }
-
-    public void setSuccessRate(BigDecimal successRate) {
-        this.successRate = successRate;
-    }
-
-    public Long getCreatedBy() {
-        return createdBy;
-    }
-
-    public void setCreatedBy(Long createdBy) {
-        this.createdBy = createdBy;
     }
 }

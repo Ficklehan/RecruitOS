@@ -1,10 +1,13 @@
 <template>
-  <div class="page-container conversation-page">
+  <div class="page-container page-stack page-viewport-fill conversation-page">
     <div class="page-header">
-      <h2 class="page-title">对话记录</h2>
+      <div>
+        <h2 class="page-title">对话记录</h2>
+        <p class="page-subtitle">查看与候选人的沟通历史并发送消息</p>
+      </div>
     </div>
 
-    <div class="conversation-layout">
+    <div class="conversation-layout page-viewport-fill__body">
       <!-- Left Sidebar -->
       <div class="sidebar">
         <div class="sidebar-search">
@@ -309,26 +312,8 @@ function insertTemplate(content: string) {
 
 <style scoped lang="scss">
 @import '@/assets/styles/variables.scss';
-.page-container {
-  padding: 20px;
-  background: $bg-card;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  height: calc(100vh - 120px);
-  display: flex;
-  flex-direction: column;
-}
-
-.page-header {
-  margin-bottom: 16px;
-  flex-shrink: 0;
-}
-
-.page-title {
-  font-size: 20px;
-  font-weight: 600;
-  color: $text-primary;
-  margin: 0;
+.conversation-page {
+  min-height: calc(100vh - var(--layout-chrome-height));
 }
 
 .conversation-layout {

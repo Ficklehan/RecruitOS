@@ -1,5 +1,5 @@
 <template>
-  <div class="page-container">
+  <div class="page-container page-stack">
     <div class="page-header">
       <h2 class="page-title">租户设置</h2>
       <el-button type="primary" @click="handleSave">
@@ -88,15 +88,42 @@
             <el-input v-model="formData.ssoClientSecret" type="password" placeholder="请输入 Client Secret" show-password />
           </el-form-item>
         </template>
+
+        <!-- 渠道招聘安全 -->
+        <h3 class="form-section-title">渠道招聘安全</h3>
+        <p class="section-hint">控制高风险自动化能力。默认仅半自动（发送前请你确认）。</p>
+        <el-form-item label="允许全自动运行">
+          <el-switch v-model="recruitSafety.allowFullAuto" />
+          <span class="field-hint">开启后，启动平台招人任务时可选择全自动</span>
+        </el-form-item>
+        <el-form-item label="允许卡片即联系">
+          <el-switch v-model="recruitSafety.allowCardGreet" />
+          <span class="field-hint">不打开完整简历即发送联系，适用于批量初级岗</span>
+        </el-form-item>
+        <el-form-item label="默认运行方式">
+          <el-select v-model="recruitSafety.defaultRunMode" style="width: 280px">
+            <el-option label="半自动（发送前请你确认）" value="SEMI_AUTO" />
+            <el-option label="仅发布与搜索" value="PUBLISH_SEARCH_ONLY" />
+          </el-select>
+        </el-form-item>
+
+        <h3 class="form-section-title">招人方式建议</h3>
+        <p class="section-hint">试用环境可调低信号阈值，更快看到优化建议（正式环境建议 ≥15）。</p>
+        <el-form-item label="最少信号数">
+          <el-input-number v-model="evolutionMinSignals" :min="3" :max="100" />
+          <span class="field-hint">当前默认 {{ evolutionDefaultMinSignals }}</span>
+        </el-form-item>
       </el-form>
     </el-card>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import { ElMessage } from 'element-plus'
+import { loadTenantRecruitSafety, saveTenantRecruitSafety } from '@/utils/tenantRecruitSafety'
+import { getEvolutionSettings, updateEvolutionMinSignals } from '@/api/modules/evolution'
 
 const formRef = ref<FormInstance>()
 
@@ -116,6 +143,22 @@ const formData = reactive({
   ssoClientSecret: '',
 })
 
+const recruitSafety = reactive(loadTenantRecruitSafety())
+const evolutionMinSignals = ref(15)
+const evolutionDefaultMinSignals = ref(15)
+
+onMounted(async () => {
+  Object.assign(recruitSafety, loadTenantRecruitSafety())
+  try {
+    const res: any = await getEvolutionSettings()
+    const data = res.data || res
+    evolutionMinSignals.value = data.minSignals ?? 15
+    evolutionDefaultMinSignals.value = data.defaultMinSignals ?? 15
+  } catch {
+    // ignore
+  }
+})
+
 const rules: FormRules = {
   name: [{ required: true, message: '请输入企业名称', trigger: 'blur' }],
   creditCode: [{ required: true, message: '请输入统一社会信用代码', trigger: 'blur' }],
@@ -126,9 +169,15 @@ const rules: FormRules = {
 
 async function handleSave() {
   if (!formRef.value) return
-  await formRef.value.validate((valid) => {
+  await formRef.value.validate(async (valid) => {
     if (valid) {
-      ElMessage.success('保存成功')
+      saveTenantRecruitSafety({ ...recruitSafety })
+      try {
+        await updateEvolutionMinSignals(evolutionMinSignals.value)
+      } catch {
+        ElMessage.warning('渠道安全已保存，进化信号阈值需 evolution 服务在线')
+      }
+      ElMessage.success('设置已保存')
     }
   })
 }
@@ -147,6 +196,18 @@ async function handleSave() {
   &:first-child {
     margin-top: 0;
   }
+}
+
+.section-hint {
+  font-size: 13px;
+  color: $text-secondary;
+  margin: -8px 0 16px;
+}
+
+.field-hint {
+  margin-left: 12px;
+  font-size: 12px;
+  color: $text-secondary;
 }
 
 .logo-uploader {

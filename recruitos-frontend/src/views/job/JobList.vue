@@ -1,35 +1,36 @@
 <template>
-  <div class="page-container">
-    <div class="page-header">
-      <div>
-        <h2 class="page-title">在招职位</h2>
-        <p class="page-subtitle">管理正在招聘的职位，进入工作台查看进展与渠道招聘</p>
-      </div>
+  <ListPageLayout
+    title="在招职位"
+    subtitle="管理正在招聘的职位，进入工作台查看进展与渠道招聘"
+  >
+    <template #actions>
       <el-button type="primary" @click="handleCreate">
         <el-icon><Plus /></el-icon>
         创建在招职位
       </el-button>
-    </div>
+    </template>
 
-    <div class="filter-bar">
+    <template #filters>
       <el-input
         v-model="queryParams.title"
         placeholder="搜索职位名称"
         :prefix-icon="Search"
         clearable
-        style="width: 240px"
+        class="filter-field filter-field--lg"
         @keyup.enter="handleSearch"
       />
-      <el-select v-model="queryParams.status" placeholder="招聘状态" clearable style="width: 140px">
+      <el-select v-model="queryParams.status" placeholder="招聘状态" clearable class="filter-field filter-field--sm">
         <el-option v-for="s in statusOptions" :key="s.value" :label="s.label" :value="s.value" />
       </el-select>
       <el-input
         v-model="queryParams.demandNo"
         placeholder="关联需求编号"
         clearable
-        style="width: 200px"
+        class="filter-field filter-field--md"
         @keyup.enter="handleSearch"
       />
+    </template>
+    <template #filterActions>
       <el-button type="primary" @click="handleSearch">
         <el-icon><Search /></el-icon>
         搜索
@@ -38,10 +39,9 @@
         <el-icon><RefreshRight /></el-icon>
         重置
       </el-button>
-    </div>
+    </template>
 
-    <div class="data-card">
-      <el-table v-if="jobList.length" :data="jobList" stripe highlight-current-row style="width: 100%">
+      <el-table v-if="jobList.length" :data="jobList" highlight-current-row style="width: 100%">
         <el-table-column prop="jobNo" label="职位编号" width="150" show-overflow-tooltip />
         <el-table-column prop="title" label="职位名称" min-width="200" show-overflow-tooltip>
           <template #default="{ row }">
@@ -62,6 +62,19 @@
             <el-tag :type="getStatusType(row.status)" size="small" disable-transitions>
               {{ jobStatusLabel(row.status) }}
             </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="招人状态" width="110" align="center">
+          <template #default="{ row }">
+            <el-tag
+              v-if="recruitStatusMap.get(row.id)"
+              :type="recruitStatusMap.get(row.id)!.type"
+              size="small"
+              effect="plain"
+            >
+              {{ recruitStatusMap.get(row.id)!.label }}
+            </el-tag>
+            <span v-else class="text-muted">—</span>
           </template>
         </el-table-column>
         <el-table-column prop="createdAt" label="创建时间" width="170" />
@@ -98,19 +111,19 @@
         ]"
       />
 
-      <el-pagination
-        v-if="total > 0"
-        v-model:current-page="queryParams.pageNum"
-        v-model:page-size="queryParams.pageSize"
-        :page-sizes="[10, 20, 50, 100]"
-        :total="total"
-        layout="total, sizes, prev, pager, next, jumper"
-        class="table-pagination"
-        @size-change="handleSearch"
-        @current-change="handleSearch"
-      />
-    </div>
+      <div v-if="total > 0" class="data-card-footer">
+        <el-pagination
+          v-model:current-page="queryParams.pageNum"
+          v-model:page-size="queryParams.pageSize"
+          :page-sizes="[10, 20, 50, 100]"
+          :total="total"
+          layout="total, sizes, prev, pager, next, jumper"
+          @size-change="handleSearch"
+          @current-change="handleSearch"
+        />
+      </div>
 
+    <template #below>
     <el-dialog v-model="closeDialogVisible" title="关闭职位" width="420px">
       <el-form label-width="80px">
         <el-form-item label="关闭原因">
@@ -122,7 +135,8 @@
         <el-button type="primary" @click="confirmClose">确定关闭</el-button>
       </template>
     </el-dialog>
-  </div>
+    </template>
+  </ListPageLayout>
 </template>
 
 <script setup lang="ts">
@@ -130,11 +144,15 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Plus, RefreshRight } from '@element-plus/icons-vue'
+import ListPageLayout from '@/components/Layout/ListPageLayout.vue'
 import EmptyStateCta from '@/components/common/EmptyStateCta.vue'
 import { jobStatusLabel } from '@/constants/businessLabels'
 import { getJobList, activateJob, pauseJob, closeJob } from '@/api/modules/job'
+import { resolveJobRecruitStatuses, type JobRecruitStatus } from '@/utils/jobRecruitStatus'
 
 const router = useRouter()
+
+const recruitStatusMap = ref(new Map<number, JobRecruitStatus | null>())
 
 const queryParams = reactive({
   title: '',
@@ -168,6 +186,7 @@ async function loadData() {
   const res: any = await getJobList(queryParams)
   jobList.value = res.data?.list || res.data?.records || []
   total.value = res.data?.total || 0
+  recruitStatusMap.value = await resolveJobRecruitStatuses(jobList.value)
 }
 
 function handleSearch() {
@@ -241,12 +260,5 @@ onMounted(() => loadData())
 
 <style lang="scss" scoped>
 @import '@/assets/styles/variables.scss';
-.title-link {
-  color: $primary-color;
-  cursor: pointer;
-  font-weight: 500;
-  &:hover { text-decoration: underline; }
-}
 .text-success { color: $success-color; font-weight: 600; }
-.table-pagination { margin-top: 16px; justify-content: flex-end; }
 </style>

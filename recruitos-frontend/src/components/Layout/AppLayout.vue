@@ -4,7 +4,7 @@
     <Sidebar />
     <div class="main-container" :class="{ 'has-sidebar': hasSidebar }">
       <div class="content-area">
-        <Breadcrumb />
+        <Breadcrumb v-if="showBreadcrumb" />
         <router-view v-slot="{ Component }">
           <transition name="page-fade" mode="out-in">
             <component :is="Component" />
@@ -28,6 +28,10 @@ const hasSidebar = computed(() => {
   const top = route.path.split('/')[1]
   return top && top !== 'login' && !route.path.startsWith('/platform')
 })
+
+const showBreadcrumb = computed(() => {
+  return route.matched.some(item => item.meta?.title) && route.path !== '/workspace/dashboard'
+})
 </script>
 
 <style lang="scss" scoped>
@@ -41,6 +45,7 @@ const hasSidebar = computed(() => {
 .main-container {
   padding-top: $topnav-height;
   min-height: 100vh;
+  width: 100%;
   transition: padding-left $transition-slow;
 
   &.has-sidebar {
@@ -49,19 +54,18 @@ const hasSidebar = computed(() => {
 }
 
 .content-area {
-  padding: 24px 28px;
+  width: 100%;
+  min-width: 0;
+  padding: var(--spacing-page-y) var(--spacing-page-x) 28px;
+  min-height: calc(100vh - #{$topnav-height});
 }
 
 .page-fade-enter-active,
 .page-fade-leave-active {
-  transition: opacity 0.16s ease, transform 0.16s ease;
+  transition: opacity 0.12s ease;
 }
 
-.page-fade-enter-from {
-  opacity: 0;
-  transform: translateY(6px);
-}
-
+.page-fade-enter-from,
 .page-fade-leave-to {
   opacity: 0;
 }

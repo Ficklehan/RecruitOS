@@ -1,5 +1,5 @@
 <template>
-  <div class="page-container" v-loading="loading">
+  <div class="page-container page-stack" v-loading="loading">
     <!-- 页面头部 -->
     <div class="page-header">
       <div class="header-left">
@@ -279,7 +279,7 @@ function handleToggleTask(task: any) {
     const next = task.status === 'COMPLETED' ? 'PENDING' : 'DONE'
     await updateOnboardTaskStatus(task.id, next)
     task.status = next
-    ElMessage.success(next === 'COMPLETED' ? '任务已完成' : '任务已恢复')
+    ElMessage.success(next === 'DONE' ? '任务已完成' : '任务已恢复')
   }).catch(() => {})
 }
 

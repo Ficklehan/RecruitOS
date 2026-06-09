@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.Set;
 
 /**
  * 模拟平台行为（RPA 关闭或 fallback 时使用）
@@ -17,6 +18,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class SimulatedPlatformSupport {
 
     private final Map<String, AtomicInteger> searchRounds = new ConcurrentHashMap<>();
+    private final Set<String> resumeReadyUsers = ConcurrentHashMap.newKeySet();
+    private final Map<String, Long> lastGreetAt = new ConcurrentHashMap<>();
 
     public void login(AgentAccount account) {
         // no-op
@@ -29,24 +32,32 @@ public class SimulatedPlatformSupport {
     }
 
     public List<PlatformCandidate> searchCandidates(AgentAccount account, List<String> keywords, int limit) {
-        String key = account.getPlatform() + ":" + account.getId();
+        return searchCandidates(account, keywords, limit, "RECOMMEND");
+    }
+
+    public List<PlatformCandidate> searchCandidates(AgentAccount account, List<String> keywords, int limit,
+                                                    String searchSource) {
+        String key = account.getPlatform() + ":" + account.getId() + ":" + searchSource;
         int round = searchRounds.computeIfAbsent(key, k -> new AtomicInteger(0)).incrementAndGet();
         List<PlatformCandidate> list = new ArrayList<>();
-        if (round > 3) {
+        int maxRounds = "LATEST".equalsIgnoreCase(searchSource) ? 2 : 3;
+        if (round > maxRounds) {
             return list;
         }
         String prefix = account.getPlatform().toLowerCase();
         String kw = keywords.isEmpty() ? "工程师" : keywords.get(0);
-        for (int i = 1; i <= Math.min(limit, 2); i++) {
+        int batch = "SEARCH".equalsIgnoreCase(searchSource) ? 3 : 2;
+        for (int i = 1; i <= Math.min(limit, batch); i++) {
             PlatformCandidate c = new PlatformCandidate();
-            c.setPlatformUserId(prefix + "-u" + round + i);
+            c.setPlatformUserId(prefix + "-" + searchSource.toLowerCase() + "-u" + round + i);
             c.setName(kw + "候选人" + round + "-" + i);
             c.setPhone("139" + String.format("%04d%04d", round, i));
             c.setEmail("c" + round + i + "@demo.recruitos.com");
             c.setCompany("示例科技" + i);
             c.setTitle(kw + "工程师");
             c.setWorkYears(3 + i);
-            c.setMatchScore(new BigDecimal(70 + i * 5));
+            int baseScore = "RECOMMEND".equalsIgnoreCase(searchSource) ? 72 : 65;
+            c.setMatchScore(new BigDecimal(baseScore + i * 4));
             list.add(c);
         }
         return list;
@@ -54,11 +65,16 @@ public class SimulatedPlatformSupport {
 
     public void sendGreeting(AgentAccount account, String platformUserId, String candidateName,
                              String jobTitle, String template) {
-        // no-op
+        lastGreetAt.put(platformUserId, System.currentTimeMillis());
+    }
+
+    public void sendFollowUp(AgentAccount account, String platformUserId, String message) {
+        lastGreetAt.put(platformUserId, System.currentTimeMillis());
+        resumeReadyUsers.add(platformUserId);
     }
 
     public boolean hasResumeInChat(AgentAccount account, String platformUserId) {
-        return true;
+        return resumeReadyUsers.contains(platformUserId);
     }
 
     public PlatformResume fetchResume(AgentAccount account, String platformUserId, String candidateName) {

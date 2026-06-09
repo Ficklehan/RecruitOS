@@ -28,6 +28,12 @@ const aiToolsRoutes: RouteRecordRaw[] = [
         meta: { title: '话术管理', icon: 'Document' },
       },
       {
+        path: 'profile',
+        name: 'AiToolsCommunicationProfile',
+        component: () => import('@/views/communication/CommunicationProfile.vue'),
+        meta: { title: '沟通 Profile', icon: 'User' },
+      },
+      {
         path: 'conversation',
         name: 'AiToolsConversation',
         component: () => import('@/views/communication/CommunicationConversation.vue'),
@@ -56,6 +62,12 @@ const aiToolsRoutes: RouteRecordRaw[] = [
         name: 'AiToolsEvolutionAbTest',
         component: () => import('@/views/evolution/EvolutionAbTest.vue'),
         meta: { title: 'A/B测试', icon: 'Switch' },
+      },
+      {
+        path: 'evolution/proposals',
+        name: 'AiToolsEvolutionProposals',
+        component: () => import('@/views/evolution/EvolutionProposal.vue'),
+        meta: { title: '策略进化待确认', icon: 'Bell' },
       },
     ],
   },

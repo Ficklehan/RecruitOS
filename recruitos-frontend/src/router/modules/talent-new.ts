@@ -40,6 +40,18 @@ const talentRoutes: RouteRecordRaw[] = [
         meta: { title: '渠道与账号', permission: 'talent:channel', icon: 'Share' },
       },
       {
+        path: 'channel-staging',
+        name: 'TalentChannelStaging',
+        component: () => import('@/views/channel/ChannelStaging.vue'),
+        meta: { title: '渠道暂存库', permission: 'talent:channel', icon: 'Box' },
+      },
+      {
+        path: 'communication-profile',
+        name: 'TalentCommunicationProfile',
+        component: () => import('@/views/communication/CommunicationProfile.vue'),
+        meta: { title: '沟通 Profile', permission: 'talent:template', icon: 'ChatDotRound' },
+      },
+      {
         path: 'channels/agents',
         name: 'TalentAgents',
         component: () => import('@/views/agent/AgentList.vue'),

@@ -1,11 +1,9 @@
 package com.recruitos.evolution.dto;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-/**
- * Value Object for weight snapshot response
- */
 public class WeightSnapshotVO implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -13,17 +11,11 @@ public class WeightSnapshotVO implements Serializable {
     private Long id;
     private Long tenantId;
     private Long jobId;
-    private String jobTitle;
-    private Long tagId;
-    private String tagName;
-    private Double matchWeight;
-    private Double searchWeight;
-    private Double decisionWeight;
-    private Integer version;
-    private Long createdBy;
+    private String snapshotType;
+    private String tagsSnapshot;
+    private BigDecimal healthScore;
+    private Long signalId;
     private LocalDateTime createdAt;
-
-    // Getters and Setters
 
     public Long getId() {
         return id;
@@ -49,68 +41,36 @@ public class WeightSnapshotVO implements Serializable {
         this.jobId = jobId;
     }
 
-    public String getJobTitle() {
-        return jobTitle;
+    public String getSnapshotType() {
+        return snapshotType;
     }
 
-    public void setJobTitle(String jobTitle) {
-        this.jobTitle = jobTitle;
+    public void setSnapshotType(String snapshotType) {
+        this.snapshotType = snapshotType;
     }
 
-    public Long getTagId() {
-        return tagId;
+    public String getTagsSnapshot() {
+        return tagsSnapshot;
     }
 
-    public void setTagId(Long tagId) {
-        this.tagId = tagId;
+    public void setTagsSnapshot(String tagsSnapshot) {
+        this.tagsSnapshot = tagsSnapshot;
     }
 
-    public String getTagName() {
-        return tagName;
+    public BigDecimal getHealthScore() {
+        return healthScore;
     }
 
-    public void setTagName(String tagName) {
-        this.tagName = tagName;
+    public void setHealthScore(BigDecimal healthScore) {
+        this.healthScore = healthScore;
     }
 
-    public Double getMatchWeight() {
-        return matchWeight;
+    public Long getSignalId() {
+        return signalId;
     }
 
-    public void setMatchWeight(Double matchWeight) {
-        this.matchWeight = matchWeight;
-    }
-
-    public Double getSearchWeight() {
-        return searchWeight;
-    }
-
-    public void setSearchWeight(Double searchWeight) {
-        this.searchWeight = searchWeight;
-    }
-
-    public Double getDecisionWeight() {
-        return decisionWeight;
-    }
-
-    public void setDecisionWeight(Double decisionWeight) {
-        this.decisionWeight = decisionWeight;
-    }
-
-    public Integer getVersion() {
-        return version;
-    }
-
-    public void setVersion(Integer version) {
-        this.version = version;
-    }
-
-    public Long getCreatedBy() {
-        return createdBy;
-    }
-
-    public void setCreatedBy(Long createdBy) {
-        this.createdBy = createdBy;
+    public void setSignalId(Long signalId) {
+        this.signalId = signalId;
     }
 
     public LocalDateTime getCreatedAt() {

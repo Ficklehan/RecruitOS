@@ -1,5 +1,5 @@
 <template>
-  <div class="page-container">
+  <div class="page-container page-stack">
     <div class="page-header">
       <div>
         <h2 class="page-title">AI 自动化工作流</h2>

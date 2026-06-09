@@ -131,3 +131,60 @@ linkage seed 会将 interview #2/#3 调整到当天，需重新执行 seed。
 
 **简历列表无姓名**  
 需 candidate 服务包含 ResumeService 字段补全逻辑（已修复）。
+
+---
+
+## Phase 2 — 渠道运营 + 策略进化闭环（v5.1）
+
+**前置**：已执行 `migration-v10-phase2-evolution-ops.sql` 与 `test-data-phase2-seed.sql`（`reseed-demo.sh` 已包含）；服务 agent(8091)、job(8084)、evolution(8090)、communication(8089) 已启动。
+
+### P2-1. JD → 运营包 → 启动招聘
+
+| 步骤 | 路径 | 预期 |
+|------|------|------|
+| 1 | `/planning/jobs/{id}` → 任职要求 | 生成渠道运营包 → **确认运营包** |
+| 2 | 同页「寻源」Tab 或 `/planning/jobs/{id}/sourcing` | 选策略/配额 → 启动半自动 Campaign |
+| 3 | 活动运行 | 平台执行步骤推进；轨迹表有筛选阶段 |
+
+### P2-2. 轨迹与信号
+
+| 预期 | 说明 |
+|------|------|
+| 筛选淘汰 | 轨迹列展示 `CARD` / `FULL_RESUME` 阶段 + 人话原因 |
+| `evolution_signal` | 跑一轮后有 L3（筛选）、L5（打招呼/简历）记录 |
+| 复聊（模拟） | 打招呼后约 2 分钟可触发 L4 复聊信号 |
+
+### P2-3. 渠道暂存库
+
+| 步骤 | 路径 | 预期 |
+|------|------|------|
+| COLLECT_ONLY 启动 | 寻源启动弹窗选「仅采集入库」 | 轨迹状态 `STAGED` |
+| 暂存列表 | `/talent/channel-staging` | 列表、排序、AI 问答、批量打招呼/入库/不合适 |
+| 入库后 | 正式候选人 + 暂存状态 `IMPORTED` | 不可重复入库 |
+
+### P2-4. 策略进化（G3 HR 确认）
+
+| 步骤 | 路径 | 预期 |
+|------|------|------|
+| 积累信号 | 跑多轮 Campaign 或调低 `MIN_SIGNALS` | `evolution_proposal` 出现 PENDING |
+| HR 待确认 | `/ai-tools/evolution/proposals` | 查看 diff → **确认采纳** 或驳回 |
+| 新版本生效 | 仅**新** Campaign | 运行中活动仍用旧 `ops_pack_version` |
+
+### P2-5. 健康回滚建议（G4）
+
+| 预期 | 说明 |
+|------|------|
+| CRITICAL 健康 | `/ai-tools/evolution/health` 分数 &lt; 60 |
+| 回滚 proposal | 类型 `ROLLBACK`，须 HR 确认，**不自动回滚** |
+
+### Phase 2 端到端脚本（约 15 分钟）
+
+```
+1. JD 解析标签 → 生成运营包 → HR 确认
+2. 启动渠道招聘（半自动 + SCREEN_THEN_GREET）
+3. 查看轨迹拒绝原因 / 确认打招呼
+4. 再启一轮 COLLECT_ONLY → 渠道暂存库批量入库
+5. （可选）提交面试评价 → 等待进化建议
+6. AI 工具 → 策略进化待确认 → 采纳 v2
+7. 新建 Campaign 验证绑定 v2 运营包
+```
