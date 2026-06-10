@@ -511,48 +511,48 @@ onMounted(() => {
 </script>
 
 <style scoped lang="scss">
+@import '@/assets/styles/variables.scss';
+
 .header-main { flex: 1; min-width: 0; }
-.title-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.header-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.title-row { display: flex; align-items: center; gap: $spacing-sm; flex-wrap: wrap; }
+.header-actions { display: flex; gap: $spacing-sm; flex-shrink: 0; }
 
 .next-step-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 14px 18px;
-  margin-bottom: 16px;
-  background: linear-gradient(90deg, #eff6ff 0%, #f8fafc 100%);
-  border-color: #bfdbfe;
+  gap: $spacing-lg;
+  padding: $spacing-md $spacing-lg;
+  background: $primary-lighter;
+  border-color: $primary-light;
 }
-.next-step-text { font-size: 14px; color: #334155; }
-.next-label { font-weight: 700; color: #1d4ed8; margin-right: 8px; }
+.next-step-text { font-size: 14px; color: $text-regular; }
+.next-label { font-weight: 700; color: $primary-dark; margin-right: $spacing-sm; }
 
-.sub-seg { margin-bottom: 16px; }
+.sub-seg { margin-bottom: $spacing-lg; }
 
 .overview-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
+  gap: $spacing-lg;
   @media (max-width: 960px) { grid-template-columns: 1fr; }
 }
 
-.funnel-card { padding: 16px; }
-.funnel-row { display: flex; flex-wrap: wrap; gap: 12px; margin: 12px 0; }
+.funnel-card { padding: $spacing-lg; }
+.funnel-row { display: flex; flex-wrap: wrap; gap: $spacing-md; margin: $spacing-md 0; }
 .funnel-cell {
   min-width: 88px;
-  padding: 10px 12px;
-  background: #f8fafc;
-  border-radius: 8px;
+  padding: $spacing-sm $spacing-md;
+  background: $bg-muted;
+  border-radius: $border-radius-sm;
   text-align: center;
 }
-.funnel-num { display: block; font-size: 20px; font-weight: 700; color: #0f172a; }
-.funnel-label { font-size: 11px; color: #64748b; }
+.funnel-num { display: block; font-size: 20px; font-weight: 700; color: $text-primary; }
+.funnel-label { font-size: 11px; color: $text-secondary; }
 
-.data-card, .content-card { padding: 16px; }
-.jd-snippet { white-space: pre-wrap; line-height: 1.7; color: #334155; margin: 0; }
-.hint { color: #64748b; font-size: 12px; margin-bottom: 8px; }
-.dist-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; font-size: 13px; }
-.section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
-.ml-8 { margin-left: 8px; }
+.data-card, .content-card { padding: $spacing-lg; }
+.jd-snippet { white-space: pre-wrap; line-height: 1.7; color: $text-regular; margin: 0; }
+.hint { color: $text-secondary; font-size: 12px; margin-bottom: $spacing-sm; }
+.dist-row { display: flex; justify-content: space-between; align-items: center; padding: $spacing-xs 0; font-size: 13px; }
+.section-head { display: flex; align-items: center; justify-content: space-between; gap: $spacing-md; margin-bottom: $spacing-md; }
 </style>
