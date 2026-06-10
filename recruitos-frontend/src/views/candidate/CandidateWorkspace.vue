@@ -110,36 +110,19 @@
             </div>
 
             <div class="rail-actions">
-              <el-button type="primary" class="rail-btn" @click="handlePass">
-                进入下一轮
-              </el-button>
-              <el-button class="rail-btn" @click="advanceActiveJob('INTERVIEWING')">
-                安排面试
-              </el-button>
-              <el-button
-                v-if="pendingFeedbackInterview"
-                type="warning"
-                plain
-                class="rail-btn"
-                @click="openFeedbackDrawer"
-              >
-                提交面试反馈
-              </el-button>
-              <el-button
-                v-if="canPrepareOffer"
-                type="success"
-                plain
-                class="rail-btn"
-                @click="openOfferDialog"
-              >
-                准备录用通知
-              </el-button>
-              <el-button class="rail-btn" @click="handleReserve">
-                储备至人才库
-              </el-button>
-              <el-button type="danger" plain class="rail-btn" @click="handleReject">
-                标记不合适
-              </el-button>
+              <el-button type="primary" class="rail-btn" @click="handlePass">进入下一轮</el-button>
+              <el-button class="rail-btn" @click="advanceActiveJob('INTERVIEWING')">安排面试</el-button>
+              <el-button type="danger" plain class="rail-btn" @click="handleReject">标记不合适</el-button>
+              <el-dropdown trigger="click" @command="handleRailCommand" class="rail-more">
+                <el-button class="rail-btn">更多操作</el-button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item v-if="pendingFeedbackInterview" command="feedback">提交面试反馈</el-dropdown-item>
+                    <el-dropdown-item v-if="canPrepareOffer" command="offer">准备录用通知</el-dropdown-item>
+                    <el-dropdown-item command="reserve">储备至人才库</el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
             </div>
 
             <el-button link type="primary" class="rail-link" @click="activeTab = 'match'">
@@ -526,6 +509,12 @@ watch(() => props.jobIdProp, (id) => {
   }
 })
 
+function handleRailCommand(cmd: string) {
+  if (cmd === 'feedback') openFeedbackDrawer()
+  else if (cmd === 'offer') openOfferDialog()
+  else if (cmd === 'reserve') handleReserve()
+}
+
 onMounted(async () => {
   try {
     const res: any = await getJobList({ pageNum: 1, pageSize: 200 })
@@ -554,18 +543,18 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 10px 14px;
-  margin-bottom: 12px;
+  gap: $spacing-md;
+  padding: $spacing-md $spacing-lg;
+  margin-bottom: $spacing-md;
   background: $bg-card;
-  border: 1px solid $header-border;
-  border-radius: 8px;
+  border: 1px solid $border-color;
+  border-radius: $border-radius;
 }
 
 .identity-left {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: $spacing-md;
   min-width: 0;
   flex: 1;
 }
@@ -573,7 +562,7 @@ onMounted(async () => {
 .avatar {
   width: 40px;
   height: 40px;
-  border-radius: 8px;
+  border-radius: $border-radius-sm;
   background: $primary-color;
   color: #fff;
   font-size: 16px;
@@ -634,7 +623,7 @@ onMounted(async () => {
 .workspace-body {
   display: grid;
   grid-template-columns: 1fr 248px;
-  gap: 14px;
+  gap: $spacing-section;
   align-items: start;
 
   @media (max-width: 860px) {
@@ -645,9 +634,9 @@ onMounted(async () => {
 .workspace-main {
   min-width: 0;
   background: $bg-card;
-  border: 1px solid $header-border;
-  border-radius: 8px;
-  padding: 0 14px 14px;
+  border: 1px solid $border-color;
+  border-radius: $border-radius;
+  padding: 0 $spacing-lg $spacing-lg;
 }
 
 .content-tabs {
@@ -678,20 +667,20 @@ onMounted(async () => {
   position: sticky;
   top: 0;
   background: $bg-card;
-  border: 1px solid $header-border;
-  border-radius: 8px;
-  padding: 14px;
+  border: 1px solid $border-color;
+  border-radius: $border-radius;
+  padding: $spacing-lg;
 }
 
 .rail-section {
-  margin-bottom: 12px;
+  margin-bottom: $spacing-md;
 }
 
 .rail-label {
   display: block;
   font-size: 12px;
   color: $text-secondary;
-  margin-bottom: 6px;
+  margin-bottom: $spacing-sm;
 }
 
 .rail-select {
@@ -710,7 +699,7 @@ onMounted(async () => {
 .rail-actions {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: $spacing-sm;
 }
 
 .rail-btn {
@@ -719,15 +708,15 @@ onMounted(async () => {
 }
 
 .rail-link {
-  margin-top: 10px;
+  margin-top: $spacing-sm;
   padding: 0;
   font-size: 12px;
 }
 
 .rail-timeline {
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px solid $bg-muted;
+  margin-top: $spacing-lg;
+  padding-top: $spacing-md;
+  border-top: 1px solid $border-color-light;
 }
 
 .rail-timeline-item {
@@ -736,8 +725,8 @@ onMounted(async () => {
   gap: 2px;
   font-size: 11px;
   color: $text-regular;
-  padding: 5px 0;
-  border-bottom: 1px solid #f8fafc;
+  padding: $spacing-xs 0;
+  border-bottom: 1px solid $border-color-light;
 
   &:last-child {
     border-bottom: none;
