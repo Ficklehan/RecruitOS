@@ -12,46 +12,19 @@
 
     <template #toolbar>
       <JobContextBar v-model="queryParams.jobId" @update:model-value="handleSearch" />
-      <el-alert
-        v-if="!queryParams.jobId"
-        type="info"
-        :closable="false"
-        show-icon
-        class="job-hint-alert"
-        title="未选择在招职位时，列表仅显示候选人全局信息。选择职位后可查看本职位进展与匹配建议。"
-      />
     </template>
 
     <template #filters>
       <el-input
         v-model="queryParams.name"
-        placeholder="候选人姓名"
+        placeholder="搜索姓名、公司、职位"
         :prefix-icon="Search"
         clearable
-        class="filter-field filter-field--md"
+        class="filter-field filter-field--lg"
         @keyup.enter="handleSearch"
       />
-      <el-input
-        v-model="queryParams.phone"
-        placeholder="电话号码"
-        clearable
-        class="filter-field filter-field--sm"
-        @keyup.enter="handleSearch"
-      />
-      <el-input
-        v-model="queryParams.company"
-        placeholder="当前公司"
-        clearable
-        class="filter-field filter-field--sm"
-        @keyup.enter="handleSearch"
-      />
-      <el-select v-model="queryParams.status" placeholder="状态" clearable class="filter-field filter-field--xs">
-        <el-option
-          v-for="s in statusOptions"
-          :key="s.value"
-          :label="s.label"
-          :value="s.value"
-        />
+      <el-select v-model="queryParams.status" placeholder="状态" clearable class="filter-field filter-field--sm">
+        <el-option v-for="s in statusOptions" :key="s.value" :label="s.label" :value="s.value" />
       </el-select>
       <el-select v-model="queryParams.source" placeholder="来源" clearable class="filter-field filter-field--xs">
         <el-option
@@ -71,72 +44,60 @@
     </template>
 
     <el-table :data="candidateList" style="width: 100%">
-        <el-table-column prop="name" label="姓名" width="100" show-overflow-tooltip>
+        <el-table-column prop="name" label="姓名" width="110" show-overflow-tooltip>
           <template #default="{ row }">
             <span class="title-link" @click="handleView(row)">{{ row.name }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="phone" label="电话" width="130" />
-        <el-table-column label="当前公司" min-width="150" show-overflow-tooltip>
+        <el-table-column label="公司" min-width="150" show-overflow-tooltip>
           <template #default="{ row }">{{ row.currentCompany || row.company || '-' }}</template>
         </el-table-column>
-        <el-table-column label="当前职位" min-width="150" show-overflow-tooltip>
+        <el-table-column label="职位" min-width="130" show-overflow-tooltip>
           <template #default="{ row }">{{ row.currentTitle || row.position || '-' }}</template>
         </el-table-column>
-        <el-table-column prop="workYears" label="工作年限" width="90" align="center">
-          <template #default="{ row }">
-            {{ row.workYears }} 年
-          </template>
+        <el-table-column prop="workYears" label="年限" width="65" align="center">
+          <template #default="{ row }">{{ row.workYears ?? '-' }}</template>
         </el-table-column>
-        <el-table-column label="学历" width="80" align="center">
-          <template #default="{ row }">{{ formatEducation(row.education) }}</template>
-        </el-table-column>
-        <el-table-column label="期望薪资" width="100" align="center">
+        <el-table-column prop="source" label="来源" width="80" align="center">
           <template #default="{ row }">
-            <span class="salary-text">{{ formatSalary(row.expectedSalary) }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="source" label="来源" width="90" align="center">
-          <template #default="{ row }">
-            <el-tag
-              :type="getSourceType(row.source)"
-              size="small"
-              disable-transitions
-            >
+            <el-tag :type="getSourceType(row.source)" size="small" disable-transitions>
               {{ getSourceLabel(row.source) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column v-if="queryParams.jobId" label="本职位进展" width="110" align="center">
+        <el-table-column v-if="queryParams.jobId" label="进展" width="100" align="center">
           <template #default="{ row }">
-            <el-tag size="small" type="info">{{ pipelineStageLabel(row.pipelineStage) }}</el-tag>
+            <el-tag size="small" :type="stageTagType(row.pipelineStage)" disable-transitions>
+              {{ pipelineStageLabel(row.pipelineStage) }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column v-else label="全局状态" width="100" align="center">
+        <el-table-column v-else label="状态" width="90" align="center">
           <template #default="{ row }">
-            <div class="status-badge" :class="`status-${row.status?.toLowerCase()}`">
+            <el-tag size="small" :type="getStatusType(row.status)" disable-transitions>
               {{ candidateStatusLabel(row.status) }}
-            </div>
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column v-if="queryParams.jobId" label="匹配建议" min-width="200">
+        <el-table-column v-if="queryParams.jobId" label="匹配" min-width="180">
           <template #default="{ row }">
-            <MatchVerdict
-              v-if="row.matchDetail"
-              :match-score="row.matchScore"
-              :match-detail="row.matchDetail"
-              mode="compact"
-              :show-score="false"
-            />
+            <MatchVerdict v-if="row.matchDetail" :match-score="row.matchScore" :match-detail="row.matchDetail" mode="compact" :show-score="false" />
             <span v-else class="text-muted">待评估</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="240" fixed="right">
+        <el-table-column label="操作" width="150" fixed="right">
           <template #default="{ row }">
-            <el-button type="primary" link size="small" @click="handleView(row)">查看</el-button>
-            <el-button type="primary" link size="small" @click="handleEdit(row)">编辑</el-button>
-            <el-button type="primary" link size="small" @click="handleLinkJob(row)">关联在招职位</el-button>
-            <el-button type="primary" link size="small" @click="handleScreening(row)">查看匹配</el-button>
+            <el-button type="primary" link size="small" @click="handleView(row)">详情</el-button>
+            <el-dropdown trigger="click" @command="(cmd: string) => handleRowCommand(cmd, row)">
+              <el-button link size="small">更多</el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="edit">编辑</el-dropdown-item>
+                  <el-dropdown-item command="link">关联职位</el-dropdown-item>
+                  <el-dropdown-item command="match">查看匹配</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </template>
         </el-table-column>
       </el-table>
@@ -247,8 +208,6 @@ const router = useRouter()
 
 const queryParams = reactive({
   name: '',
-  phone: '',
-  company: '',
   status: '',
   source: '',
   jobId: null as number | null,
@@ -306,10 +265,24 @@ const sourceOptions = [
 
 function getStatusType(status: string): string {
   const map: Record<string, string> = {
-    NEW: 'info', SCREENING: 'warning', INTERVIEWING: 'primary',
+    NEW: 'info', SCREENING: 'warning', INTERVIEWING: '',
     OFFER: 'success', ONBOARD: 'success', POOL: 'info', BLACKLIST: 'danger',
   }
   return map[status] || 'info'
+}
+
+function stageTagType(stage?: string): string {
+  const map: Record<string, string> = {
+    SOURCED: 'info', SCREENING: 'warning', CONTACTED: '',
+    INTERVIEWING: '', EVALUATED: 'success', OFFER: 'success', HIRED: 'success', ARCHIVED: 'info',
+  }
+  return map[stage || ''] || 'info'
+}
+
+function handleRowCommand(cmd: string, row: any) {
+  if (cmd === 'edit') handleEdit(row)
+  else if (cmd === 'link') handleLinkJob(row)
+  else if (cmd === 'match') handleScreening(row)
 }
 
 function getSourceType(source: string): string {
@@ -324,15 +297,7 @@ function getSourceLabel(source: string): string {
   return sourceLabel(source)
 }
 
-function formatEducation(edu?: string): string {
-  return educationLabel(edu)
-}
 
-function formatSalary(val?: number): string {
-  if (val == null) return '-'
-  const k = val >= 1000 ? Math.round(val / 1000) : val
-  return `${k}K`
-}
 
 async function loadData() {
   try {
@@ -480,72 +445,4 @@ onMounted(async () => {
 
 <style lang="scss" scoped>
 @import '@/assets/styles/variables.scss';
-
-.job-hint-alert {
-  margin-top: $spacing-md;
-}
-
-.filter-field {
-  width: 160px;
-
-  &--md { width: 170px; }
-  &--sm { width: 150px; }
-  &--xs { width: 120px; }
-}
-
-
-.salary-text {
-  font-weight: 500;
-  color: $text-primary;
-}
-
-.text-muted {
-  color: #94a3b8;
-  font-size: 12px;
-}
-
-// 自定义状态 badge，比 el-tag 更有设计感
-.status-badge {
-  display: inline-block;
-  padding: 2px 10px;
-  border-radius: $border-radius-full;
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 1.6;
-
-  &.status-new {
-    background: #F1F5F9;
-    color: $text-secondary;
-  }
-
-  &.status-screening {
-    background: #FEF3C7;
-    color: #92400E;
-  }
-
-  &.status-interviewing {
-    background: #DBEAFE;
-    color: #1E40AF;
-  }
-
-  &.status-offer {
-    background: #D1FAE5;
-    color: #065F46;
-  }
-
-  &.status-onboard {
-    background: #D1FAE5;
-    color: #065F46;
-  }
-
-  &.status-pool {
-    background: #F1F5F9;
-    color: $text-secondary;
-  }
-
-  &.status-blacklist {
-    background: #FEE2E2;
-    color: #991B1B;
-  }
-}
 </style>
