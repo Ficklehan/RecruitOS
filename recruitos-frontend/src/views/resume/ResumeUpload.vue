@@ -1,79 +1,73 @@
 <template>
-  <div class="page-container page-stack">
-    <div class="page-header">
-      <div>
-        <h2 class="page-title">上传简历</h2>
-        <p class="page-subtitle">支持 PDF、Word、图片格式，上传后AI自动解析</p>
-      </div>
-      <el-button @click="$router.back()">
-        <el-icon><ArrowLeft /></el-icon>
+  <PageShell title="上传简历" subtitle="支持 PDF、Word、图片格式，上传后AI自动解析">
+    <template #actions>
+      <RButton variant="outline" @click="$router.back()">
+        <ArrowLeft class="mr-2 h-4 w-4" />
         返回
-      </el-button>
-    </div>
+      </RButton>
+    </template>
 
-    <!-- 上传区域 -->
     <div class="upload-section">
-      <el-upload
-        ref="uploadRef"
-        class="resume-upload"
-        drag
-        multiple
-        :auto-upload="false"
-        :on-change="handleFileChange"
-        :on-remove="handleFileRemove"
-        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+      <label
+        class="upload-dropzone"
+        @dragover.prevent
+        @drop.prevent="handleDrop"
       >
-        <el-icon class="upload-icon"><UploadFilled /></el-icon>
-        <div class="upload-text">将简历文件拖到此处，或<em>点击上传</em></div>
+        <input
+          ref="fileInputRef"
+          type="file"
+          multiple
+          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+          class="hidden"
+          @change="handleFileInput"
+        />
+        <Upload class="upload-icon h-12 w-12 text-muted-foreground" />
+        <div class="upload-text">将简历文件拖到此处，或<em @click.prevent="fileInputRef?.click()">点击上传</em></div>
         <div class="upload-hint">支持 PDF、Word (.doc/.docx)、图片 (.jpg/.png)，单个文件不超过 10MB</div>
-      </el-upload>
+      </label>
     </div>
 
-    <!-- 文件列表 -->
     <div v-if="fileList.length" class="file-list-section">
       <div class="section-header">
         <span class="section-title">待上传文件 ({{ fileList.length }})</span>
         <div class="section-actions">
-          <el-button type="primary" @click="handleUploadAll" :loading="uploading">
-            <el-icon><Upload /></el-icon>
+          <RButton @click="handleUploadAll" :disabled="uploading">
+            <Upload class="mr-2 h-4 w-4" />
             {{ uploading ? '上传中...' : '开始上传' }}
-          </el-button>
-          <el-button @click="handleClearAll">清空</el-button>
+          </RButton>
+          <RButton variant="outline" @click="handleClearAll">清空</RButton>
         </div>
       </div>
 
       <div class="file-list">
         <div v-for="(file, index) in fileList" :key="index" class="file-item">
           <div class="file-icon">
-            <el-icon :size="20" :color="getFileColor(file.name)">
-              <Document />
-            </el-icon>
+            <FileText class="h-5 w-5" :style="{ color: getFileColor(file.name) }" />
           </div>
           <div class="file-info">
             <div class="file-name">{{ file.name }}</div>
             <div class="file-size">{{ formatSize(file.size) }}</div>
           </div>
           <div class="file-status">
-            <el-tag v-if="file.status === 'ready'" type="info" size="small">待上传</el-tag>
-            <el-tag v-else-if="file.status === 'uploading'" type="warning" size="small">上传中</el-tag>
-            <el-tag v-else-if="file.status === 'success'" type="success" size="small">已上传</el-tag>
-            <el-tag v-else-if="file.status === 'error'" type="danger" size="small">失败</el-tag>
+            <RBadge v-if="file.status === 'ready'" variant="secondary">待上传</RBadge>
+            <RBadge v-else-if="file.status === 'uploading'" variant="outline">上传中</RBadge>
+            <RBadge v-else-if="file.status === 'success'" variant="default">已上传</RBadge>
+            <RBadge v-else-if="file.status === 'error'" variant="destructive">失败</RBadge>
           </div>
-          <el-button type="danger" link size="small" @click="handleRemove(index)">
-            <el-icon><Delete /></el-icon>
-          </el-button>
+          <RButton variant="ghost" size="icon" @click="handleRemove(index)">
+            <Trash2 class="h-4 w-4 text-destructive" />
+          </RButton>
         </div>
       </div>
     </div>
 
-    <!-- 上传结果 -->
     <div v-if="uploadResults.length" class="results-section">
       <div class="section-header">
         <span class="section-title">上传结果</span>
-        <el-button type="primary" @click="goToList">
+        <RButton @click="goToList">
           查看简历列表
-          <el-icon><ArrowRight /></el-icon>
-        </el-button>
+          <ArrowRight class="ml-2 h-4 w-4" />
+        </RButton>
       </div>
 
       <div class="results-grid">
@@ -84,9 +78,9 @@
               <div class="result-name">{{ result.name || '待解析' }}</div>
               <div class="result-source">{{ result.fileName }}</div>
             </div>
-            <el-tag :type="result.parseStatus === 'PARSED' ? 'success' : 'warning'" size="small">
+            <RBadge :variant="result.parseStatus === 'PARSED' ? 'default' : 'outline'">
               {{ result.parseStatus === 'PARSED' ? '已解析' : '待解析' }}
-            </el-tag>
+            </RBadge>
           </div>
           <div v-if="result.parseStatus === 'PARSED'" class="result-detail">
             <span>{{ result.company || '-' }}</span>
@@ -94,35 +88,44 @@
             <span>{{ result.workYears ? result.workYears + '年' : '-' }}</span>
           </div>
           <div class="result-actions">
-            <el-button type="primary" link size="small" @click="goDetail(result)">查看详情</el-button>
-            <el-button type="success" link size="small" @click="handleImport(result)">导入人才库</el-button>
+            <RButton variant="link" size="sm" @click="goDetail(result)">查看详情</RButton>
+            <RButton variant="link" size="sm" class="text-green-600" @click="handleImport(result)">导入人才库</RButton>
           </div>
         </div>
       </div>
     </div>
-  </div>
+</PageShell>
 </template>
 
 <script setup lang="ts">
+import PageShell from '@/components/Layout/PageShell.vue'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { UploadFilled, Upload, Document, Delete, ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
+import { Upload, FileText, Trash2, ArrowLeft, ArrowRight } from 'lucide-vue-next'
+import { toast } from '@/lib/notify'
+import { RButton, RBadge } from '@/components/ui'
 import { uploadResume, importToTalentPool } from '@/api/modules/resume'
 
 const router = useRouter()
-
+const fileInputRef = ref<HTMLInputElement | null>(null)
 const fileList = ref<any[]>([])
 const uploading = ref(false)
 const uploadResults = ref<any[]>([])
 
-function handleFileChange(file: any) {
-  file.status = 'ready'
-  fileList.value.push(file)
+function addFiles(files: FileList | File[]) {
+  for (const raw of Array.from(files)) {
+    fileList.value.push({ name: raw.name, size: raw.size, raw, status: 'ready' })
+  }
 }
 
-function handleFileRemove(file: any) {
-  fileList.value = fileList.value.filter(f => f !== file)
+function handleFileInput(e: Event) {
+  const input = e.target as HTMLInputElement
+  if (input.files) addFiles(input.files)
+  input.value = ''
+}
+
+function handleDrop(e: DragEvent) {
+  if (e.dataTransfer?.files) addFiles(e.dataTransfer.files)
 }
 
 function handleRemove(index: number) {
@@ -144,10 +147,7 @@ async function handleUploadAll() {
       const res: any = await uploadResume(file.raw)
       const data = res.data || res
       file.status = 'success'
-      results.push({
-        ...data,
-        fileName: file.name,
-      })
+      results.push({ ...data, fileName: file.name })
     } catch {
       file.status = 'error'
     }
@@ -157,9 +157,9 @@ async function handleUploadAll() {
   uploading.value = false
 
   const successCount = results.length
-  const failCount = fileList.value.filter(f => f.status === 'error').length
-  if (successCount > 0) ElMessage.success(`成功上传 ${successCount} 份简历`)
-  if (failCount > 0) ElMessage.warning(`${failCount} 份简历上传失败`)
+  const failCount = fileList.value.filter((f) => f.status === 'error').length
+  if (successCount > 0) toast.success(`成功上传 ${successCount} 份简历`)
+  if (failCount > 0) toast.error(`${failCount} 份简历上传失败`)
 }
 
 function formatSize(bytes: number) {
@@ -170,8 +170,8 @@ function formatSize(bytes: number) {
 
 function getFileColor(name: string) {
   if (name.endsWith('.pdf')) return '#DC2626'
-  if (name.endsWith('.doc') || name.endsWith('.docx')) return '#3B82F6'
-  return '#D97706'
+  if (name.endsWith('.doc') || name.endsWith('.docx')) return '$primary-color'
+  return '$warning-color'
 }
 
 function goDetail(result: any) {
@@ -181,9 +181,9 @@ function goDetail(result: any) {
 async function handleImport(result: any) {
   try {
     await importToTalentPool(result.id)
-    ElMessage.success('已导入人才库')
+    toast.success('已导入人才库')
   } catch {
-    ElMessage.error('导入失败')
+    toast.error('导入失败')
   }
 }
 
@@ -200,44 +200,43 @@ function goToList() {
   border-radius: $border-radius;
   padding: 32px;
   margin-bottom: $spacing-lg;
+}
 
-  .resume-upload {
-    width: 100%;
+.upload-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed $border-color;
+  border-radius: $border-radius;
+  padding: 48px 24px;
+  cursor: pointer;
+  transition: border-color $transition-fast;
 
-    :deep(.el-upload-dragger) {
-      border: 2px dashed $border-color;
-      border-radius: $border-radius;
-      padding: 48px 24px;
-      transition: border-color $transition-fast;
-
-      &:hover {
-        border-color: $primary-color;
-      }
-    }
+  &:hover {
+    border-color: $primary-color;
   }
+}
 
-  .upload-icon {
-    font-size: 48px;
-    color: $text-placeholder;
-    margin-bottom: 12px;
+.hidden { display: none; }
+
+.upload-icon { margin-bottom: 12px; }
+
+.upload-text {
+  font-size: 14px;
+  color: $text-regular;
+  margin-bottom: 8px;
+
+  em {
+    color: $primary-color;
+    font-style: normal;
+    cursor: pointer;
   }
+}
 
-  .upload-text {
-    font-size: 15px;
-    color: $text-regular;
-    margin-bottom: 8px;
-
-    em {
-      color: $primary-color;
-      font-style: normal;
-      cursor: pointer;
-    }
-  }
-
-  .upload-hint {
-    font-size: 13px;
-    color: $text-placeholder;
-  }
+.upload-hint {
+  font-size: 13px;
+  color: $text-placeholder;
 }
 
 .section-header {
@@ -279,10 +278,6 @@ function goToList() {
   border-radius: $border-radius-sm;
   background: $bg-muted;
 
-  .file-icon {
-    flex-shrink: 0;
-  }
-
   .file-info {
     flex: 1;
     min-width: 0;
@@ -301,10 +296,6 @@ function goToList() {
       margin-top: 2px;
     }
   }
-
-  .file-status {
-    flex-shrink: 0;
-  }
 }
 
 .results-section {
@@ -320,7 +311,7 @@ function goToList() {
 }
 
 .result-card {
-  border: 1px solid $bg-muted;
+  border: 2px dashed $border-color-light;
   border-radius: $border-radius;
   padding: 16px;
 
@@ -336,7 +327,7 @@ function goToList() {
     height: 36px;
     border-radius: 8px;
     background: linear-gradient(135deg, $primary-color, $primary-dark);
-    color: #fff;
+    color: var(--r-bg-card);
     font-size: 14px;
     font-weight: 600;
     display: flex;

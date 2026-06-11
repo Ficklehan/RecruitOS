@@ -9,7 +9,9 @@ import com.recruitos.common.tenant.TenantContext;
 import com.recruitos.referral.dto.RewardCreateDTO;
 import com.recruitos.referral.dto.RewardQueryDTO;
 import com.recruitos.referral.dto.RewardVO;
+import com.recruitos.referral.entity.Referral;
 import com.recruitos.referral.entity.ReferralReward;
+import com.recruitos.referral.mapper.ReferralMapper;
 import com.recruitos.referral.mapper.ReferralRewardMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +32,9 @@ public class ReferralRewardService {
 
     @Resource
     private ReferralRewardMapper referralRewardMapper;
+
+    @Resource
+    private ReferralMapper referralMapper;
 
     /**
      * Create a new referral reward
@@ -190,6 +195,15 @@ public class ReferralRewardService {
         }
         stats.put("totalPaidAmount", totalPaidAmount);
 
+        double pendingAmount = 0;
+        LambdaQueryWrapper<ReferralReward> pendingAmountWrapper = new LambdaQueryWrapper<>();
+        pendingAmountWrapper.eq(ReferralReward::getTenantId, tenantId)
+                .in(ReferralReward::getStatus, "PENDING", "APPROVED");
+        for (ReferralReward r : referralRewardMapper.selectList(pendingAmountWrapper)) {
+            pendingAmount += r.getRewardAmount() != null ? r.getRewardAmount() : 0;
+        }
+        stats.put("pendingAmount", pendingAmount);
+
         return stats;
     }
 
@@ -203,6 +217,12 @@ public class ReferralRewardService {
         vo.setReferralId(reward.getReferralId());
         vo.setReferrerId(reward.getReferrerId());
         vo.setReferrerName(reward.getReferrerName());
+        if (reward.getReferralId() != null) {
+            Referral referral = referralMapper.selectById(reward.getReferralId());
+            if (referral != null) {
+                vo.setCandidateName(referral.getCandidateName());
+            }
+        }
         vo.setRewardType(reward.getRewardType());
         vo.setRewardAmount(reward.getRewardAmount());
         vo.setStatus(reward.getStatus());

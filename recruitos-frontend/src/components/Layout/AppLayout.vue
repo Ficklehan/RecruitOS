@@ -1,72 +1,80 @@
+<script setup lang="ts">
+import { ref, onMounted, onUnmounted } from 'vue'
+import { useRoute } from 'vue-router'
+import { cn } from '@/lib/utils'
+import TopNav from './TopNav.vue'
+import Sidebar from './Sidebar.vue'
+import Breadcrumb from './Breadcrumb.vue'
+
+const route = useRoute()
+const sidebarCollapsed = ref(false)
+const isMobile = ref(false)
+
+function checkWidth() {
+  isMobile.value = window.innerWidth < 768
+  sidebarCollapsed.value = window.innerWidth >= 768 && window.innerWidth < 1024
+}
+
+onMounted(() => {
+  checkWidth()
+  window.addEventListener('resize', checkWidth)
+})
+onUnmounted(() => window.removeEventListener('resize', checkWidth))
+
+const hasSidebar = ref(true)
+
+function toggleSidebar() {
+  sidebarCollapsed.value = !sidebarCollapsed.value
+}
+
+function closeMobileSidebar() {
+  if (isMobile.value) sidebarCollapsed.value = true
+}
+</script>
+
 <template>
-  <div class="app-layout">
-    <TopNav />
-    <Sidebar />
-    <div class="main-container" :class="{ 'has-sidebar': hasSidebar }">
-      <div class="content-area">
-        <Breadcrumb v-if="showBreadcrumb" />
+  <div class="min-h-screen bg-bg-page">
+    <TopNav :sidebar-collapsed="sidebarCollapsed" @toggle-sidebar="toggleSidebar" />
+    <Sidebar
+      v-if="!isMobile"
+      :collapsed="sidebarCollapsed"
+    />
+    <main
+      :class="cn(
+        'pt-[var(--r-header-height)] min-h-screen transition-all duration-200',
+        !isMobile && (sidebarCollapsed ? 'pl-[var(--r-sidebar-collapsed)]' : 'pl-[var(--r-sidebar-width)]'),
+        isMobile && 'pl-0',
+      )"
+    >
+      <div class="p-6 pb-8 min-h-[calc(100vh-var(--r-header-height))]">
+        <Breadcrumb v-if="!route.path.startsWith('/workspace')" class="mb-4" />
         <router-view v-slot="{ Component }">
           <transition name="page-fade" mode="out-in">
             <component :is="Component" />
           </transition>
         </router-view>
       </div>
-    </div>
+    </main>
+
+    <!-- Mobile sidebar overlay -->
+    <Transition
+      enter-active-class="transition-opacity duration-200"
+      enter-from-class="opacity-0"
+      enter-to-class="opacity-100"
+      leave-active-class="transition-opacity duration-150"
+      leave-from-class="opacity-100"
+      leave-to-class="opacity-0"
+    >
+      <div
+        v-if="isMobile && !sidebarCollapsed"
+        class="fixed inset-0 bg-black/40 z-[var(--r-z-sidebar)]"
+        @click="closeMobileSidebar"
+      />
+    </Transition>
   </div>
 </template>
 
-<script setup lang="ts">
-import { computed } from 'vue'
-import { useRoute } from 'vue-router'
-import TopNav from './TopNav.vue'
-import Sidebar from './Sidebar.vue'
-import Breadcrumb from './Breadcrumb.vue'
-
-const route = useRoute()
-
-const hasSidebar = computed(() => {
-  const top = route.path.split('/')[1]
-  return top && top !== 'login' && !route.path.startsWith('/platform')
-})
-
-const showBreadcrumb = computed(() => {
-  return route.matched.some(item => item.meta?.title) && route.path !== '/workspace/dashboard'
-})
-</script>
-
-<style lang="scss" scoped>
-@import '@/assets/styles/variables.scss';
-
-.app-layout {
-  min-height: 100vh;
-  background: $bg-page;
-}
-
-.main-container {
-  padding-top: $topnav-height;
-  min-height: 100vh;
-  width: 100%;
-  transition: padding-left $transition-slow;
-
-  &.has-sidebar {
-    padding-left: $sub-sidebar-width;
-  }
-}
-
-.content-area {
-  width: 100%;
-  min-width: 0;
-  padding: var(--spacing-page-y) var(--spacing-page-x) 28px;
-  min-height: calc(100vh - #{$topnav-height});
-}
-
-.page-fade-enter-active,
-.page-fade-leave-active {
-  transition: opacity 0.12s ease;
-}
-
-.page-fade-enter-from,
-.page-fade-leave-to {
-  opacity: 0;
-}
+<style scoped>
+.page-fade-enter-active, .page-fade-leave-active { transition: opacity 0.12s ease; }
+.page-fade-enter-from, .page-fade-leave-to { opacity: 0; }
 </style>

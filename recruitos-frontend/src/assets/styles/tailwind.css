@@ -1,0 +1,81 @@
+@import "tailwindcss";
+@import "./tokens.css";
+
+/* ═══ Tailwind v4 Theme ═══ */
+
+@theme inline {
+  /* 品牌色 */
+  --color-primary: var(--r-primary);
+  --color-primary-hover: var(--r-primary-hover);
+  --color-primary-light: var(--r-primary-light);
+
+  /* 语义色 */
+  --color-success: var(--r-success);
+  --color-success-light: var(--r-success-light);
+  --color-warning: var(--r-warning);
+  --color-warning-light: var(--r-warning-light);
+  --color-danger: var(--r-danger);
+  --color-danger-light: var(--r-danger-light);
+  --color-info: var(--r-info);
+  --color-info-light: var(--r-info-light);
+
+  /* 背景 */
+  --color-bg-page: var(--r-bg-page);
+  --color-bg-card: var(--r-bg-card);
+  --color-bg-muted: var(--r-bg-muted);
+  --color-bg-hover: var(--r-bg-hover);
+  --color-bg-active: var(--r-bg-active);
+
+  /* 文字 */
+  --color-text-primary: var(--r-text-primary);
+  --color-text-regular: var(--r-text-regular);
+  --color-text-secondary: var(--r-text-secondary);
+  --color-text-placeholder: var(--r-text-placeholder);
+  --color-text-disabled: var(--r-text-disabled);
+  --color-text-inverse: var(--r-text-inverse);
+
+  /* 边框 */
+  --color-border: var(--r-border);
+  --color-border-light: var(--r-border-light);
+  --color-divider: var(--r-divider);
+
+  /* 圆角 */
+  --radius-r: var(--r-radius);
+  --radius-r-sm: var(--r-radius-sm);
+  --radius-r-lg: var(--r-radius-lg);
+  --radius-r-xl: var(--r-radius-xl);
+}
+
+/* ═══ Base Styles ═══ */
+
+@layer base {
+  * {
+    border-color: var(--r-border);
+  }
+
+  body {
+    background: var(--r-bg-page);
+    color: var(--r-text-primary);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+      'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+    font-size: var(--r-font-base);
+    line-height: var(--r-leading-normal);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* ═══ Utility Classes ═══ */
+
+@layer utilities {
+  .r-shadow-sm { box-shadow: var(--r-shadow-sm); }
+  .r-shadow-md { box-shadow: var(--r-shadow-md); }
+  .r-shadow-lg { box-shadow: var(--r-shadow-lg); }
+  .r-shadow-xl { box-shadow: var(--r-shadow-xl); }
+
+  .r-transition-fast { transition: all var(--r-transition-fast); }
+  .r-transition-base { transition: all var(--r-transition-base); }
+  .r-transition-slow { transition: all var(--r-transition-slow); }
+
+  .r-focus { outline: none; box-shadow: var(--r-focus-ring); }
+}

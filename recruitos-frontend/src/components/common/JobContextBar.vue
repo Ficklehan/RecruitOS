@@ -1,44 +1,34 @@
-<template>
-  <div v-if="showBar" class="context-bar job-context-bar">
-    <span class="ctx-label">当前在招职位</span>
-    <el-select
-      :model-value="modelValue"
-      placeholder="选择在招职位"
-      filterable
-      clearable
-      class="ctx-select"
-      @update:model-value="onChange"
-    >
-      <el-option v-for="j in jobs" :key="j.id" :label="j.title" :value="j.id" />
-    </el-select>
-    <el-button v-if="modelValue" link type="primary" @click="openJobWorkspace">
-      进入职位工作台
-    </el-button>
-    <div v-if="$slots.default" class="context-bar-actions">
-      <slot />
-    </div>
-  </div>
-</template>
-
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { cn } from '@/lib/utils'
+import { RSelect, RButton } from '@/components/ui'
 import { getJobList } from '@/api/modules/job'
+import { ExternalLink } from 'lucide-vue-next'
 
-const props = withDefaults(defineProps<{
+interface Props {
   modelValue?: number | null
   showBar?: boolean
-}>(), {
+  class?: string
+}
+
+const props = withDefaults(defineProps<Props>(), {
   showBar: true,
 })
 
-const emit = defineEmits<{ 'update:modelValue': [number | null] }>()
+const emit = defineEmits<{
+  'update:modelValue': [number | null]
+}>()
 
 const router = useRouter()
 const jobs = ref<any[]>([])
 
-function onChange(id: number | null) {
-  emit('update:modelValue', id)
+const jobOptions = computed(() =>
+  jobs.value.map(j => ({ label: j.title, value: j.id }))
+)
+
+function onChange(id: number | string | null) {
+  emit('update:modelValue', id as number | null)
 }
 
 function openJobWorkspace() {
@@ -56,24 +46,26 @@ onMounted(async () => {
 })
 </script>
 
-<style scoped lang="scss">
-@import '@/assets/styles/variables.scss';
-
-.job-context-bar {
-  margin-bottom: 0;
-}
-
-.ctx-label {
-  font-size: 13px;
-  font-weight: 500;
-  color: $text-secondary;
-  flex-shrink: 0;
-}
-
-.ctx-select {
-  flex: 1 1 280px;
-  width: auto;
-  min-width: 200px;
-  max-width: none;
-}
-</style>
+<template>
+  <div v-if="showBar" :class="cn('flex items-center gap-3 flex-wrap', props.class)">
+    <span class="text-[13px] font-medium text-text-secondary shrink-0">当前在招职位</span>
+    <RSelect
+      :model-value="modelValue"
+      :options="jobOptions"
+      placeholder="选择在招职位"
+      class="flex-1 min-w-[200px]"
+      @update:model-value="onChange"
+    />
+    <RButton
+      v-if="modelValue"
+      variant="ghost"
+      size="sm"
+      class="text-primary"
+      @click="openJobWorkspace"
+    >
+      进入职位工作台
+      <ExternalLink class="ml-1 h-4 w-4" />
+    </RButton>
+    <slot />
+  </div>
+</template>

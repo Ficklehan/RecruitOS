@@ -1,127 +1,129 @@
 <template>
-  <div class="page-container page-stack">
-    <!-- 页面头部 -->
-    <div class="page-header">
-      <h2 class="page-title">供应商管理</h2>
-      <el-button type="primary" @click="handleCreate">
-        <el-icon><Plus /></el-icon>
+  <PageShell variant="list" title="供应商管理" subtitle="管理猎头供应商信息与合同">
+    <template #actions>
+      <Button @click="handleCreate">
+        <Plus class="mr-2 h-4 w-4" />
         添加供应商
-      </el-button>
-    </div>
+      </Button>
+    </template>
 
-    <!-- 数据表格 -->
-    <div class="data-card">
-      <el-table :data="vendorList" stripe highlight-current-row style="width: 100%">
-        <el-table-column prop="vendorName" label="供应商名称" min-width="180" show-overflow-tooltip>
-          <template #default="{ row }">
-            <span class="title-link" @click="handleViewRecommendations(row)">{{ row.vendorName }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="contactPerson" label="联系人" width="100" />
-        <el-table-column prop="contactPhone" label="联系电话" width="140" />
-        <el-table-column label="合同期限" width="200">
-          <template #default="{ row }">
-            {{ row.contractStart }} ~ {{ row.contractEnd }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="commissionRate" label="佣金比例" width="100" align="center">
-          <template #default="{ row }">
-            {{ row.commissionRate }}%
-          </template>
-        </el-table-column>
-        <el-table-column prop="status" label="状态" width="100" align="center">
-          <template #default="{ row }">
-            <el-switch
-              v-model="row.status"
-              :active-value="1"
-              :inactive-value="0"
-              @change="handleStatusChange(row)"
+    <Table v-if="vendorList.length">
+      <TableHeader>
+        <TableRow>
+          <TableHead class="min-w-[180px]">供应商名称</TableHead>
+          <TableHead class="w-[100px]">联系人</TableHead>
+          <TableHead class="w-[140px]">联系电话</TableHead>
+          <TableHead class="w-[200px]">合同期限</TableHead>
+          <TableHead class="w-[100px] text-center">佣金比例</TableHead>
+          <TableHead class="w-[80px] text-center">状态</TableHead>
+          <TableHead class="w-[90px] text-center">推荐数</TableHead>
+          <TableHead class="w-[110px] text-center">成功入职数</TableHead>
+          <TableHead class="w-[100px] text-center">操作</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        <TableRow v-for="row in vendorList" :key="row.id">
+          <TableCell>
+            <button type="button" class="font-medium text-primary hover:underline" @click="handleViewRecommendations(row)">
+              {{ row.vendorName }}
+            </button>
+          </TableCell>
+          <TableCell>{{ row.contactPerson }}</TableCell>
+          <TableCell>{{ row.contactPhone }}</TableCell>
+          <TableCell class="text-muted-foreground">{{ row.contractStart }} ~ {{ row.contractEnd }}</TableCell>
+          <TableCell class="text-center">{{ row.commissionRate }}%</TableCell>
+          <TableCell class="text-center">
+            <Switch
+              :model-value="row.status === 1"
+              @update:model-value="(v) => handleStatusChange(row, v)"
             />
-          </template>
-        </el-table-column>
-        <el-table-column prop="recommendCount" label="推荐数" width="90" align="center" />
-        <el-table-column prop="hireCount" label="成功入职数" width="110" align="center" />
-        <el-table-column label="操作" width="180" fixed="right">
-          <template #default="{ row }">
-            <el-button type="primary" link size="small" @click="handleEdit(row)">编辑</el-button>
-            <el-button type="primary" link size="small" @click="handleViewRecommendations(row)">查看推荐</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+          </TableCell>
+          <TableCell class="text-center">{{ row.recommendCount }}</TableCell>
+          <TableCell class="text-center">{{ row.hireCount }}</TableCell>
+          <TableCell class="text-center">
+            <RowActions :actions="getRowActions(row)" @action="(cmd) => handleRowCommand(cmd, row)" />
+          </TableCell>
+        </TableRow>
+      </TableBody>
+    </Table>
 
-      <!-- 分页 -->
-      <el-pagination
-        v-model:current-page="queryParams.pageNum"
-        v-model:page-size="queryParams.pageSize"
-        :page-sizes="[10, 20, 50, 100]"
-        :total="total"
-        layout="total, sizes, prev, pager, next, jumper"
-        @size-change="handleSearch"
-        @current-change="handleSearch"
-      />
-    </div>
+    <ListPagination
+      v-if="total > 0"
+      v-model:page-num="queryParams.pageNum"
+      v-model:page-size="queryParams.pageSize"
+      :total="total"
+      @change="loadData"
+    />
 
-    <!-- 添加/编辑供应商对话框 -->
-    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑供应商' : '添加供应商'" width="560px">
-      <el-form ref="formRef" :model="formData" :rules="formRules" label-width="100px">
-        <el-form-item label="供应商名称" prop="vendorName">
-          <el-input v-model="formData.vendorName" placeholder="请输入供应商名称" />
-        </el-form-item>
-        <el-form-item label="联系人" prop="contactPerson">
-          <el-input v-model="formData.contactPerson" placeholder="请输入联系人姓名" />
-        </el-form-item>
-        <el-form-item label="联系电话" prop="contactPhone">
-          <el-input v-model="formData.contactPhone" placeholder="请输入联系电话" />
-        </el-form-item>
-        <el-form-item label="联系邮箱" prop="contactEmail">
-          <el-input v-model="formData.contactEmail" placeholder="请输入联系邮箱" />
-        </el-form-item>
-        <el-form-item label="合同开始" prop="contractStart">
-          <el-date-picker
-            v-model="formData.contractStart"
-            type="date"
-            placeholder="选择合同开始日期"
-            value-format="YYYY-MM-DD"
-            style="width: 100%"
-          />
-        </el-form-item>
-        <el-form-item label="合同结束" prop="contractEnd">
-          <el-date-picker
-            v-model="formData.contractEnd"
-            type="date"
-            placeholder="选择合同结束日期"
-            value-format="YYYY-MM-DD"
-            style="width: 100%"
-          />
-        </el-form-item>
-        <el-form-item label="佣金比例" prop="commissionRate">
-          <el-input-number
-            v-model="formData.commissionRate"
-            :min="0"
-            :max="100"
-            :precision="1"
-            :step="0.5"
-            style="width: 100%"
-          />
-          <span class="form-tip">单位：%</span>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitLoading" @click="handleSubmit">确定</el-button>
-      </template>
-    </el-dialog>
-  </div>
+    <template #below>
+      <Dialog v-model:open="dialogVisible">
+        <DialogContent class="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{{ isEdit ? '编辑供应商' : '添加供应商' }}</DialogTitle>
+          </DialogHeader>
+          <div class="grid gap-4 py-2">
+            <FormField label="供应商名称" required :error="formErrors.vendorName">
+              <Input v-model="formData.vendorName" placeholder="请输入供应商名称" />
+            </FormField>
+            <FormField label="联系人" required :error="formErrors.contactPerson">
+              <Input v-model="formData.contactPerson" placeholder="请输入联系人姓名" />
+            </FormField>
+            <FormField label="联系电话" required :error="formErrors.contactPhone">
+              <Input v-model="formData.contactPhone" placeholder="请输入联系电话" />
+            </FormField>
+            <FormField label="联系邮箱" required :error="formErrors.contactEmail">
+              <Input v-model="formData.contactEmail" placeholder="请输入联系邮箱" />
+            </FormField>
+            <FormField label="合同开始" required :error="formErrors.contractStart">
+              <Input v-model="formData.contractStart" type="date" class="w-full" />
+            </FormField>
+            <FormField label="合同结束" required :error="formErrors.contractEnd">
+              <Input v-model="formData.contractEnd" type="date" class="w-full" />
+            </FormField>
+            <FormField label="佣金比例" required :error="formErrors.commissionRate">
+              <div class="flex items-center gap-2">
+                <NumberInput v-model="formData.commissionRate" :min="0" :max="100" :step="0.5" class="flex-1" />
+                <span class="text-xs text-muted-foreground shrink-0">单位：%</span>
+              </div>
+            </FormField>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" @click="dialogVisible = false">取消</Button>
+            <Button :disabled="submitLoading" @click="handleSubmit">确定</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </template>
+  </PageShell>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
-import type { FormInstance, FormRules } from 'element-plus'
+import { Plus } from 'lucide-vue-next'
+import { toast } from '@/lib/notify'
+import RowActions from '@/components/common/RowActions.vue'
+import PageShell from '@/components/Layout/PageShell.vue'
+import ListPagination from '@/components/common/ListPagination.vue'
+import FormField from '@/components/app/FormField.vue'
+import NumberInput from '@/components/app/NumberInput.vue'
+import {
+  Button,
+  Input,
+  Switch,
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui'
 import { getHeadhunterVendorList, createHeadhunterVendor, updateHeadhunterVendor } from '@/api/modules/headhunter'
 
-// 查询参数
 const queryParams = reactive({
   pageNum: 1,
   pageSize: 20,
@@ -130,11 +132,9 @@ const queryParams = reactive({
 const total = ref(0)
 const vendorList = ref<any[]>([])
 
-// 对话框相关
 const dialogVisible = ref(false)
 const isEdit = ref(false)
 const submitLoading = ref(false)
-const formRef = ref<FormInstance>()
 const editId = ref<number | null>(null)
 
 const formData = reactive({
@@ -144,23 +144,43 @@ const formData = reactive({
   contactEmail: '',
   contractStart: '',
   contractEnd: '',
-  commissionRate: 20,
+  commissionRate: 20 as number | null,
 })
 
-const formRules: FormRules = {
-  vendorName: [{ required: true, message: '请输入供应商名称', trigger: 'blur' }],
-  contactPerson: [{ required: true, message: '请输入联系人姓名', trigger: 'blur' }],
-  contactPhone: [{ required: true, message: '请输入联系电话', trigger: 'blur' }],
-  contactEmail: [
-    { required: true, message: '请输入联系邮箱', trigger: 'blur' },
-    { type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' },
-  ],
-  contractStart: [{ required: true, message: '请选择合同开始日期', trigger: 'change' }],
-  contractEnd: [{ required: true, message: '请选择合同结束日期', trigger: 'change' }],
-  commissionRate: [{ required: true, message: '请输入佣金比例', trigger: 'blur' }],
+const formErrors = reactive({
+  vendorName: '',
+  contactPerson: '',
+  contactPhone: '',
+  contactEmail: '',
+  contractStart: '',
+  contractEnd: '',
+  commissionRate: '',
+})
+
+function getRowActions(_row: any) {
+  return [
+    { command: 'view', label: '查看详情', icon: 'View', primary: true },
+    { command: 'edit', label: '编辑', icon: 'Edit' },
+  ]
 }
 
-// 加载数据
+function handleRowCommand(cmd: string, row: any) {
+  if (cmd === 'view') handleViewRecommendations(row)
+  else if (cmd === 'edit') handleEdit(row)
+}
+
+function validateForm(): boolean {
+  formErrors.vendorName = formData.vendorName ? '' : '请输入供应商名称'
+  formErrors.contactPerson = formData.contactPerson ? '' : '请输入联系人姓名'
+  formErrors.contactPhone = formData.contactPhone ? '' : '请输入联系电话'
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.contactEmail)
+  formErrors.contactEmail = !formData.contactEmail ? '请输入联系邮箱' : emailOk ? '' : '请输入正确的邮箱格式'
+  formErrors.contractStart = formData.contractStart ? '' : '请选择合同开始日期'
+  formErrors.contractEnd = formData.contractEnd ? '' : '请选择合同结束日期'
+  formErrors.commissionRate = formData.commissionRate != null ? '' : '请输入佣金比例'
+  return !Object.values(formErrors).some(Boolean)
+}
+
 async function loadData() {
   const params: any = {
     pageNum: queryParams.pageNum,
@@ -169,11 +189,6 @@ async function loadData() {
   const res = await getHeadhunterVendorList(params)
   vendorList.value = res.data.records || res.data.list || res.data || []
   total.value = res.data.total || vendorList.value.length
-}
-
-function handleSearch() {
-  queryParams.pageNum = 1
-  loadData()
 }
 
 function handleCreate() {
@@ -186,6 +201,7 @@ function handleCreate() {
   formData.contractStart = ''
   formData.contractEnd = ''
   formData.commissionRate = 20
+  Object.keys(formErrors).forEach((k) => ((formErrors as any)[k] = ''))
   dialogVisible.value = true
 }
 
@@ -203,71 +219,51 @@ function handleEdit(row: any) {
 }
 
 function handleViewRecommendations(row: any) {
-  ElMessage.info(`查看 ${row.vendorName} 的推荐列表`)
+  toast.info(`查看 ${row.vendorName} 的推荐列表`)
 }
 
-async function handleStatusChange(row: any) {
+async function handleStatusChange(row: any, enabled: boolean) {
+  const newStatus = enabled ? 1 : 0
+  const prevStatus = row.status
+  row.status = newStatus
   try {
-    await updateHeadhunterVendor(row.id, { status: row.status })
-    ElMessage.success(`${row.vendorName} 已${row.status === 1 ? '启用' : '停用'}`)
+    await updateHeadhunterVendor(row.id, { status: newStatus })
+    toast.success(`${row.vendorName} 已${newStatus === 1 ? '启用' : '停用'}`)
   } catch {
-    row.status = row.status === 1 ? 0 : 1
+    row.status = prevStatus
   }
 }
 
 async function handleSubmit() {
-  if (!formRef.value) return
-  await formRef.value.validate(async (valid) => {
-    if (valid) {
-      submitLoading.value = true
-      try {
-        const payload = {
-          vendorName: formData.vendorName,
-          contactPerson: formData.contactPerson,
-          contactPhone: formData.contactPhone,
-          contactEmail: formData.contactEmail,
-          contractStart: formData.contractStart,
-          contractEnd: formData.contractEnd,
-          commissionRate: formData.commissionRate,
-        }
-        if (isEdit.value) {
-          await updateHeadhunterVendor(editId.value!, payload)
-          ElMessage.success('供应商信息已更新')
-        } else {
-          await createHeadhunterVendor(payload)
-          ElMessage.success('供应商添加成功')
-        }
-        dialogVisible.value = false
-        loadData()
-      } catch {
-        // error handled by interceptor
-      } finally {
-        submitLoading.value = false
-      }
+  if (!validateForm()) return
+  submitLoading.value = true
+  try {
+    const payload = {
+      vendorName: formData.vendorName,
+      contactPerson: formData.contactPerson,
+      contactPhone: formData.contactPhone,
+      contactEmail: formData.contactEmail,
+      contractStart: formData.contractStart,
+      contractEnd: formData.contractEnd,
+      commissionRate: formData.commissionRate,
     }
-  })
+    if (isEdit.value) {
+      await updateHeadhunterVendor(editId.value!, payload)
+      toast.success('供应商信息已更新')
+    } else {
+      await createHeadhunterVendor(payload)
+      toast.success('供应商添加成功')
+    }
+    dialogVisible.value = false
+    loadData()
+  } catch {
+    /* interceptor */
+  } finally {
+    submitLoading.value = false
+  }
 }
 
 onMounted(() => {
   loadData()
 })
 </script>
-
-<style lang="scss" scoped>
-@import '@/assets/styles/variables.scss';
-.title-link {
-  color: $primary-color;
-  cursor: pointer;
-  font-weight: 500;
-
-  &:hover {
-    text-decoration: underline;
-  }
-}
-
-.form-tip {
-  margin-left: 8px;
-  font-size: 12px;
-  color: $text-secondary;
-}
-</style>

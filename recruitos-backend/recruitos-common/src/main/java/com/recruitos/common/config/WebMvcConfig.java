@@ -21,6 +21,8 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "/api/auth/login",
                         "/api/auth/logout",
                         "/api/tenant/simple-list",
-                        "/api/platform/**");
+                        "/api/platform/**",
+                        "/api/referral/public/**",
+                        "/api/brain/**");
     }
 }

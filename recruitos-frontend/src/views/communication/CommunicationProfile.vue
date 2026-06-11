@@ -1,71 +1,99 @@
 <template>
-  <div class="page-container page-stack">
-    <div class="page-header">
-      <h2 class="page-title">沟通 Profile（六模块）</h2>
-      <p class="page-desc">租户默认配置；岗位可覆盖。Campaign 发送招呼/复聊前会 merge 读取并走安全审查。</p>
-    </div>
+  <PageShell title="沟通 Profile（六模块）">
+<RTabs v-model="activeTab">
+      <RTabsList>
+        <RTabsTrigger value="tenant">租户默认</RTabsTrigger>
+        <RTabsTrigger value="job">岗位覆盖</RTabsTrigger>
+      </RTabsList>
 
-    <el-tabs v-model="activeTab">
-      <el-tab-pane label="租户默认" name="tenant">
-        <el-form v-loading="loading" label-width="120px" class="profile-form">
-          <el-form-item label="人设 persona">
-            <el-input v-model="form.persona" type="textarea" :rows="2" />
-          </el-form-item>
-          <el-form-item label="公司背景">
-            <el-input v-model="form.companyBackground" type="textarea" :rows="2" />
-          </el-form-item>
-          <el-form-item label="沟通逻辑">
-            <el-input v-model="form.communicationLogic" type="textarea" :rows="2" />
-          </el-form-item>
-          <el-form-item label="主动触发">
-            <el-select v-model="form.proactiveTriggers" multiple style="width: 100%">
-              <el-option label="有聊天回复" value="HAS_CHAT_REPLY" />
-              <el-option label="沉默48小时" value="SILENCE_48H" />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="护栏 guardrails">
-            <el-input v-model="form.guardrails" type="textarea" :rows="2" />
-          </el-form-item>
-          <el-form-item>
-            <el-button type="primary" :loading="saving" @click="saveTenant">保存租户默认</el-button>
-          </el-form-item>
-        </el-form>
-      </el-tab-pane>
+      <RTabsContent value="tenant">
+        <div v-if="loading" class="py-8 text-sm text-muted-foreground">加载中…</div>
+        <div v-else class="profile-form grid gap-4">
+          <FormField label="人设 persona">
+            <RTextarea v-model="form.persona" :rows="2" />
+          </FormField>
+          <FormField label="公司背景">
+            <RTextarea v-model="form.companyBackground" :rows="2" />
+          </FormField>
+          <FormField label="沟通逻辑">
+            <RTextarea v-model="form.communicationLogic" :rows="2" />
+          </FormField>
+          <FormField label="主动触发">
+            <div class="flex flex-wrap gap-4">
+              <label class="flex items-center gap-2 text-sm">
+                <RCheckbox
+                  :model-value="form.proactiveTriggers.includes('HAS_CHAT_REPLY')"
+                  @update:model-value="toggleTrigger('HAS_CHAT_REPLY', $event)"
+                />
+                有聊天回复
+              </label>
+              <label class="flex items-center gap-2 text-sm">
+                <RCheckbox
+                  :model-value="form.proactiveTriggers.includes('SILENCE_48H')"
+                  @update:model-value="toggleTrigger('SILENCE_48H', $event)"
+                />
+                沉默48小时
+              </label>
+            </div>
+          </FormField>
+          <FormField label="护栏 guardrails">
+            <RTextarea v-model="form.guardrails" :rows="2" />
+          </FormField>
+          <div>
+            <RButton :disabled="saving" @click="saveTenant">
+              {{ saving ? '保存中…' : '保存租户默认' }}
+            </RButton>
+          </div>
+        </div>
+      </RTabsContent>
 
-      <el-tab-pane label="岗位覆盖" name="job">
+      <RTabsContent value="job">
         <div class="job-selector mb-12">
           <span>岗位：</span>
-          <el-select v-model="selectedJobId" placeholder="选择岗位" style="width: 240px" @change="loadJobProfile">
-            <el-option v-for="j in jobOptions" :key="j.id" :label="j.title" :value="j.id" />
-          </el-select>
+          <RSelect
+            v-model="selectedJobId"
+            :options="jobSelectOptions"
+            placeholder="选择岗位"
+            class="w-[240px]"
+            @update:model-value="loadJobProfile"
+          />
         </div>
-        <el-form v-if="selectedJobId" v-loading="loadingJob" label-width="120px" class="profile-form">
-          <el-alert type="info" :closable="false" class="mb-12"
-            title="留空字段将继承租户默认；填写则覆盖该岗位。" />
-          <el-form-item label="人设">
-            <el-input v-model="jobForm.persona" type="textarea" :rows="2" />
-          </el-form-item>
-          <el-form-item label="公司背景">
-            <el-input v-model="jobForm.companyBackground" type="textarea" :rows="2" />
-          </el-form-item>
-          <el-form-item label="沟通逻辑">
-            <el-input v-model="jobForm.communicationLogic" type="textarea" :rows="2" />
-          </el-form-item>
-          <el-form-item label="护栏">
-            <el-input v-model="jobForm.guardrails" type="textarea" :rows="2" />
-          </el-form-item>
-          <el-form-item>
-            <el-button type="primary" :loading="savingJob" @click="saveJob">保存岗位覆盖</el-button>
-          </el-form-item>
-        </el-form>
-      </el-tab-pane>
-    </el-tabs>
-  </div>
+        <div v-if="loadingJob" class="py-8 text-sm text-muted-foreground">加载中…</div>
+        <div v-else-if="selectedJobId" class="profile-form grid gap-4">
+          <RAlert variant="default">
+            <RAlertDescription>留空字段将继承租户默认；填写则覆盖该岗位。</RAlertDescription>
+          </RAlert>
+          <FormField label="人设">
+            <RTextarea v-model="jobForm.persona" :rows="2" />
+          </FormField>
+          <FormField label="公司背景">
+            <RTextarea v-model="jobForm.companyBackground" :rows="2" />
+          </FormField>
+          <FormField label="沟通逻辑">
+            <RTextarea v-model="jobForm.communicationLogic" :rows="2" />
+          </FormField>
+          <FormField label="护栏">
+            <RTextarea v-model="jobForm.guardrails" :rows="2" />
+          </FormField>
+          <div>
+            <RButton :disabled="savingJob" @click="saveJob">
+              {{ savingJob ? '保存中…' : '保存岗位覆盖' }}
+            </RButton>
+          </div>
+        </div>
+      </RTabsContent>
+    </RTabs>
+</PageShell>
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import PageShell from '@/components/Layout/PageShell.vue'
+import { onMounted, reactive, ref, computed } from 'vue'
+import { toast } from '@/lib/notify'
+import FormField from '@/components/app/FormField.vue'
+import {
+  RButton, RSelect, RTextarea, RCheckbox, RTabs, RTabsList, RTabsTrigger, RTabsContent, RAlert, RAlertDescription,
+} from '@/components/ui'
 import {
   getCommunicationProfileTenantDefault,
   saveCommunicationProfileTenantDefault,
@@ -82,6 +110,10 @@ const savingJob = ref(false)
 const jobOptions = ref<any[]>([])
 const selectedJobId = ref<number | null>(null)
 
+const jobSelectOptions = computed(() =>
+  jobOptions.value.map((j) => ({ label: j.title, value: j.id }))
+)
+
 const form = reactive({
   persona: '',
   companyBackground: '',
@@ -96,6 +128,14 @@ const jobForm = reactive({
   communicationLogic: '',
   guardrails: '',
 })
+
+function toggleTrigger(value: string, checked: boolean) {
+  if (checked && !form.proactiveTriggers.includes(value)) {
+    form.proactiveTriggers.push(value)
+  } else if (!checked) {
+    form.proactiveTriggers = form.proactiveTriggers.filter((t) => t !== value)
+  }
+}
 
 async function loadTenant() {
   loading.value = true
@@ -116,7 +156,7 @@ async function saveTenant() {
   saving.value = true
   try {
     await saveCommunicationProfileTenantDefault({ ...form })
-    ElMessage.success('已保存租户默认 Profile')
+    toast.success('已保存租户默认 Profile')
   } finally {
     saving.value = false
   }
@@ -124,7 +164,7 @@ async function saveTenant() {
 
 async function loadJobs() {
   const res: any = await getJobList({ pageSize: 100, status: 'ACTIVE' })
-  jobOptions.value = res.data?.records || res.data || []
+  jobOptions.value = res.data?.records || res.data?.list || res.data || []
 }
 
 async function loadJobProfile() {
@@ -147,7 +187,7 @@ async function saveJob() {
   savingJob.value = true
   try {
     await saveCommunicationProfileJob(selectedJobId.value, { ...jobForm })
-    ElMessage.success('已保存岗位覆盖')
+    toast.success('已保存岗位覆盖')
   } finally {
     savingJob.value = false
   }
@@ -159,9 +199,27 @@ onMounted(async () => {
 })
 </script>
 
-<style scoped>
-.page-desc { color: #64748b; font-size: 13px; margin-top: 4px; }
-.profile-form { max-width: 720px; margin-top: 16px; }
-.mb-12 { margin-bottom: 12px; }
-.job-selector { display: flex; align-items: center; gap: 8px; }
+<style scoped lang="scss">
+@import '@/assets/styles/variables.scss';
+
+.page-desc {
+  color: $text-secondary;
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.profile-form {
+  max-width: 720px;
+  margin-top: 16px;
+}
+
+.mb-12 {
+  margin-bottom: 12px;
+}
+
+.job-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 </style>

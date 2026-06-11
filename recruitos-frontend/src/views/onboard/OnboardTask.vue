@@ -1,57 +1,46 @@
 <template>
-  <div class="page-container page-stack" v-loading="loading">
-    <!-- 页面头部 -->
-    <div class="page-header">
-      <div class="header-left">
-        <el-button @click="goBack">
-          <el-icon><ArrowLeft /></el-icon>
-          返回
-        </el-button>
-        <h2 class="page-title">入职任务</h2>
-      </div>
-      <el-button type="primary" @click="handleAddTask">
-        <el-icon><Plus /></el-icon>
+  <PageShell title="入职任务" class="relative">
+    <template #actions>
+      <RButton @click="handleAddTask">
+        <Plus class="mr-2 h-4 w-4" />
         添加任务
-      </el-button>
+      </RButton>
+    </template>
+
+    <div v-if="loading" class="absolute inset-0 z-10 flex items-center justify-center bg-background/60">
+      <Loader2 class="h-6 w-6 animate-spin text-primary" />
     </div>
 
-    <!-- 候选人信息卡片 -->
     <div class="candidate-card">
       <div class="candidate-main">
         <div class="candidate-avatar">{{ candidateInfo.name?.charAt(0) || '?' }}</div>
         <div class="candidate-detail">
           <h3 class="candidate-name">{{ candidateInfo.name }}</h3>
           <div class="candidate-meta">
-            <span><el-icon><Briefcase /></el-icon> {{ candidateInfo.jobTitle }}</span>
-            <span><el-icon><Calendar /></el-icon> 入职日期: {{ candidateInfo.onboardDate }}</span>
-            <el-tag :type="getStatusType(candidateInfo.status)" size="small">
+            <span><Briefcase class="inline h-4 w-4" /> {{ candidateInfo.jobTitle }}</span>
+            <span><Calendar class="inline h-4 w-4" /> 入职日期: {{ candidateInfo.onboardDate }}</span>
+            <RBadge :variant="elTagTypeToBadge(getStatusType(candidateInfo.status))">
               {{ getStatusLabel(candidateInfo.status) }}
-            </el-tag>
+            </RBadge>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- 进度概览 -->
     <div class="progress-section">
       <div class="progress-header">
         <span class="progress-title">任务进度</span>
         <span class="progress-text">{{ completedCount }}/{{ tasks.length }} 已完成</span>
       </div>
-      <el-progress
-        :percentage="completionPercentage"
-        :stroke-width="12"
-        :color="progressColors"
-      />
+      <RProgress :value="completionPercentage" :max="100" class="h-3" />
     </div>
 
-    <!-- 任务列表 -->
     <div class="task-list">
       <div v-for="task in tasks" :key="task.id" class="task-item" :class="{ 'is-completed': task.status === 'COMPLETED' }">
         <div class="task-left">
-          <el-checkbox
+          <RCheckbox
             :model-value="task.status === 'COMPLETED'"
-            @change="handleToggleTask(task)"
+            @update:model-value="() => handleToggleTask(task)"
           />
         </div>
         <div class="task-content">
@@ -59,82 +48,68 @@
             <span class="task-name" :class="{ 'is-done': task.status === 'COMPLETED' }">
               {{ task.name }}
             </span>
-            <el-tag
-              :type="getTaskTypeTagType(task.type)"
-              size="small"
-              disable-transitions
-            >
+            <RBadge :variant="elTagTypeToBadge(getTaskTypeTagType(task.type))">
               {{ getTaskTypeLabel(task.type) }}
-            </el-tag>
+            </RBadge>
           </div>
           <div class="task-meta">
             <span class="meta-item">
-              <el-icon><User /></el-icon>
+              <User class="inline h-3.5 w-3.5" />
               {{ task.assignee }}
             </span>
             <span class="meta-item">
-              <el-icon><Calendar /></el-icon>
+              <Calendar class="inline h-3.5 w-3.5" />
               截止: {{ task.dueDate }}
             </span>
-            <el-tag
-              :type="getTaskStatusType(task.status)"
-              size="small"
-              effect="plain"
-            >
+            <RBadge variant="outline">
               {{ getTaskStatusLabel(task.status) }}
-            </el-tag>
+            </RBadge>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- 添加任务对话框 -->
-    <el-dialog
-      v-model="addTaskDialogVisible"
-      title="添加任务"
-      width="500px"
-      destroy-on-close
-    >
-      <el-form ref="taskFormRef" :model="taskFormData" :rules="taskFormRules" label-width="80px">
-        <el-form-item label="任务名称" prop="name">
-          <el-input v-model="taskFormData.name" placeholder="请输入任务名称" />
-        </el-form-item>
-        <el-form-item label="任务类型" prop="type">
-          <el-select v-model="taskFormData.type" placeholder="请选择任务类型" style="width: 100%">
-            <el-option label="文档类" value="DOC" />
-            <el-option label="准备工作" value="PREPARATION" />
-            <el-option label="培训类" value="TRAINING" />
-            <el-option label="IT类" value="IT" />
-            <el-option label="其他" value="OTHER" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="负责人" prop="assignee">
-          <el-input v-model="taskFormData.assignee" placeholder="请输入负责人" />
-        </el-form-item>
-        <el-form-item label="截止日期" prop="dueDate">
-          <el-date-picker
-            v-model="taskFormData.dueDate"
-            type="date"
-            placeholder="选择截止日期"
-            style="width: 100%"
-            value-format="YYYY-MM-DD"
-          />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="addTaskDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="addTaskLoading" @click="confirmAddTask">确定</el-button>
-      </template>
-    </el-dialog>
-  </div>
+    <RDialog v-model:open="addTaskDialogVisible">
+      <DialogContent class="max-w-md">
+        <DialogHeader>
+          <DialogTitle>添加任务</DialogTitle>
+        </DialogHeader>
+        <div class="grid gap-4 py-2">
+          <FormField label="任务名称" required :error="formErrors.name">
+            <RInput v-model="taskFormData.name" placeholder="请输入任务名称" />
+          </FormField>
+          <FormField label="任务类型" required :error="formErrors.type">
+            <RSelect v-model="taskFormData.type" :options="taskTypeOptions" placeholder="请选择任务类型" />
+          </FormField>
+          <FormField label="负责人" required :error="formErrors.assignee">
+            <RInput v-model="taskFormData.assignee" placeholder="请输入负责人" />
+          </FormField>
+          <FormField label="截止日期" required :error="formErrors.dueDate">
+            <RInput v-model="taskFormData.dueDate" type="date" />
+          </FormField>
+        </div>
+        <DialogFooter>
+          <RButton variant="outline" @click="addTaskDialogVisible = false">取消</RButton>
+          <RButton :disabled="addTaskLoading" @click="confirmAddTask">确定</RButton>
+        </DialogFooter>
+      </DialogContent>
+    </RDialog>
+</PageShell>
 </template>
 
 <script setup lang="ts">
+import PageShell from '@/components/Layout/PageShell.vue'
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import type { FormInstance, FormRules } from 'element-plus'
-import { ArrowLeft, Plus, User, Calendar, Briefcase } from '@element-plus/icons-vue'
+import { ArrowLeft, Plus, User, Calendar, Briefcase, Loader2 } from 'lucide-vue-next'
+import { toast } from '@/lib/notify'
+import { confirm } from '@/lib/confirm'
+import { elTagTypeToBadge } from '@/lib/badgeVariants'
+import FormField from '@/components/app/FormField.vue'
+import {
+  RButton, RBadge, RInput, RSelect, RCheckbox, RProgress,
+  RDialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from '@/components/ui'
 import {
   getOnboardDetail,
   getOnboardTasks,
@@ -156,6 +131,14 @@ const candidateInfo = reactive({
 
 const tasks = ref<any[]>([])
 
+const taskTypeOptions = [
+  { label: '文档类', value: 'DOC' },
+  { label: '准备工作', value: 'PREPARATION' },
+  { label: '培训类', value: 'TRAINING' },
+  { label: 'IT类', value: 'IT' },
+  { label: '其他', value: 'OTHER' },
+]
+
 function mapTask(t: any) {
   const raw = t.taskStatus || t.status
   return {
@@ -168,40 +151,29 @@ function mapTask(t: any) {
   }
 }
 
-// 添加任务对话框
 const addTaskDialogVisible = ref(false)
 const addTaskLoading = ref(false)
-const taskFormRef = ref<FormInstance>()
 
 const taskFormData = reactive({
+  name: '',
+  type: '' as string | number | undefined,
+  assignee: '',
+  dueDate: '',
+})
+
+const formErrors = reactive({
   name: '',
   type: '',
   assignee: '',
   dueDate: '',
 })
 
-const taskFormRules: FormRules = {
-  name: [{ required: true, message: '请输入任务名称', trigger: 'blur' }],
-  type: [{ required: true, message: '请选择任务类型', trigger: 'change' }],
-  assignee: [{ required: true, message: '请输入负责人', trigger: 'blur' }],
-  dueDate: [{ required: true, message: '请选择截止日期', trigger: 'change' }],
-}
-
-// 计算属性
 const completedCount = computed(() => tasks.value.filter(t => t.status === 'COMPLETED').length)
 const completionPercentage = computed(() => {
   if (tasks.value.length === 0) return 0
   return Math.round((completedCount.value / tasks.value.length) * 100)
 })
 
-const progressColors = [
-  { color: '#DC2626', percentage: 20 },
-  { color: '#D97706', percentage: 40 },
-  { color: '#3B82F6', percentage: 60 },
-  { color: '#059669', percentage: 100 },
-]
-
-// 状态映射
 function getStatusType(status: string): string {
   const map: Record<string, string> = {
     PENDING: 'warning',
@@ -244,15 +216,6 @@ function getTaskTypeLabel(type: string): string {
   return map[type] || type
 }
 
-function getTaskStatusType(status: string): string {
-  const map: Record<string, string> = {
-    PENDING: 'info',
-    IN_PROGRESS: 'warning',
-    COMPLETED: 'success',
-  }
-  return map[status] || 'info'
-}
-
 function getTaskStatusLabel(status: string): string {
   const map: Record<string, string> = {
     PENDING: '待处理',
@@ -262,55 +225,56 @@ function getTaskStatusLabel(status: string): string {
   return map[status] || status
 }
 
+function validateTaskForm(): boolean {
+  formErrors.name = taskFormData.name.trim() ? '' : '请输入任务名称'
+  formErrors.type = taskFormData.type ? '' : '请选择任务类型'
+  formErrors.assignee = taskFormData.assignee.trim() ? '' : '请输入负责人'
+  formErrors.dueDate = taskFormData.dueDate ? '' : '请选择截止日期'
+  return !formErrors.name && !formErrors.type && !formErrors.assignee && !formErrors.dueDate
+}
+
 function goBack() {
   router.push('/onboard/list')
 }
 
-function handleToggleTask(task: any) {
-  ElMessageBox.confirm(
-    task.status === 'COMPLETED' ? '确定将此任务标记为未完成吗？' : '确定将此任务标记为已完成吗？',
-    '确认操作',
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'info',
-    }
-  ).then(async () => {
-    const next = task.status === 'COMPLETED' ? 'PENDING' : 'DONE'
-    await updateOnboardTaskStatus(task.id, next)
-    task.status = next
-    ElMessage.success(next === 'DONE' ? '任务已完成' : '任务已恢复')
-  }).catch(() => {})
+async function handleToggleTask(task: any) {
+  const ok = await confirm({
+    title: '确认操作',
+    message: task.status === 'COMPLETED' ? '确定将此任务标记为未完成吗？' : '确定将此任务标记为已完成吗？',
+  })
+  if (!ok) return
+  const next = task.status === 'COMPLETED' ? 'PENDING' : 'DONE'
+  await updateOnboardTaskStatus(task.id, next)
+  task.status = next
+  toast.success(next === 'DONE' ? '任务已完成' : '任务已恢复')
 }
 
 function handleAddTask() {
   taskFormData.name = ''
-  taskFormData.type = ''
+  taskFormData.type = undefined
   taskFormData.assignee = ''
   taskFormData.dueDate = ''
+  Object.assign(formErrors, { name: '', type: '', assignee: '', dueDate: '' })
   addTaskDialogVisible.value = true
 }
 
 async function confirmAddTask() {
-  if (!taskFormRef.value || !onboardId.value) return
-  await taskFormRef.value.validate(async (valid) => {
-    if (!valid) return
-    addTaskLoading.value = true
-    try {
-      await createOnboardTask({
-        onboardId: onboardId.value,
-        taskName: taskFormData.name,
-        taskType: taskFormData.type,
-        assigneeName: taskFormData.assignee,
-        dueDate: taskFormData.dueDate,
-      })
-      addTaskDialogVisible.value = false
-      ElMessage.success('任务添加成功')
-      await loadTasks()
-    } finally {
-      addTaskLoading.value = false
-    }
-  })
+  if (!validateTaskForm() || !onboardId.value) return
+  addTaskLoading.value = true
+  try {
+    await createOnboardTask({
+      onboardId: onboardId.value,
+      taskName: taskFormData.name,
+      taskType: String(taskFormData.type),
+      assigneeName: taskFormData.assignee,
+      dueDate: taskFormData.dueDate,
+    })
+    addTaskDialogVisible.value = false
+    toast.success('任务添加成功')
+    await loadTasks()
+  } finally {
+    addTaskLoading.value = false
+  }
 }
 
 async function loadDetail() {
@@ -359,7 +323,7 @@ onMounted(async () => {
 
 .candidate-card {
   background: $bg-card;
-  border: 1px solid $border-color-light;
+  border: none;
   border-radius: 8px;
   padding: 24px;
   margin-bottom: 20px;
@@ -410,7 +374,7 @@ onMounted(async () => {
 
 .progress-section {
   background: $bg-card;
-  border: 1px solid $border-color-light;
+  border: none;
   border-radius: 8px;
   padding: 20px 24px;
   margin-bottom: 20px;
@@ -422,7 +386,7 @@ onMounted(async () => {
     margin-bottom: 12px;
 
     .progress-title {
-      font-size: 15px;
+      font-size: 14px;
       font-weight: 600;
       color: $text-primary;
     }
@@ -442,7 +406,7 @@ onMounted(async () => {
 
 .task-item {
   background: $bg-card;
-  border: 1px solid $border-color-light;
+  border: none;
   border-radius: 8px;
   padding: 16px 20px;
   display: flex;
@@ -476,7 +440,7 @@ onMounted(async () => {
       margin-bottom: 8px;
 
       .task-name {
-        font-size: 15px;
+        font-size: 14px;
         font-weight: 500;
         color: $text-primary;
 

@@ -12,12 +12,20 @@ import platformRoutes from './modules/platform'
 import legacyRedirects from './modules/legacy-redirects'
 import screeningRoutes from './modules/screening'
 import aiToolsRoutes from './modules/ai-tools'
+import aiRoutes from './modules/ai'
 
 const LoginRoute: RouteRecordRaw = {
   path: '/login',
   name: 'Login',
   component: () => import('@/views/login/Login.vue'),
   meta: { title: '登录', hidden: true },
+}
+
+const ReferralSubmitRoute: RouteRecordRaw = {
+  path: '/referral/submit/:token',
+  name: 'ReferralSubmit',
+  component: () => import('@/views/referral/ReferralSubmit.vue'),
+  meta: { title: '员工内推', hidden: true },
 }
 
 const RootRoute: RouteRecordRaw = {
@@ -46,6 +54,7 @@ function extractRoleCodes(roles: any[]): string[] {
 
 const routes: RouteRecordRaw[] = [
   LoginRoute,
+  ReferralSubmitRoute,
   RootRoute,
   ...workspaceRoutes,
   ...pipelineRoutes,
@@ -54,6 +63,7 @@ const routes: RouteRecordRaw[] = [
   ...talentRoutes,
   ...insightRoutes,
   ...aiToolsRoutes,
+  ...aiRoutes,
   ...settingsRoutes,
   ...platformRoutes,
   ...legacyRedirects,
@@ -68,6 +78,11 @@ const router = createRouter({
 router.beforeEach(async (to, _from, next) => {
   const token = getToken()
   const isPlatformAdmin = localStorage.getItem('isPlatformAdmin') === 'true'
+
+  if (to.path.startsWith('/referral/submit')) {
+    next()
+    return
+  }
 
   if (to.path === '/login') {
     const userStore = useUserStore()

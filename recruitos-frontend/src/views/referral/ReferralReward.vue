@@ -1,124 +1,152 @@
 <template>
-  <div class="page-container page-stack">
-    <!-- 页面头部 -->
-    <div class="page-header">
-      <h2 class="page-title">奖励管理</h2>
-    </div>
-
-    <!-- 统计卡片 -->
-    <div class="stats-row">
-      <div class="stat-card">
-        <div class="stat-label">待发放金额</div>
-        <div class="stat-value warning">¥ 18,000</div>
+  <PageShell variant="list" title="奖励管理" subtitle="管理内推奖励审批与发放">
+    <template #toolbar>
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card class="p-5">
+          <div class="text-sm text-muted-foreground mb-2">待发放金额</div>
+          <div class="text-2xl font-semibold text-amber-600">¥ {{ formatMoney(stats.pendingAmount) }}</div>
+        </Card>
+        <Card class="p-5">
+          <div class="text-sm text-muted-foreground mb-2">已发放金额</div>
+          <div class="text-2xl font-semibold text-green-600">¥ {{ formatMoney(stats.totalPaidAmount) }}</div>
+        </Card>
+        <Card class="p-5">
+          <div class="text-sm text-muted-foreground mb-2">本月发放</div>
+          <div class="text-2xl font-semibold text-primary">{{ stats.approvedRewards }}</div>
+          <div class="text-xs text-muted-foreground mt-1">待发放笔数</div>
+        </Card>
+        <Card class="p-5">
+          <div class="text-sm text-muted-foreground mb-2">奖励总数</div>
+          <div class="text-2xl font-semibold">{{ stats.totalRewards }}</div>
+        </Card>
       </div>
-      <div class="stat-card">
-        <div class="stat-label">已发放金额</div>
-        <div class="stat-value success">¥ 52,000</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">本月发放</div>
-        <div class="stat-value primary">¥ 8,000</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">奖励总数</div>
-        <div class="stat-value">25</div>
-      </div>
-    </div>
+    </template>
 
-    <!-- 搜索栏 -->
-    <div class="filter-bar">
-      <el-select v-model="queryParams.status" placeholder="状态" clearable style="width: 140px">
-        <el-option
-          v-for="s in statusOptions"
-          :key="s.value"
-          :label="s.label"
-          :value="s.value"
-        />
-      </el-select>
-      <el-button type="primary" @click="handleSearch">
-        <el-icon><Search /></el-icon>
-        搜索
-      </el-button>
-      <el-button @click="handleReset">
-        <el-icon><RefreshRight /></el-icon>
-        重置
-      </el-button>
-    </div>
-
-    <!-- 数据表格 -->
-    <div class="data-card">
-      <el-table :data="rewardList" stripe highlight-current-row style="width: 100%">
-        <el-table-column prop="referrerName" label="推荐人" width="120" />
-        <el-table-column prop="candidateName" label="候选人" width="120" />
-        <el-table-column prop="rewardType" label="奖励类型" width="110" align="center">
-          <template #default="{ row }">
-            <el-tag :type="getRewardTypeTag(row.rewardType)" size="small" disable-transitions>
-              {{ getRewardTypeLabel(row.rewardType) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="amount" label="金额" width="120" align="right">
-          <template #default="{ row }">
-            <span v-if="row.rewardType === 'CASH'" class="amount-text">¥ {{ row.amount.toLocaleString() }}</span>
-            <span v-else class="amount-text">{{ row.amount }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="status" label="状态" width="110" align="center">
-          <template #default="{ row }">
-            <el-tag :type="getStatusType(row.status)" size="small" disable-transitions>
-              {{ getStatusLabel(row.status) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="approver" label="审批人" width="120" />
-        <el-table-column label="操作" width="160" fixed="right">
-          <template #default="{ row }">
-            <el-button
-              v-if="row.status === 'PENDING'"
-              type="success" link size="small"
-              @click="handleApprove(row)"
-            >审批</el-button>
-            <el-button
-              v-if="row.status === 'APPROVED'"
-              type="primary" link size="small"
-              @click="handlePay(row)"
-            >发放</el-button>
-            <el-button type="primary" link size="small" @click="handleView(row)">查看</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-
-      <!-- 分页 -->
-      <el-pagination
-        v-model:current-page="queryParams.pageNum"
-        v-model:page-size="queryParams.pageSize"
-        :page-sizes="[10, 20, 50, 100]"
-        :total="total"
-        layout="total, sizes, prev, pager, next, jumper"
-        @size-change="handleSearch"
-        @current-change="handleSearch"
+    <template #filters>
+      <Select
+        v-model="queryParams.status"
+        :options="statusOptions"
+        placeholder="状态"
+        clearable
+        class="w-full sm:w-36"
       />
-    </div>
-  </div>
+    </template>
+
+    <template #filterActions>
+      <Button @click="handleSearch">
+        <Search class="mr-2 h-4 w-4" />
+        搜索
+      </Button>
+      <Button variant="outline" @click="handleReset">
+        <RefreshCw class="mr-2 h-4 w-4" />
+        重置
+      </Button>
+    </template>
+
+    <Table v-if="rewardList.length">
+      <TableHeader>
+        <TableRow>
+          <TableHead class="w-[120px]">推荐人</TableHead>
+          <TableHead class="w-[120px]">候选人</TableHead>
+          <TableHead class="w-[110px] text-center">奖励类型</TableHead>
+          <TableHead class="w-[120px] text-right">金额</TableHead>
+          <TableHead class="w-[110px] text-center">状态</TableHead>
+          <TableHead class="w-[120px]">审批人</TableHead>
+          <TableHead class="w-[100px] text-center">操作</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        <TableRow v-for="row in rewardList" :key="row.id">
+          <TableCell>{{ row.referrerName }}</TableCell>
+          <TableCell>{{ row.candidateName }}</TableCell>
+          <TableCell class="text-center">
+            <Badge :variant="elTagTypeToBadge(getRewardTypeTag(row.rewardType))">
+              {{ getRewardTypeLabel(row.rewardType) }}
+            </Badge>
+          </TableCell>
+          <TableCell class="text-right font-medium">
+            <span v-if="row.rewardType === 'CASH'">¥ {{ formatMoney(row.amount) }}</span>
+            <span v-else>{{ row.amount }}</span>
+          </TableCell>
+          <TableCell class="text-center">
+            <Badge :variant="elTagTypeToBadge(getStatusType(row.status))">{{ getStatusLabel(row.status) }}</Badge>
+          </TableCell>
+          <TableCell>{{ row.approver || '—' }}</TableCell>
+          <TableCell class="text-center">
+            <RowActions :actions="getRowActions(row)" @action="(cmd) => handleRowCommand(cmd, row)" />
+          </TableCell>
+        </TableRow>
+      </TableBody>
+    </Table>
+
+    <ListPagination
+      v-if="total > 0"
+      v-model:page-num="queryParams.pageNum"
+      v-model:page-size="queryParams.pageSize"
+      :total="total"
+      @change="loadData"
+    />
+  </PageShell>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, RefreshRight } from '@element-plus/icons-vue'
-import { getReferralRewardList } from '@/api/modules/referral'
+import { Search, RefreshCw } from 'lucide-vue-next'
+import { toast } from '@/lib/notify'
+import { confirm } from '@/lib/confirm'
+import { elTagTypeToBadge } from '@/lib/badgeVariants'
+import RowActions from '@/components/common/RowActions.vue'
+import PageShell from '@/components/Layout/PageShell.vue'
+import ListPagination from '@/components/common/ListPagination.vue'
+import {
+  Button,
+  Select,
+  Badge,
+  Card,
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '@/components/ui'
+import {
+  getReferralRewardList,
+  getReferralRewardStats,
+  approveReferralReward,
+  payReferralReward,
+} from '@/api/modules/referral'
 
-// 查询参数
 const queryParams = reactive({
-  status: '',
+  status: '' as string | undefined,
   pageNum: 1,
   pageSize: 20,
 })
 
 const total = ref(0)
 const rewardList = ref<any[]>([])
+const stats = ref({
+  totalRewards: 0,
+  pendingRewards: 0,
+  approvedRewards: 0,
+  paidRewards: 0,
+  totalPaidAmount: 0,
+  pendingAmount: 0,
+})
 
-// 状态选项
+function formatMoney(v?: number) {
+  return (v ?? 0).toLocaleString('zh-CN', { maximumFractionDigits: 0 })
+}
+
+function mapRewardRow(row: any) {
+  return {
+    ...row,
+    amount: row.rewardAmount ?? row.amount ?? 0,
+    candidateName: row.candidateName || '—',
+    approver: row.approvedBy ? `用户#${row.approvedBy}` : '—',
+  }
+}
+
 const statusOptions = [
   { label: '待审批', value: 'PENDING' },
   { label: '已审批', value: 'APPROVED' },
@@ -126,7 +154,6 @@ const statusOptions = [
   { label: '已取消', value: 'CANCELLED' },
 ]
 
-// 奖励类型标签
 function getRewardTypeTag(type: string): string {
   const map: Record<string, string> = {
     CASH: 'success',
@@ -145,7 +172,6 @@ function getRewardTypeLabel(type: string): string {
   return map[type] || type
 }
 
-// 状态标签映射
 function getStatusType(status: string): string {
   const map: Record<string, string> = {
     PENDING: 'warning',
@@ -166,16 +192,38 @@ function getStatusLabel(status: string): string {
   return map[status] || status
 }
 
-// 加载数据
+function getRowActions(row: any) {
+  const actions: any[] = []
+  if (row.status === 'PENDING') {
+    actions.push({ command: 'approve', label: '审批', icon: 'Check', type: 'primary', primary: true })
+  }
+  if (row.status === 'APPROVED') {
+    actions.push({ command: 'pay', label: '发放', icon: 'Money', type: 'primary', primary: true })
+  }
+  return actions
+}
+
+function handleRowCommand(cmd: string, row: any) {
+  if (cmd === 'approve') handleApprove(row)
+  else if (cmd === 'pay') handlePay(row)
+}
+
 async function loadData() {
   const params: any = {
     pageNum: queryParams.pageNum,
     pageSize: queryParams.pageSize,
   }
   if (queryParams.status) params.status = queryParams.status
-  const res = await getReferralRewardList(params)
-  rewardList.value = res.data.records || res.data.list || res.data || []
-  total.value = res.data.total || rewardList.value.length
+  const res: any = await getReferralRewardList(params)
+  const page = res.data ?? res
+  const rows = page.records || page.list || page || []
+  rewardList.value = (Array.isArray(rows) ? rows : []).map(mapRewardRow)
+  total.value = page.total || rewardList.value.length
+  try {
+    const statRes: any = await getReferralRewardStats()
+    const s = statRes.data ?? statRes
+    stats.value = { ...stats.value, ...s }
+  } catch { /* ignore */ }
 }
 
 function handleSearch() {
@@ -184,90 +232,33 @@ function handleSearch() {
 }
 
 function handleReset() {
-  queryParams.status = ''
+  queryParams.status = undefined
   handleSearch()
 }
 
-function handleView(row: any) {
-  ElMessage.info(`查看奖励详情: ${row.candidateName}`)
-}
-
 async function handleApprove(row: any) {
-  try {
-    await ElMessageBox.confirm(`确定审批通过 ${row.referrerName} 推荐 ${row.candidateName} 的奖励吗？`, '审批确认', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'info',
-    })
-    row.status = 'APPROVED'
-    row.approver = '当前用户'
-    ElMessage.success('审批通过')
-  } catch {
-    // 取消操作
-  }
+  const ok = await confirm({
+    title: '审批确认',
+    message: `确定审批通过 ${row.referrerName} 推荐 ${row.candidateName} 的奖励吗？`,
+  })
+  if (!ok) return
+  await approveReferralReward(row.id)
+  toast.success('审批通过')
+  loadData()
 }
 
 async function handlePay(row: any) {
-  try {
-    await ElMessageBox.confirm(`确定发放 ${row.referrerName} 的奖励 ¥${row.amount.toLocaleString()} 吗？`, '发放确认', {
-      confirmButtonText: '确定发放',
-      cancelButtonText: '取消',
-      type: 'info',
-    })
-    row.status = 'PAID'
-    ElMessage.success('奖励已发放')
-  } catch {
-    // 取消操作
-  }
+  const ok = await confirm({
+    title: '发放确认',
+    message: `确定发放 ${row.referrerName} 的奖励 ¥${formatMoney(row.amount)} 吗？`,
+  })
+  if (!ok) return
+  await payReferralReward(row.id)
+  toast.success('奖励已发放')
+  loadData()
 }
 
 onMounted(() => {
   loadData()
 })
 </script>
-
-<style lang="scss" scoped>
-@import '@/assets/styles/variables.scss';
-.stats-row {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-  margin-bottom: 20px;
-}
-
-.stat-card {
-  background: $bg-card;
-  border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
-
-  .stat-label {
-    font-size: 13px;
-    color: $text-secondary;
-    margin-bottom: 8px;
-  }
-
-  .stat-value {
-    font-size: 24px;
-    font-weight: 600;
-    color: $text-primary;
-
-    &.primary {
-      color: $primary-color;
-    }
-
-    &.success {
-      color: $success-color;
-    }
-
-    &.warning {
-      color: $warning-color;
-    }
-  }
-}
-
-.amount-text {
-  font-weight: 500;
-  color: $text-primary;
-}
-</style>

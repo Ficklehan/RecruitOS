@@ -11,6 +11,7 @@ import com.recruitos.candidate.mapper.CandidateMapper;
 import com.recruitos.candidate.mapper.JobPositionReadMapper;
 import com.recruitos.candidate.mapper.ResumeMapper;
 import com.recruitos.common.exception.BizException;
+import com.recruitos.common.license.LicenseQuotaService;
 import com.recruitos.common.result.PageResult;
 import com.recruitos.common.tenant.TenantContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -37,6 +38,9 @@ public class ResumeService {
     private CandidateService candidateService;
     @Resource
     private ObjectMapper objectMapper;
+
+    @Resource
+    private LicenseQuotaService licenseQuotaService;
 
     public Map<String, Object> upload(MultipartFile file) {
         Long tenantId = TenantContext.getTenantId();
@@ -76,6 +80,8 @@ public class ResumeService {
 
     public Map<String, Object> parse(Long id) {
         Resume resume = requireResume(id);
+        Long tenantId = resume.getTenantId();
+        licenseQuotaService.assertCanParseResume(tenantId);
         resume.setParseStatus("1");
         resumeMapper.updateById(resume);
         String raw = resume.getRawText() != null ? resume.getRawText() : "候选人简历内容";
@@ -95,6 +101,7 @@ public class ResumeService {
         resume.setRawText(raw);
         resume.setParseStatus("2");
         resumeMapper.updateById(resume);
+        licenseQuotaService.recordResumeParsed(tenantId);
         return toMap(resume);
     }
 

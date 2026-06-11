@@ -7,6 +7,7 @@ import com.recruitos.common.result.R;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -23,9 +24,22 @@ public class GlobalExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(BizException.class)
-    public R<Void> handleBizException(BizException e) {
+    public ResponseEntity<R<Void>> handleBizException(BizException e) {
         log.warn("Business exception: code={}, msg={}", e.getCode(), e.getMsg());
-        return R.fail(e.getCode(), e.getMsg());
+        R<Void> body = R.fail(e.getCode(), e.getMsg());
+        HttpStatus status = toHttpStatus(e.getCode());
+        return ResponseEntity.status(status).body(body);
+    }
+
+    private static HttpStatus toHttpStatus(int code) {
+        if (code >= 400 && code < 600) {
+            try {
+                return HttpStatus.valueOf(code);
+            } catch (IllegalArgumentException ignored) {
+                // fall through
+            }
+        }
+        return HttpStatus.OK;
     }
 
     @ExceptionHandler(NotLoginException.class)

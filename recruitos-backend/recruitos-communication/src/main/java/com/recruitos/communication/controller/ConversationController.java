@@ -46,6 +46,14 @@ public class ConversationController {
         return R.ok(vo);
     }
 
+    @ApiOperation("Record candidate reply (demo/webhook)")
+    @PostMapping("/{id}/candidate-reply")
+    public R<ConversationVO> recordCandidateReply(
+            @PathVariable Long id,
+            @RequestParam String content) {
+        return R.ok(conversationService.recordCandidateReply(id, content));
+    }
+
     @ApiOperation("Close a conversation")
     @PostMapping("/{id}/close")
     public R<ConversationVO> closeConversation(@PathVariable Long id) {

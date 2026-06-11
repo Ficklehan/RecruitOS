@@ -1,6 +1,8 @@
 package com.recruitos.agent.service;
 
 import com.recruitos.agent.mapper.CommunicationProfileReadMapper;
+import com.recruitos.agent.platform.PlatformCandidate;
+import com.recruitos.common.communication.ScriptDecisionTree;
 import com.recruitos.common.exception.BizException;
 import com.recruitos.common.tenant.TenantContext;
 import org.springframework.stereotype.Component;
@@ -22,22 +24,24 @@ public class GreetingComposer {
     private CommunicationProfileReadMapper profileReadMapper;
 
     public String composeGreeting(Long jobId, String jobTitle, String candidateName, String kind) {
+        return composeGreeting(jobId, jobTitle, candidateName, kind, null);
+    }
+
+    public String composeGreeting(Long jobId, String jobTitle, String candidateName, String kind,
+                                  PlatformCandidate candidate) {
         Map<String, Object> profile = resolveProfile(jobId);
         String persona = str(profile, "persona", "专业招聘顾问");
-        String logic = str(profile, "communicationLogic", "先确认意向，再介绍岗位");
-        String company = str(profile, "companyBackground", "");
+        String companyBg = str(profile, "companyBackground", "");
 
-        String name = StringUtils.hasText(candidateName) ? candidateName : "您好";
-        StringBuilder sb = new StringBuilder();
-        sb.append(name).append("，您好！");
-        if ("RECHAT".equals(kind)) {
-            sb.append("之前跟您聊过").append(jobTitle).append("的机会，想再确认一下您的意向。");
-        } else {
-            sb.append("我是负责").append(jobTitle).append("的招聘同事。");
-            if (StringUtils.hasText(company) && company.length() < 80) {
-                sb.append(company).append("。");
-            }
-            sb.append(logic.contains("简历") ? logic : logic + "，方便的话希望能进一步了解您的经历。");
+        ScriptDecisionTree.GreetingCandidateContext ctx = new ScriptDecisionTree.GreetingCandidateContext();
+        if (candidate != null) {
+            ctx.setCompany(candidate.getCompany());
+            ctx.setWorkYears(candidate.getWorkYears());
+        }
+        ScriptDecisionTree.Branch branch = ScriptDecisionTree.resolve(kind, ctx, profile);
+        StringBuilder sb = new StringBuilder(ScriptDecisionTree.openingFor(branch, jobTitle, candidateName, profile));
+        if (branch == ScriptDecisionTree.Branch.DEFAULT && StringUtils.hasText(companyBg) && companyBg.length() < 80) {
+            sb.append(companyBg).append("。");
         }
         sb.append("（").append(persona.length() > 20 ? persona.substring(0, 20) : persona).append("）");
 

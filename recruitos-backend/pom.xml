@@ -27,6 +27,8 @@
         <module>recruitos-referral</module>
         <module>recruitos-headhunter</module>
         <module>recruitos-analytics</module>
+        <module>recruitos-llm</module>
+        <module>recruitos-brain</module>
     </modules>
 
     <properties>

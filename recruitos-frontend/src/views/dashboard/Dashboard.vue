@@ -1,93 +1,206 @@
 <template>
-  <div class="dashboard page-container page-stack">
-    <header class="page-header">
-      <div>
-        <h2 class="page-title">{{ greeting }}，{{ userName }}</h2>
-        <p class="page-subtitle">
-          今日待办 <strong class="dashboard-highlight">{{ pendingCount }}</strong> 项
-          <span v-if="stats.pendingInterviews"> · 面试 <strong class="dashboard-highlight">{{ stats.pendingInterviews }}</strong> 场</span>
-          <span class="dashboard-date"> {{ todayStr }}</span>
+  <PageShell>
+    <template #heading>
+      <h1 class="text-2xl font-semibold tracking-tight text-foreground leading-tight">
+        {{ greeting }}，{{ userName }}
+      </h1>
+      <p class="mt-1 text-sm text-muted-foreground">
+        AI 招聘助手 · {{ todayStr }}
+      </p>
+    </template>
+    <template #actions>
+      <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2 px-3 py-1.5 rounded-full text-sm" :class="healthColorClass">
+          <Activity class="h-4 w-4" />
+          <span class="font-semibold">{{ dashboard.summary.healthScore || 78 }}/100</span>
+          <span v-if="scoreTrend !== 0" class="text-xs opacity-70">{{ scoreTrend > 0 ? '↑' : '↓' }}{{ Math.abs(scoreTrend) }}</span>
+        </div>
+        <RButton variant="outline" size="sm" @click="router.push('/workspace/inbox')">收件箱</RButton>
+      </div>
+    </template>
+
+    <!-- 决策项卡片 -->
+    <RCard v-if="dashboard.urgentItems && dashboard.urgentItems.length" class="p-0 overflow-hidden">
+      <div class="px-5 py-3 border-b border-border flex items-center gap-2">
+        <Zap class="h-4 w-4 text-warning" />
+        <span class="text-sm font-semibold text-foreground">需要你决策的 {{ dashboard.urgentItems.length }} 件事</span>
+      </div>
+      <div class="divide-y divide-border">
+        <div
+          v-for="(item, idx) in dashboard.urgentItems"
+          :key="item.id || idx"
+          class="px-5 py-3.5 hover:bg-muted/50 transition-colors cursor-pointer flex items-start gap-3"
+          @click="navigateTo(item.actionPath)"
+        >
+          <div class="mt-0.5 shrink-0">
+            <span
+              class="inline-block w-2 h-2 rounded-full"
+              :class="{
+                'bg-destructive': item.severity === 'critical',
+                'bg-warning': item.severity === 'warning',
+                'bg-primary': item.severity === 'info',
+              }"
+            />
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-2">
+              <span class="text-sm font-medium text-foreground">{{ item.title }}</span>
+              <RBadge v-if="item.confidence" variant="outline" class="text-[10px] px-1.5 py-0 h-4">
+                置信度 {{ Math.round((item.confidence || 0) * 100) }}%
+              </RBadge>
+            </div>
+            <p class="text-xs text-muted-foreground mt-0.5">{{ item.description }}</p>
+            <p v-if="item.aiReasoning" class="text-xs text-muted-foreground/70 mt-1 italic">
+              🧠 {{ item.aiReasoning }}
+            </p>
+          </div>
+          <RButton variant="ghost" size="sm" class="shrink-0 text-xs">
+            {{ item.action || '查看' }}
+            <ArrowRight class="ml-1 h-3 w-3" />
+          </RButton>
+        </div>
+      </div>
+    </RCard>
+
+    <!-- 无决策项时的空状态 -->
+    <RCard v-else class="p-6 text-center">
+      <CheckCircle2 class="h-10 w-10 text-success mx-auto mb-3" />
+      <p class="text-sm font-medium text-foreground">今天没有需要你决策的事项</p>
+      <p class="text-xs text-muted-foreground mt-1">AI 已自动处理低风险操作，你可以查看招聘概览</p>
+    </RCard>
+
+    <!-- 招聘健康四维卡片 -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <RCard class="p-4">
+        <div class="flex items-center gap-2 mb-2">
+          <Briefcase class="h-4 w-4 text-primary" />
+          <span class="text-xs text-muted-foreground font-medium">在招岗位</span>
+        </div>
+        <div class="flex items-baseline gap-2">
+          <span class="text-2xl font-bold text-foreground">{{ dashboard.summary.activeJobs || 0 }}</span>
+          <span class="text-xs text-muted-foreground">个活跃</span>
+        </div>
+        <p v-if="dashboard.summary.criticalJobs" class="text-xs text-destructive mt-1">
+          {{ dashboard.summary.criticalJobs }} 个健康异常
         </p>
-      </div>
-      <div class="header-actions">
-        <el-button @click="$router.push('/workspace/inbox')">收件箱</el-button>
-        <el-button type="primary" @click="$router.push('/planning/jobs')">去在招职位</el-button>
-      </div>
-    </header>
+        <p v-else class="text-xs text-success mt-1">全部健康</p>
+      </RCard>
 
-    <div class="stat-row">
-      <div class="stat-card" v-for="s in statCards" :key="s.label">
-        <div class="stat-card-icon" :style="{ background: s.bg, color: s.color }">
-          <el-icon :size="18"><component :is="s.icon" /></el-icon>
+      <RCard class="p-4">
+        <div class="flex items-center gap-2 mb-2">
+          <Users class="h-4 w-4 text-info" />
+          <span class="text-xs text-muted-foreground font-medium">管道健康</span>
         </div>
-        <div>
-          <div class="stat-label">{{ s.label }}</div>
-          <div class="stat-value">{{ s.value }}</div>
+        <div class="flex items-baseline gap-2">
+          <span class="text-2xl font-bold text-foreground">{{ healthScores.pipelineScore || 85 }}</span>
+          <span class="text-xs text-muted-foreground">分</span>
         </div>
-      </div>
+        <p class="text-xs text-muted-foreground mt-1">
+          漏斗转化正常
+        </p>
+      </RCard>
+
+      <RCard class="p-4">
+        <div class="flex items-center gap-2 mb-2">
+          <ClipboardCheck class="h-4 w-4 text-warning" />
+          <span class="text-xs text-muted-foreground font-medium">面试质量</span>
+        </div>
+        <div class="flex items-baseline gap-2">
+          <span class="text-2xl font-bold text-foreground">{{ healthScores.interviewScore || 72 }}</span>
+          <span class="text-xs text-muted-foreground">分</span>
+        </div>
+        <p class="text-xs text-muted-foreground mt-1">
+          今日 {{ dashboard.summary.todayInterviews || 0 }} 场面试
+        </p>
+      </RCard>
+
+      <RCard class="p-4">
+        <div class="flex items-center gap-2 mb-2">
+          <TrendingUp class="h-4 w-4 text-success" />
+          <span class="text-xs text-muted-foreground font-medium">录用效率</span>
+        </div>
+        <div class="flex items-baseline gap-2">
+          <span class="text-2xl font-bold text-foreground">{{ healthScores.offerEfficiency || 76 }}</span>
+          <span class="text-xs text-muted-foreground">分</span>
+        </div>
+        <p class="text-xs text-muted-foreground mt-1">
+          接受率 {{ formatPercent(dashboard.summary.offerAcceptRate) }}
+        </p>
+      </RCard>
     </div>
 
-    <div class="dashboard-grid">
-      <section class="dashboard-main data-card">
-        <div class="card-title-row">
-          <span class="card-title">待办事项</span>
-          <el-button type="primary" link size="small" @click="$router.push('/workspace/inbox')">查看收件箱</el-button>
-        </div>
-
-        <div v-if="todoList.length" class="todo-list">
-          <div v-for="(t, i) in todoList" :key="i" class="todo-row" @click="$router.push('/workspace/inbox')">
-            <div class="todo-text">{{ t.text }}</div>
-            <span v-if="t.urgent" class="todo-urgent">紧急</span>
-          </div>
-        </div>
-
-        <div v-else class="dashboard-empty">暂无待办</div>
-      </section>
-
-      <aside class="dashboard-side">
-        <section class="data-card">
-          <div class="card-title-row">
-            <span class="card-title">快捷入口</span>
-          </div>
-          <div class="action-row">
-            <div class="action-btn" v-for="a in quickActions" :key="a.label" @click="$router.push(a.path)">
-              <div class="action-icon-sm" :style="{ background: a.bg, color: a.color }">
-                <el-icon :size="16"><component :is="a.icon" /></el-icon>
+    <!-- AI 洞察 -->
+    <section>
+      <div class="flex items-center gap-2 mb-3">
+        <Lightbulb class="h-4 w-4 text-warning" />
+        <span class="text-sm font-semibold text-foreground">AI 洞察</span>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <RCard
+          v-for="(insight, idx) in dashboard.insights"
+          :key="insight.id || idx"
+          class="p-4 hover:shadow-soft transition-shadow cursor-pointer"
+          @click="insight.actionPath && navigateTo(insight.actionPath)"
+        >
+          <div class="flex items-start gap-3">
+            <div
+              class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+              :class="insightCategoryBg(insight.category)"
+            >
+              <component :is="insightCategoryIcon(insight.category)" class="h-4 w-4" />
+            </div>
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-2 mb-0.5">
+                <span class="text-sm font-medium text-foreground">{{ insight.title }}</span>
+                <RBadge v-if="insight.confidence >= 0.8" variant="outline" class="text-[10px] px-1 py-0 h-4 text-success border-success/30">
+                  高置信
+                </RBadge>
               </div>
-              <span>{{ a.label }}</span>
+              <p class="text-xs text-muted-foreground leading-relaxed">{{ insight.description }}</p>
+              <p v-if="insight.suggestedAction" class="text-xs text-primary mt-1.5 font-medium">
+                → {{ insight.suggestedAction }}
+              </p>
             </div>
           </div>
-        </section>
+        </RCard>
+      </div>
 
-        <section class="data-card">
-          <div class="card-title-row">
-            <span class="card-title">最近活动</span>
-            <el-button type="primary" link size="small" @click="$router.push('/workspace/inbox')">全部</el-button>
-          </div>
+      <div v-if="!dashboard.insights || dashboard.insights.length === 0" class="text-center py-8">
+        <p class="text-sm text-muted-foreground">AI 正在分析招聘数据，洞察即将生成...</p>
+      </div>
+    </section>
 
-          <div v-if="recentActivities.length" class="activity-list">
-            <div v-for="(act, i) in recentActivities" :key="i" class="activity-row">
-              <div class="act-dot" :style="{ background: act.color }"></div>
-              <div class="act-body">
-                <p>{{ act.text }}</p>
-                <span>{{ act.time }}</span>
-              </div>
-            </div>
-          </div>
-
-          <div v-else class="dashboard-empty">暂无动态</div>
-        </section>
-      </aside>
+    <!-- 底部快捷入口 -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <RButton
+        v-for="action in quickActions"
+        :key="action.label"
+        variant="outline"
+        class="h-auto py-3 flex flex-col items-center gap-1.5"
+        @click="router.push(action.path)"
+      >
+        <component :is="action.icon" class="h-4 w-4" />
+        <span class="text-xs">{{ action.label }}</span>
+      </RButton>
     </div>
-  </div>
+  </PageShell>
 </template>
 
 <script setup lang="ts">
 import { reactive, computed, ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import { loadInboxItems, loadTodayInterviews } from '@/api/modules/workspace'
-import { getMyNotifications } from '@/api/modules/notification'
+import { RButton, RBadge, RCard } from '@/components/ui'
+import PageShell from '@/components/Layout/PageShell.vue'
+import { getBrainDashboard } from '@/api/modules/brain'
+import type { BrainDashboard, UrgentItem, AIInsight } from '@/api/modules/brain'
+import {
+  Activity, Zap, ArrowRight, CheckCircle2, Lightbulb,
+  Briefcase, Users, ClipboardCheck, TrendingUp,
+  MessageCircle, UserPlus, LayoutGrid, FileText,
+} from 'lucide-vue-next'
 
+const router = useRouter()
 const userStore = useUserStore()
 const userName = computed(() => userStore.userInfo?.realName || '管理员')
 
@@ -106,69 +219,91 @@ const todayStr = computed(() => {
   return `${d.getMonth() + 1}月${d.getDate()}日 星期${w[d.getDay()]}`
 })
 
-const pendingCount = ref(0)
-
-const stats = reactive({
-  pendingInterviews: 0,
-  weeklyOnboard: 0,
-  totalTalents: 0,
+const dashboard = reactive<BrainDashboard>({
+  summary: {
+    activeJobs: 0,
+    pendingDecisions: 0,
+    healthScore: 78,
+    todayInterviews: 0,
+    criticalJobs: 0,
+    offerAcceptRate: 0.68,
+    avgCycleDays: 38,
+  },
+  urgentItems: [],
+  insights: [],
 })
 
-const statCards = reactive([
-  { label: '今日面试', value: 0, icon: 'Calendar', color: '#D97706', bg: '#FEF3C7' },
-  { label: '待办', value: 0, icon: 'Document', color: '#3B82F6', bg: '#EFF6FF' },
-  { label: '本周入职', value: 0, icon: 'Promotion', color: '#059669', bg: '#D1FAE5' },
-  { label: '人才库', value: '0', icon: 'UserFilled', color: '#6B7280', bg: '#F1F5F9' },
-])
+const healthScores = reactive({
+  pipelineScore: 85,
+  interviewScore: 72,
+  offerEfficiency: 76,
+  activeJobsAbnormal: 0,
+})
+
+const scoreTrend = ref(0)
+
+const healthColorClass = computed(() => {
+  const s = dashboard.summary.healthScore || 78
+  if (s >= 85) return 'bg-success/10 text-success'
+  if (s >= 70) return 'bg-warning/10 text-warning'
+  return 'bg-destructive/10 text-destructive'
+})
 
 const quickActions = [
-  { label: '招聘进展', icon: 'Grid', path: '/pipeline/board', color: '#3B82F6', bg: '#EFF6FF' },
-  { label: '创建需求', icon: 'Plus', path: '/planning/demands/create', color: '#2563EB', bg: '#EFF6FF' },
-  { label: '候选人', icon: 'User', path: '/pipeline/candidates', color: '#059669', bg: '#D1FAE5' },
-  { label: '安排面试', icon: 'Calendar', path: '/pipeline/calendar', color: '#D97706', bg: '#FEF3C7' },
-  { label: '人才库', icon: 'UserFilled', path: '/talent/pool', color: '#6B7280', bg: '#F1F5F9' },
-  { label: '渠道招聘', icon: 'ChatDotRound', path: '/planning/jobs', color: '#0891B2', bg: '#CFFAFE' },
+  { label: '招聘进展', icon: LayoutGrid, path: '/pipeline/board' },
+  { label: '候选人', icon: UserPlus, path: '/pipeline/candidates' },
+  { label: 'AI沟通', icon: MessageCircle, path: '/communication/conversation' },
+  { label: 'JD工作台', icon: FileText, path: '/job/jd-editor' },
 ]
 
-const recentActivities = ref<{ text: string; time: string; color: string }[]>([])
-const todoList = reactive<{ text: string; done: boolean; urgent: boolean }[]>([])
+function formatPercent(v: number | undefined): string {
+  if (v == null) return '--'
+  return Math.round(v * 100) + '%'
+}
 
-function formatTime(t: string) {
-  if (!t) return ''
-  const d = new Date(t)
-  if (Number.isNaN(d.getTime())) return t
-  return d.toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+function navigateTo(path: string | undefined) {
+  if (path) router.push(path)
+}
+
+function insightCategoryIcon(cat: string) {
+  const map: Record<string, any> = {
+    CANDIDATE_QUALITY: UserPlus,
+    PROCESS_EFFICIENCY: Zap,
+    INTERVIEWER_PERFORMANCE: ClipboardCheck,
+    CHANNEL_ROI: TrendingUp,
+  }
+  return map[cat] || Lightbulb
+}
+
+function insightCategoryBg(cat: string) {
+  const map: Record<string, string> = {
+    CANDIDATE_QUALITY: 'bg-primary/10 text-primary',
+    PROCESS_EFFICIENCY: 'bg-warning/10 text-warning',
+    INTERVIEWER_PERFORMANCE: 'bg-info/10 text-info',
+    CHANNEL_ROI: 'bg-success/10 text-success',
+  }
+  return map[cat] || 'bg-muted text-muted-foreground'
 }
 
 async function loadDashboard() {
   try {
-    const [inbox, todayInterviews, notifRes] = await Promise.all([
-      loadInboxItems().catch(() => []),
-      loadTodayInterviews().catch(() => []),
-      getMyNotifications(6).catch(() => ({ data: [] })),
-    ])
-
-    pendingCount.value = inbox.length
-    stats.pendingInterviews = todayInterviews.length
-
-    statCards[0].value = todayInterviews.length
-    statCards[1].value = inbox.length
-    statCards[2].value = stats.weeklyOnboard
-    statCards[3].value = stats.totalTalents.toLocaleString()
-
-    const notifications = notifRes.data || []
-    recentActivities.value = notifications.slice(0, 5).map((n: any) => ({
-      text: n.title || n.content || '系统通知',
-      time: formatTime(n.createdAt),
-      color: '#3B82F6',
-    }))
-
-    todoList.splice(0, todoList.length)
-    inbox.slice(0, 5).forEach((item) => {
-      todoList.push({ text: item.title, done: false, urgent: item.type === 'approval' })
-    })
+    const res = await getBrainDashboard()
+    // request 拦截器返回 { code, data: payload, msg }，需解一层
+    const payload: any = (res as any)?.data || res
+    if (payload.summary) {
+      Object.assign(dashboard.summary, payload.summary)
+    }
+    if (payload.urgentItems) {
+      dashboard.urgentItems.splice(0, dashboard.urgentItems.length, ...payload.urgentItems)
+    }
+    if (payload.insights) {
+      dashboard.insights.splice(0, dashboard.insights.length, ...payload.insights)
+    }
+    if (payload.healthScores) {
+      Object.assign(healthScores, payload.healthScores)
+    }
   } catch {
-    // keep defaults
+    // 后端不可用时保留默认值，页面不崩
   }
 }
 
@@ -177,147 +312,4 @@ onMounted(loadDashboard)
 
 <style lang="scss" scoped>
 @import '@/assets/styles/variables.scss';
-.header-actions { display: flex; gap: $spacing-sm; }
-.dashboard-highlight { color: $primary-color; font-weight: 600; }
-.dashboard-date { color: $text-placeholder; margin-left: $spacing-sm; }
-
-.stat-card {
-  background: $bg-card;
-  border: 1px solid $border-color;
-  border-radius: $border-radius;
-  padding: $spacing-lg $spacing-xl;
-  display: flex;
-  align-items: center;
-  gap: $spacing-md;
-}
-
-.stat-card-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: $border-radius-sm;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.dashboard-grid {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: $spacing-section;
-  align-items: start;
-}
-
-.dashboard-main .card-title-row,
-.dashboard-side .card-title-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: $spacing-lg;
-}
-
-.card-title {
-  font-size: 15px;
-  font-weight: 600;
-  color: $text-primary;
-}
-
-.action-row {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: $spacing-sm;
-}
-
-.action-btn {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border: 1px solid $border-color-light;
-  border-radius: $border-radius-sm;
-  cursor: pointer;
-  transition: background-color $transition-fast, border-color $transition-fast;
-
-  &:hover {
-    background: $bg-muted;
-    border-color: $border-color;
-  }
-
-  span {
-    font-size: 13px;
-    font-weight: 500;
-    color: $text-regular;
-  }
-}
-
-.action-icon-sm {
-  width: 32px;
-  height: 32px;
-  border-radius: 7px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.activity-list {
-  display: flex;
-  flex-direction: column;
-}
-
-.activity-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 9px 0;
-
-  & + .activity-row { border-top: 1px solid $border-color-light; }
-}
-
-.act-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  margin-top: 7px;
-  flex-shrink: 0;
-}
-
-.act-body {
-  p { font-size: 13px; color: $text-regular; line-height: 1.5; margin-bottom: 1px; }
-  span { font-size: 12px; color: $text-placeholder; }
-}
-
-.todo-list { display: flex; flex-direction: column; }
-.todo-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 10px 0;
-  cursor: pointer;
-
-  & + .todo-row { border-top: 1px solid $border-color-light; }
-}
-
-.todo-text { font-size: 13px; color: $text-regular; }
-.todo-urgent {
-  font-size: 11px;
-  font-weight: 600;
-  color: $danger-color;
-  background: $danger-lighter;
-  padding: 1px 7px;
-  border-radius: $border-radius-full;
-}
-
-.dashboard-empty {
-  color: $text-placeholder;
-  font-size: 13px;
-  padding: $spacing-xl 0 $spacing-sm;
-}
-
-@media (max-width: 960px) {
-  .dashboard-grid {
-    grid-template-columns: 1fr;
-  }
-}
 </style>

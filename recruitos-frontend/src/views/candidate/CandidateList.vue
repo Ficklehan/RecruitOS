@@ -1,13 +1,13 @@
 <template>
-  <ListPageLayout
+  <PageShell variant="list"
     title="候选人列表"
     subtitle="管理候选人信息；选择在招职位后可查看本职位进展与匹配评估"
   >
     <template #actions>
-      <el-button type="primary" @click="handleCreate">
-        <el-icon><Plus /></el-icon>
+      <RButton @click="handleCreate">
+        <Plus class="mr-2 h-4 w-4" />
         添加候选人
-      </el-button>
+      </RButton>
     </template>
 
     <template #toolbar>
@@ -15,434 +15,346 @@
     </template>
 
     <template #filters>
-      <el-input
+      <RInput
         v-model="queryParams.name"
         placeholder="搜索姓名、公司、职位"
-        :prefix-icon="Search"
-        clearable
-        class="filter-field filter-field--lg"
+        class="w-full sm:w-64"
         @keyup.enter="handleSearch"
       />
-      <el-select v-model="queryParams.status" placeholder="状态" clearable class="filter-field filter-field--sm">
-        <el-option v-for="s in statusOptions" :key="s.value" :label="s.label" :value="s.value" />
-      </el-select>
-      <el-select v-model="queryParams.source" placeholder="来源" clearable class="filter-field filter-field--xs">
-        <el-option
-          v-for="s in sourceOptions"
-          :key="s.value"
-          :label="s.label"
-          :value="s.value"
-        />
-      </el-select>
-    </template>
-    <template #filterActions>
-      <el-button type="primary" @click="handleSearch">
-        <el-icon><Search /></el-icon>
-        搜索
-      </el-button>
-      <el-button @click="handleReset">重置</el-button>
-    </template>
-
-    <el-table :data="candidateList" style="width: 100%">
-        <el-table-column prop="name" label="姓名" width="110" show-overflow-tooltip>
-          <template #default="{ row }">
-            <span class="title-link" @click="handleView(row)">{{ row.name }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="公司" min-width="150" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.currentCompany || row.company || '-' }}</template>
-        </el-table-column>
-        <el-table-column label="职位" min-width="130" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.currentTitle || row.position || '-' }}</template>
-        </el-table-column>
-        <el-table-column prop="workYears" label="年限" width="65" align="center">
-          <template #default="{ row }">{{ row.workYears ?? '-' }}</template>
-        </el-table-column>
-        <el-table-column prop="source" label="来源" width="80" align="center">
-          <template #default="{ row }">
-            <el-tag :type="getSourceType(row.source)" size="small" disable-transitions>
-              {{ getSourceLabel(row.source) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column v-if="queryParams.jobId" label="进展" width="100" align="center">
-          <template #default="{ row }">
-            <el-tag size="small" :type="stageTagType(row.pipelineStage)" disable-transitions>
-              {{ pipelineStageLabel(row.pipelineStage) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column v-else label="状态" width="90" align="center">
-          <template #default="{ row }">
-            <el-tag size="small" :type="getStatusType(row.status)" disable-transitions>
-              {{ candidateStatusLabel(row.status) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column v-if="queryParams.jobId" label="匹配" min-width="180">
-          <template #default="{ row }">
-            <MatchVerdict v-if="row.matchDetail" :match-score="row.matchScore" :match-detail="row.matchDetail" mode="compact" :show-score="false" />
-            <span v-else class="text-muted">待评估</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="150" fixed="right">
-          <template #default="{ row }">
-            <el-button type="primary" link size="small" @click="handleView(row)">详情</el-button>
-            <el-dropdown trigger="click" @command="(cmd: string) => handleRowCommand(cmd, row)">
-              <el-button link size="small">更多</el-button>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item command="edit">编辑</el-dropdown-item>
-                  <el-dropdown-item command="link">关联职位</el-dropdown-item>
-                  <el-dropdown-item command="match">查看匹配</el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
-          </template>
-        </el-table-column>
-      </el-table>
-
-    <div class="data-card-footer">
-      <el-pagination
-        v-model:current-page="queryParams.pageNum"
-        v-model:page-size="queryParams.pageSize"
-        :page-sizes="[10, 20, 50, 100]"
-        :total="total"
-        layout="total, sizes, prev, pager, next, jumper"
-        @size-change="handleSearch"
-        @current-change="handleSearch"
+      <RSelect
+        v-model="queryParams.status"
+        :options="statusOptions"
+        placeholder="状态"
+        clearable
+        class="w-full sm:w-40"
       />
-    </div>
+      <RSelect
+        v-model="queryParams.source"
+        :options="sourceOptions"
+        placeholder="来源"
+        clearable
+        class="w-full sm:w-36"
+      />
+    </template>
+
+    <template #filterActions>
+      <RButton @click="handleSearch">
+        <Search class="mr-2 h-4 w-4" />
+        搜索
+      </RButton>
+      <RButton variant="outline" @click="handleReset">重置</RButton>
+      <RButton v-if="selectedRows.length" variant="secondary" @click="handleBatchAdvance">
+        批量推进 ({{ selectedRows.length }})
+      </RButton>
+    </template>
+
+    <RTable v-if="candidateList.length">
+      <RTableHead>
+        <RTableRow>
+          <RTableTh class="w-10" />
+          <RTableTh class="w-[110px]">姓名</RTableTh>
+          <RTableTh class="min-w-[150px]">公司</RTableTh>
+          <RTableTh class="min-w-[130px]">职位</RTableTh>
+          <RTableTh class="w-[65px] text-center">年限</RTableTh>
+          <RTableTh class="w-[80px] text-center">来源</RTableTh>
+          <RTableTh v-if="queryParams.jobId" class="w-[100px] text-center">进展</RTableTh>
+          <RTableTh v-else class="w-[90px] text-center">状态</RTableTh>
+          <RTableTh v-if="queryParams.jobId" class="min-w-[180px]">匹配</RTableTh>
+          <RTableTh class="w-[100px] text-center">操作</RTableTh>
+        </RTableRow>
+      </RTableHead>
+      <RTableBody>
+        <RTableRow
+          v-for="row in candidateList"
+          :key="row.id"
+          :class="rowClassName({ row })"
+        >
+          <RTableCell>
+            <RCheckbox
+              :model-value="selectedIds.includes(row.id)"
+              @update:model-value="(v) => toggleSelect(row.id, v)"
+            />
+          </RTableCell>
+          <RTableCell>
+            <button type="button" class="font-medium text-primary hover:underline" @click="handleView(row)">
+              {{ row.name }}
+            </button>
+          </RTableCell>
+          <RTableCell>{{ row.currentCompany || row.company || '—' }}</RTableCell>
+          <RTableCell>{{ row.currentTitle || row.position || '—' }}</RTableCell>
+          <RTableCell class="text-center">{{ row.workYears ?? '—' }}</RTableCell>
+          <RTableCell class="text-center">
+            <RBadge :variant="elTagTypeToBadge(getSourceType(row.source))">{{ getSourceLabel(row.source) }}</RBadge>
+          </RTableCell>
+          <RTableCell v-if="queryParams.jobId" class="text-center">
+            <RBadge :variant="elTagTypeToBadge(stageTagType(row.pipelineStage))">
+              {{ pipelineStageLabel(row.pipelineStage) }}
+            </RBadge>
+          </RTableCell>
+          <RTableCell v-else class="text-center">
+            <RBadge :variant="elTagTypeToBadge(getStatusType(row.status))">
+              {{ candidateStatusLabel(row.status) }}
+            </RBadge>
+          </RTableCell>
+          <RTableCell v-if="queryParams.jobId">
+            <MatchVerdict
+              v-if="row.matchDetail"
+              :match-score="row.matchScore"
+              :match-detail="row.matchDetail"
+              mode="compact"
+              :show-score="false"
+            />
+            <span v-else class="text-sm text-muted-foreground">待评估</span>
+          </RTableCell>
+          <RTableCell class="text-center">
+            <RowActions :actions="getRowActions(row)" @action="(cmd) => handleRowCommand(cmd, row)" />
+          </RTableCell>
+        </RTableRow>
+      </RTableBody>
+    </RTable>
+
+    <ListPagination
+      v-if="total > 0"
+      v-model:page-num="queryParams.pageNum"
+      v-model:page-size="queryParams.pageSize"
+      :total="total"
+      @change="loadData"
+    />
 
     <template #below>
-    <!-- 添加/编辑候选人 -->
-    <el-dialog v-model="formVisible" :title="isEditing ? '编辑候选人' : '添加候选人'" width="560px" destroy-on-close>
-      <el-form ref="formRef" :model="candidateForm" :rules="formRules" label-width="100px">
-        <el-form-item label="姓名" prop="name">
-          <el-input v-model="candidateForm.name" placeholder="请输入姓名" />
-        </el-form-item>
-        <el-form-item label="电话" prop="phone">
-          <el-input v-model="candidateForm.phone" placeholder="请输入手机号" />
-        </el-form-item>
-        <el-form-item label="邮箱">
-          <el-input v-model="candidateForm.email" placeholder="选填" />
-        </el-form-item>
-        <el-form-item label="当前公司">
-          <el-input v-model="candidateForm.currentCompany" />
-        </el-form-item>
-        <el-form-item label="当前职位">
-          <el-input v-model="candidateForm.currentTitle" />
-        </el-form-item>
-        <el-form-item label="工作年限">
-          <el-input-number v-model="candidateForm.workYears" :min="0" :max="40" />
-        </el-form-item>
-        <el-form-item label="学历">
-          <el-select v-model="candidateForm.education" placeholder="请选择" style="width: 100%">
-            <el-option label="大专" value="大专" />
-            <el-option label="本科" value="本科" />
-            <el-option label="硕士" value="硕士" />
-            <el-option label="博士" value="博士" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="期望薪资(K)">
-          <el-input-number v-model="candidateForm.expectedSalary" :min="0" :step="1" />
-        </el-form-item>
-        <el-form-item label="来源">
-          <el-select v-model="candidateForm.source" style="width: 100%">
-            <el-option v-for="s in sourceOptions" :key="s.value" :label="s.label" :value="s.value" />
-          </el-select>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="formVisible = false">取消</el-button>
-        <el-button type="primary" :loading="formLoading" @click="submitCandidateForm">保存</el-button>
-      </template>
-    </el-dialog>
+      <RDialog v-model:open="formVisible">
+        <DialogContent class="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{{ isEditing ? '编辑候选人' : '添加候选人' }}</DialogTitle>
+          </DialogHeader>
+          <div class="grid gap-4 py-2">
+            <FormField label="姓名" required :error="formErrors.name">
+              <RInput v-model="candidateForm.name" placeholder="请输入姓名" />
+            </FormField>
+            <FormField label="电话" required :error="formErrors.phone">
+              <RInput v-model="candidateForm.phone" placeholder="请输入手机号" />
+            </FormField>
+            <FormField label="邮箱">
+              <RInput v-model="candidateForm.email" placeholder="选填" />
+            </FormField>
+            <FormField label="当前公司">
+              <RInput v-model="candidateForm.currentCompany" />
+            </FormField>
+            <FormField label="当前职位">
+              <RInput v-model="candidateForm.currentTitle" />
+            </FormField>
+            <FormField label="工作年限">
+              <NumberInput v-model="candidateForm.workYears" :min="0" :max="40" />
+            </FormField>
+            <FormField label="学历">
+              <RSelect v-model="candidateForm.education" :options="educationOptions" placeholder="请选择" class="w-full" />
+            </FormField>
+            <FormField label="期望薪资(K)">
+              <NumberInput v-model="candidateForm.expectedSalary" :min="0" :step="1" />
+            </FormField>
+            <FormField label="来源">
+              <RSelect v-model="candidateForm.source" :options="sourceOptions" class="w-full" />
+            </FormField>
+          </div>
+          <DialogFooter>
+            <RButton variant="outline" @click="formVisible = false">取消</RButton>
+            <RButton :disabled="formLoading" @click="submitCandidateForm">保存</RButton>
+          </DialogFooter>
+        </DialogContent>
+      </RDialog>
 
-    <!-- 关联岗位对话框 -->
-    <el-dialog v-model="linkJobVisible" title="关联在招职位" width="480px">
-      <el-form label-width="80px">
-        <el-form-item label="候选人">
-          <el-input :model-value="currentCandidate?.name" disabled />
-        </el-form-item>
-        <el-form-item label="选择在招职位">
-          <el-select v-model="selectedJobId" placeholder="请选择要关联的在招职位" style="width: 100%">
-            <el-option
-              v-for="job in jobOptions"
-              :key="job.id"
-              :label="job.title"
-              :value="job.id"
-            />
-          </el-select>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="linkJobVisible = false">取消</el-button>
-        <el-button type="primary" :loading="linkJobLoading" @click="confirmLinkJob">确定关联</el-button>
-      </template>
-    </el-dialog>
+      <RDialog v-model:open="linkJobVisible">
+        <DialogContent class="max-w-md">
+          <DialogHeader>
+            <DialogTitle>关联在招职位</DialogTitle>
+          </DialogHeader>
+          <div class="grid gap-4 py-2">
+            <FormField label="候选人">
+              <RInput :model-value="currentCandidate?.name" disabled />
+            </FormField>
+            <FormField label="选择在招职位">
+              <RSelect
+                v-model="selectedJobId"
+                :options="jobSelectOptions"
+                placeholder="请选择要关联的在招职位"
+                class="w-full"
+              />
+            </FormField>
+          </div>
+          <DialogFooter>
+            <RButton variant="outline" @click="linkJobVisible = false">取消</RButton>
+            <RButton :disabled="linkJobLoading" @click="confirmLinkJob">确定关联</RButton>
+          </DialogFooter>
+        </DialogContent>
+      </RDialog>
     </template>
-  </ListPageLayout>
+  </PageShell>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import type { FormInstance, FormRules } from 'element-plus'
-import { Search, Plus } from '@element-plus/icons-vue'
-import ListPageLayout from '@/components/Layout/ListPageLayout.vue'
+import { Search, Plus } from 'lucide-vue-next'
+import { toast } from '@/lib/notify'
+import { elTagTypeToBadge } from '@/lib/badgeVariants'
+import PageShell from '@/components/Layout/PageShell.vue'
+import ListPagination from '@/components/common/ListPagination.vue'
+import FormField from '@/components/app/FormField.vue'
+import NumberInput from '@/components/app/NumberInput.vue'
 import MatchVerdict from '@/components/match/MatchVerdict.vue'
 import JobContextBar from '@/components/common/JobContextBar.vue'
+import RowActions from '@/components/common/RowActions.vue'
 import {
-  candidateStatusLabel,
-  pipelineStageLabel,
-  sourceLabel,
-  educationLabel,
-} from '@/constants/businessLabels'
+  RButton,
+  RInput,
+  RSelect,
+  RBadge,
+  RTable,
+  RTableHead,
+  RTableBody,
+  RTableRow,
+  RTableTh,
+  RTableCell,
+  RCheckbox,
+  RDialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui'
+import { candidateStatusLabel, pipelineStageLabel, sourceLabel } from '@/constants/businessLabels'
 import { getCandidateList, addToJob, createCandidate, updateCandidate } from '@/api/modules/candidate'
 import { getJobList } from '@/api/modules/job'
 
 const route = useRoute()
 const router = useRouter()
 
-const queryParams = reactive({
-  name: '',
-  status: '',
-  source: '',
-  jobId: null as number | null,
-  pageNum: 1,
-  pageSize: 20,
-})
-
+const queryParams = reactive({ name: '', status: '' as string | undefined, source: '' as string | undefined, jobId: null as number | null, pageNum: 1, pageSize: 20 })
 const total = ref(0)
 const candidateList = ref<any[]>([])
-
+const selectedIds = ref<number[]>([])
+const selectedRows = computed(() => candidateList.value.filter((r) => selectedIds.value.includes(r.id)))
 const linkJobVisible = ref(false)
 const linkJobLoading = ref(false)
 const currentCandidate = ref<any>(null)
 const selectedJobId = ref<number | null>(null)
 const jobOptions = ref<any[]>([])
-
+const jobSelectOptions = computed(() => jobOptions.value.map((j) => ({ label: j.title, value: j.id })))
 const formVisible = ref(false)
 const formLoading = ref(false)
 const isEditing = ref(false)
 const editingId = ref<number | null>(null)
-const formRef = ref<FormInstance>()
-const candidateForm = reactive({
-  name: '',
-  phone: '',
-  email: '',
-  currentCompany: '',
-  currentTitle: '',
-  workYears: 0,
-  education: '',
-  expectedSalary: undefined as number | undefined,
-  source: 'DIRECT',
-})
-const formRules: FormRules = {
-  name: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
-  phone: [{ required: true, message: '请输入电话', trigger: 'blur' }],
-}
+const candidateForm = reactive({ name: '', phone: '', email: '', currentCompany: '', currentTitle: '', workYears: 0, education: '', expectedSalary: undefined as number | undefined | null, source: 'DIRECT' })
+const formErrors = reactive({ name: '', phone: '' })
 
 const statusOptions = [
-  { label: '新简历', value: 'NEW' },
-  { label: '筛选中', value: 'SCREENING' },
-  { label: '面试中', value: 'INTERVIEWING' },
-  { label: '已发Offer', value: 'OFFER' },
-  { label: '已入职', value: 'ONBOARD' },
-  { label: '人才库', value: 'POOL' },
-  { label: '黑名单', value: 'BLACKLIST' },
+  { label: '新简历', value: 'NEW' }, { label: '筛选中', value: 'SCREENING' }, { label: '面试中', value: 'INTERVIEWING' },
+  { label: '已发Offer', value: 'OFFER' }, { label: '已入职', value: 'ONBOARD' }, { label: '人才库', value: 'POOL' }, { label: '黑名单', value: 'BLACKLIST' },
 ]
-
 const sourceOptions = [
-  { label: '平台', value: 'PLATFORM' },
-  { label: '内推', value: 'REFERRAL' },
-  { label: '猎头', value: 'HEADHUNTER' },
-  { label: '直招', value: 'DIRECT' },
-  { label: '门户', value: 'PORTAL' },
+  { label: '平台', value: 'PLATFORM' }, { label: '内推', value: 'REFERRAL' }, { label: '猎头', value: 'HEADHUNTER' },
+  { label: '直招', value: 'DIRECT' }, { label: '门户', value: 'PORTAL' },
+]
+const educationOptions = [
+  { label: '大专', value: '大专' }, { label: '本科', value: '本科' }, { label: '硕士', value: '硕士' }, { label: '博士', value: '博士' },
 ]
 
-function getStatusType(status: string): string {
-  const map: Record<string, string> = {
-    NEW: 'info', SCREENING: 'warning', INTERVIEWING: '',
-    OFFER: 'success', ONBOARD: 'success', POOL: 'info', BLACKLIST: 'danger',
-  }
-  return map[status] || 'info'
+function getStatusType(s: string) { return ({ NEW: 'info', SCREENING: 'warning', INTERVIEWING: '', OFFER: 'success', ONBOARD: 'success', POOL: 'info', BLACKLIST: 'danger' } as Record<string, string>)[s] || 'info' }
+function stageTagType(s?: string) { return ({ SOURCED: 'info', SCREENING: 'warning', CONTACTED: '', INTERVIEWING: '', EVALUATED: 'success', OFFER: 'success', HIRED: 'success', ARCHIVED: 'info' } as Record<string, string>)[s || ''] || 'info' }
+function getSourceType(s: string) { return ({ PLATFORM: 'primary', REFERRAL: 'success', HEADHUNTER: 'warning', DIRECT: 'info', PORTAL: 'danger' } as Record<string, string>)[s] || 'info' }
+function getSourceLabel(s: string) { return sourceLabel(s) }
+function rowClassName({ row }: { row: any }) {
+  const s = (row.pipelineStage || row.status || '').toLowerCase()
+  if (s === 'new') return 'status-bar--new'
+  if (s === 'screening') return 'status-bar--screening'
+  if (s === 'contacted') return 'status-bar--contacted'
+  if (s === 'interviewing') return 'status-bar--interviewing'
+  if (s === 'evaluated') return 'status-bar--evaluated'
+  if (s === 'offer') return 'status-bar--offer'
+  if (s === 'hired' || s === 'onboard') return 'status-bar--hired'
+  if (s === 'archived' || s === 'pool') return 'status-bar--archived'
+  if (s === 'blacklist') return 'status-bar--blacklist'
+  return ''
 }
 
-function stageTagType(stage?: string): string {
-  const map: Record<string, string> = {
-    SOURCED: 'info', SCREENING: 'warning', CONTACTED: '',
-    INTERVIEWING: '', EVALUATED: 'success', OFFER: 'success', HIRED: 'success', ARCHIVED: 'info',
+function toggleSelect(id: number, checked: boolean) {
+  if (checked) {
+    if (!selectedIds.value.includes(id)) selectedIds.value.push(id)
+  } else {
+    selectedIds.value = selectedIds.value.filter((i) => i !== id)
   }
-  return map[stage || ''] || 'info'
+}
+
+function getRowActions(_row: any) {
+  return [
+    { command: 'view', label: '查看详情', icon: 'View', primary: true },
+    { command: 'edit', label: '编辑', icon: 'Edit' },
+    { command: 'link', label: '关联职位', icon: 'Connection' },
+    { command: 'match', label: '查看匹配', icon: 'DataAnalysis' },
+  ]
 }
 
 function handleRowCommand(cmd: string, row: any) {
-  if (cmd === 'edit') handleEdit(row)
+  if (cmd === 'view') handleView(row)
+  else if (cmd === 'edit') handleEdit(row)
   else if (cmd === 'link') handleLinkJob(row)
   else if (cmd === 'match') handleScreening(row)
 }
 
-function getSourceType(source: string): string {
-  const map: Record<string, string> = {
-    PLATFORM: 'primary', REFERRAL: 'success', HEADHUNTER: 'warning',
-    DIRECT: 'info', PORTAL: 'danger',
-  }
-  return map[source] || 'info'
+function validateForm(): boolean {
+  formErrors.name = candidateForm.name ? '' : '请输入姓名'
+  formErrors.phone = candidateForm.phone ? '' : '请输入电话'
+  return !Object.values(formErrors).some(Boolean)
 }
-
-function getSourceLabel(source: string): string {
-  return sourceLabel(source)
-}
-
-
 
 async function loadData() {
-  try {
-    const res: any = await getCandidateList(queryParams)
-    candidateList.value = res.data?.list || res.data?.records || []
-    total.value = res.data?.total || 0
-  } catch {
-    ElMessage.error('加载候选人列表失败')
-    candidateList.value = []
-    total.value = 0
-  }
+  try { const res: any = await getCandidateList(queryParams); candidateList.value = res.data?.list || res.data?.records || []; total.value = res.data?.total || 0 } catch { candidateList.value = []; total.value = 0 }
 }
-
-function handleSearch() {
-  queryParams.pageNum = 1
-  loadData()
-}
-
-function handleReset() {
-  queryParams.name = ''
-  queryParams.phone = ''
-  queryParams.company = ''
-  queryParams.status = ''
-  queryParams.source = ''
-  queryParams.jobId = null
-  handleSearch()
-}
-
-function resetCandidateForm() {
-  Object.assign(candidateForm, {
-    name: '', phone: '', email: '', currentCompany: '', currentTitle: '',
-    workYears: 0, education: '', expectedSalary: undefined, source: 'DIRECT',
-  })
-}
-
-function handleCreate() {
-  isEditing.value = false
-  editingId.value = null
-  resetCandidateForm()
-  formVisible.value = true
-}
-
-function handleView(row: any) {
-  router.push(`/pipeline/candidates/${row.id}`)
-}
-
+function handleSearch() { queryParams.pageNum = 1; loadData() }
+function handleReset() { queryParams.name = ''; queryParams.status = undefined; queryParams.source = undefined; queryParams.jobId = null; handleSearch() }
+function resetCandidateForm() { Object.assign(candidateForm, { name: '', phone: '', email: '', currentCompany: '', currentTitle: '', workYears: 0, education: '', expectedSalary: undefined, source: 'DIRECT' }); formErrors.name = ''; formErrors.phone = '' }
+function handleCreate() { isEditing.value = false; editingId.value = null; resetCandidateForm(); formVisible.value = true }
+function handleView(row: any) { router.push({ path: `/pipeline/candidates/${row.id}`, query: queryParams.jobId ? { jobId: String(queryParams.jobId) } : {} }) }
 function handleEdit(row: any) {
-  isEditing.value = true
-  editingId.value = row.id
-  Object.assign(candidateForm, {
-    name: row.name || '',
-    phone: row.phone || '',
-    email: row.email || '',
-    currentCompany: row.currentCompany || row.company || '',
-    currentTitle: row.currentTitle || row.position || '',
-    workYears: row.workYears || 0,
-    education: row.education || '',
-    expectedSalary: row.expectedSalary,
-    source: row.source || 'DIRECT',
-  })
+  isEditing.value = true; editingId.value = row.id
+  Object.assign(candidateForm, { name: row.name || '', phone: row.phone || '', email: row.email || '', currentCompany: row.currentCompany || row.company || '', currentTitle: row.currentTitle || row.position || '', workYears: row.workYears || 0, education: row.education || '', expectedSalary: row.expectedSalary, source: row.source || 'DIRECT' })
   formVisible.value = true
 }
 
 async function submitCandidateForm() {
-  if (!formRef.value) return
-  await formRef.value.validate(async (valid) => {
-    if (!valid) return
-    formLoading.value = true
-    try {
-      if (isEditing.value && editingId.value) {
-        await updateCandidate(editingId.value, { ...candidateForm })
-        ElMessage.success('候选人已更新')
-      } else {
-        await createCandidate({ ...candidateForm })
-        ElMessage.success('候选人已添加')
-      }
-      formVisible.value = false
-      loadData()
-    } catch {
-      ElMessage.error('保存失败')
-    } finally {
-      formLoading.value = false
-    }
-  })
+  if (!validateForm()) return
+  formLoading.value = true
+  try {
+    if (isEditing.value && editingId.value) { await updateCandidate(editingId.value, { ...candidateForm }); toast.success('候选人已更新') }
+    else { await createCandidate({ ...candidateForm }); toast.success('候选人已添加') }
+    formVisible.value = false; loadData()
+  } catch { toast.error('保存失败') } finally { formLoading.value = false }
 }
 
 async function handleLinkJob(row: any) {
-  currentCandidate.value = row
-  selectedJobId.value = null
-  linkJobVisible.value = true
-  try {
-    const res: any = await getJobList({ pageNum: 1, pageSize: 100 })
-    jobOptions.value = res.data?.list || res.data?.records || []
-  } catch {
-    ElMessage.error('加载在招职位列表失败')
-    jobOptions.value = []
-  }
+  currentCandidate.value = row; selectedJobId.value = null; linkJobVisible.value = true
+  try { const res: any = await getJobList({ pageNum: 1, pageSize: 100 }); jobOptions.value = res.data?.list || res.data?.records || [] } catch { jobOptions.value = [] }
 }
 
 async function confirmLinkJob() {
   if (!selectedJobId.value || !currentCandidate.value) return
   linkJobLoading.value = true
-  try {
-    await addToJob(currentCandidate.value.id, selectedJobId.value)
-    ElMessage.success('已关联在招职位')
-    linkJobVisible.value = false
-    loadData()
-  } catch {
-    // 错误信息由 request 拦截器展示
-  } finally {
-    linkJobLoading.value = false
-  }
+  try { await addToJob(currentCandidate.value.id, selectedJobId.value); toast.success('已关联在招职位'); linkJobVisible.value = false; loadData() } catch {} finally { linkJobLoading.value = false }
 }
 
 function handleScreening(row: any) {
   const jobId = queryParams.jobId || row.jobId
-  if (jobId) {
-    router.push({
-      path: '/pipeline/decision',
-      query: { candidateId: String(row.id), jobId: String(jobId) },
-    })
-    return
-  }
-  currentCandidate.value = row
-  selectedJobId.value = null
-  linkJobVisible.value = true
-  if (!jobOptions.value.length) {
-    getJobList({ pageNum: 1, pageSize: 100 }).then((res: any) => {
-      jobOptions.value = res.data?.list || res.data?.records || []
-    })
-  }
-  ElMessage.info('请先选择在招职位，或关联职位后再查看匹配评估')
+  if (jobId) { router.push({ path: '/pipeline/decision', query: { candidateId: String(row.id), jobId: String(jobId) } }); return }
+  currentCandidate.value = row; selectedJobId.value = null; linkJobVisible.value = true
+  if (!jobOptions.value.length) getJobList({ pageNum: 1, pageSize: 100 }).then((res: any) => { jobOptions.value = res.data?.list || res.data?.records || [] })
+  toast.info('请先选择在招职位')
 }
 
+function handleBatchAdvance() { toast.info(`批量推进 ${selectedRows.value.length} 位候选人（功能开发中）`) }
+
 onMounted(async () => {
-  const qJob = Number(route.query.jobId)
-  if (qJob) queryParams.jobId = qJob
-  try {
-    const res: any = await getJobList({ pageNum: 1, pageSize: 100, status: 'ACTIVE' })
-    jobOptions.value = res.data?.list || res.data?.records || []
-  } catch { /* ignore */ }
+  const qJob = Number(route.query.jobId); if (qJob) queryParams.jobId = qJob
+  try { const res: any = await getJobList({ pageNum: 1, pageSize: 100, status: 'ACTIVE' }); jobOptions.value = res.data?.list || res.data?.records || [] } catch {}
   loadData()
 })
 </script>
-
-<style lang="scss" scoped>
-@import '@/assets/styles/variables.scss';
-</style>

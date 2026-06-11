@@ -19,6 +19,9 @@ public class PlaywrightManager {
 
     private static final Logger log = LoggerFactory.getLogger(PlaywrightManager.class);
 
+    @javax.annotation.Resource
+    private PlatformAccessGuard platformAccessGuard;
+
     private final Object lock = new Object();
     private Playwright playwright;
     private Browser browser;
@@ -31,6 +34,7 @@ public class PlaywrightManager {
     }
 
     public Browser browser(RpaProperties props) {
+        platformAccessGuard.assertLiveAccessAllowed();
         ensureReady();
         if (browser == null || !browser.isConnected()) {
             BrowserType.LaunchOptions opts = new BrowserType.LaunchOptions()
@@ -56,6 +60,23 @@ public class PlaywrightManager {
                 ctx.close();
             } catch (Exception e) {
                 log.debug("Close context failed accountId={}: {}", accountId, e.getMessage());
+            }
+        }
+    }
+
+    /** 关闭全部浏览器上下文与 Browser 实例（锁定测试模式时调用） */
+    public void shutdownBrowser() {
+        for (Long id : contexts.keySet()) {
+            closeContext(id);
+        }
+        synchronized (lock) {
+            if (browser != null) {
+                try {
+                    browser.close();
+                } catch (Exception e) {
+                    log.debug("Close browser failed: {}", e.getMessage());
+                }
+                browser = null;
             }
         }
     }

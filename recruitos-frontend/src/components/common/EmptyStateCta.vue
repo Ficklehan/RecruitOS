@@ -1,62 +1,47 @@
-<template>
-  <div class="empty-state-cta" :class="{ 'empty-state-cta--compact': compact }">
-    <el-empty :description="description" :image-size="imageSize">
-      <template v-if="title" #default>
-        <p class="empty-title">{{ title }}</p>
-      </template>
-    </el-empty>
-    <div v-if="actions.length" class="empty-actions">
-      <el-button
-        v-for="action in actions"
-        :key="action.label"
-        :type="action.type || 'default'"
-        @click="action.onClick"
-      >
-        {{ action.label }}
-      </el-button>
-    </div>
-  </div>
-</template>
-
 <script setup lang="ts">
-withDefaults(defineProps<{
+import { cn } from '@/lib/utils'
+import { RButton, REmpty } from '@/components/ui'
+
+interface Action {
+  label: string
+  type?: 'default' | 'primary' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link'
+  onClick: () => void
+}
+
+function buttonVariant(type?: Action['type']) {
+  if (type === 'primary' || type === 'default') return 'primary' as const
+  if (type === 'destructive') return 'danger' as const
+  return 'outline' as const
+}
+
+interface Props {
   title?: string
   description: string
   imageSize?: number
   compact?: boolean
-  actions?: { label: string; type?: '' | 'default' | 'primary' | 'success' | 'warning' | 'info' | 'danger'; onClick: () => void }[]
-}>(), {
+  actions?: Action[]
+  class?: string
+}
+
+const props = withDefaults(defineProps<Props>(), {
   imageSize: 72,
   compact: false,
   actions: () => [],
 })
 </script>
 
-<style scoped lang="scss">
-@import '@/assets/styles/variables.scss';
-
-.empty-state-cta {
-  text-align: center;
-  padding: 32px 24px 28px;
-  width: 100%;
-}
-
-.empty-state-cta--compact {
-  padding: 20px 16px;
-}
-
-.empty-title {
-  margin: 0 0 4px;
-  font-size: 15px;
-  font-weight: 600;
-  color: $text-primary;
-}
-
-.empty-actions {
-  display: flex;
-  justify-content: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 4px;
-}
-</style>
+<template>
+  <div :class="cn('flex flex-col items-center justify-center text-center', compact ? 'py-5 px-4' : 'py-8 px-6', props.class)">
+    <REmpty :title="title || '暂无数据'" :description="description" />
+    <div v-if="actions.length" class="flex flex-wrap justify-center gap-2 mt-4">
+      <RButton
+        v-for="action in actions"
+        :key="action.label"
+        :variant="buttonVariant(action.type)"
+        @click="action.onClick"
+      >
+        {{ action.label }}
+      </RButton>
+    </div>
+  </div>
+</template>

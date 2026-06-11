@@ -1,16 +1,11 @@
 <template>
-  <div class="page-container page-stack">
-    <!-- 页面头部 -->
-    <div class="page-header">
-      <div>
-        <h2 class="page-title">招聘需求看板</h2>
-        <p class="page-subtitle">总览招聘需求审批与执行进度</p>
-      </div>
-      <el-button @click="handleRefresh">
-        <el-icon><Refresh /></el-icon>
+  <PageShell title="招聘需求看板" subtitle="总览招聘需求审批与执行进度">
+    <template #actions>
+      <RButton variant="outline" @click="handleRefresh">
+        <RefreshCw class="mr-2 h-4 w-4" />
         刷新
-      </el-button>
-    </div>
+      </RButton>
+    </template>
 
     <!-- 统计卡片 -->
     <div class="stat-cards">
@@ -18,28 +13,28 @@
         label="招聘需求总数"
         :value="boardStats.total"
         icon="Document"
-        color="#3B82F6"
+        color="$primary-color"
         :trend="12"
       />
       <StatCard
         label="审批中"
         :value="boardStats.pending"
         icon="Clock"
-        color="#D97706"
+        color="$warning-color"
         :trend="-5"
       />
       <StatCard
         label="招聘中"
         :value="boardStats.recruiting"
         icon="UserFilled"
-        color="#059669"
+        color="$success-color"
         :trend="8"
       />
       <StatCard
         label="已完成"
         :value="boardStats.completed"
         icon="CircleCheck"
-        color="#64748B"
+        color="$text-secondary"
         :trend="3"
       />
     </div>
@@ -69,45 +64,51 @@
     <div class="chart-card full-width">
       <h3 class="chart-title">
         <span>SLA 告警</span>
-        <el-tag v-if="slaAlerts.length > 0" type="danger" size="small" disable-transitions>
+        <RBadge v-if="slaAlerts.length > 0" variant="destructive">
           {{ slaAlerts.length }} 条告警
-        </el-tag>
+        </RBadge>
       </h3>
-      <el-table :data="slaAlerts" stripe style="width: 100%" :row-class-name="() => 'sla-row'">
-        <el-table-column prop="demandNo" label="需求编号" width="160" />
-        <el-table-column prop="title" label="需求标题" min-width="200" show-overflow-tooltip />
-        <el-table-column prop="department" label="部门" width="120" />
-        <el-table-column prop="alertType" label="告警类型" width="160">
-          <template #default="{ row }">
-            <el-tag type="danger" size="small" disable-transitions>{{ row.alertType }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="overdueDays" label="超期天数" width="120" align="center">
-          <template #default="{ row }">
-            <span class="overdue-days">{{ row.overdueDays }} 天</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="status" label="当前状态" width="120" align="center">
-          <template #default="{ row }">
-            <el-tag :type="getStatusType(row.status)" size="small" disable-transitions>
-              {{ getStatusLabel(row.status) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="createdAt" label="创建时间" width="170" />
-      </el-table>
-      <div v-if="slaAlerts.length === 0" class="empty-alert">
-        <el-icon :size="48" color="#94A3B8"><CircleCheck /></el-icon>
+      <RTable v-if="slaAlerts.length">
+        <RTableHead>
+          <RTableRow>
+            <RTableTh class="w-[160px]">需求编号</RTableTh>
+            <RTableTh class="min-w-[200px]">需求标题</RTableTh>
+            <RTableTh class="w-[120px]">部门</RTableTh>
+            <RTableTh class="w-[160px]">告警类型</RTableTh>
+            <RTableTh class="w-[120px] text-center">超期天数</RTableTh>
+            <RTableTh class="w-[120px] text-center">当前状态</RTableTh>
+            <RTableTh class="w-[170px]">创建时间</RTableTh>
+          </RTableRow>
+        </RTableHead>
+        <RTableBody>
+          <RTableRow v-for="row in slaAlerts" :key="row.demandNo" class="sla-row">
+            <RTableCell>{{ row.demandNo }}</RTableCell>
+            <RTableCell>{{ row.title }}</RTableCell>
+            <RTableCell>{{ row.department }}</RTableCell>
+            <RTableCell><RBadge variant="destructive">{{ row.alertType }}</RBadge></RTableCell>
+            <RTableCell class="text-center"><span class="overdue-days">{{ row.overdueDays }} 天</span></RTableCell>
+            <RTableCell class="text-center">
+              <RBadge :variant="demandStatusBadge(row.status)">{{ getStatusLabel(row.status) }}</RBadge>
+            </RTableCell>
+            <RTableCell>{{ row.createdAt }}</RTableCell>
+          </RTableRow>
+        </RTableBody>
+      </RTable>
+      <div v-else class="empty-alert">
+        <CircleCheck class="h-12 w-12 text-muted-foreground" />
         <p>暂无 SLA 告警</p>
       </div>
     </div>
-  </div>
+</PageShell>
 </template>
 
 <script setup lang="ts">
+import PageShell from '@/components/Layout/PageShell.vue'
 import { ref, reactive, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import * as echarts from 'echarts'
-import { Refresh, CircleCheck } from '@element-plus/icons-vue'
+import { RefreshCw, CircleCheck } from 'lucide-vue-next'
+import { RButton, RBadge, RTable, RTableHead, RTableBody, RTableRow, RTableTh, RTableCell } from '@/components/ui'
+import { demandStatusBadge } from '@/lib/badgeVariants'
 import StatCard from '@/components/StatCard.vue'
 import { demandStatusLabel } from '@/constants/businessLabels'
 import { getDemandBoard } from '@/api/modules/demand'
@@ -131,15 +132,6 @@ let funnelChart: echarts.ECharts | null = null
 let pieChart: echarts.ECharts | null = null
 let barChart: echarts.ECharts | null = null
 
-// 状态映射
-function getStatusType(status: string) {
-  const map: Record<string, string> = {
-    DRAFT: 'info', PENDING: 'warning', APPROVED: 'success', REJECTED: 'danger',
-    JOB_CREATED: 'primary', RECRUITING: 'warning', COMPLETED: 'success', CLOSED: 'info',
-  }
-  return map[status] || 'info'
-}
-
 function getStatusLabel(status: string) {
   return demandStatusLabel(status)
 }
@@ -153,7 +145,7 @@ function initFunnelChart() {
       trigger: 'item',
       formatter: '{b}: {c}',
     },
-    color: ['#3B82F6', '#059669', '#D97706', '#DC2626', '#64748B', '#b37feb', '#36cfc9'],
+    color: ['$primary-color', '$success-color', '$warning-color', '#DC2626', '$text-secondary', '#b37feb', '#36cfc9'],
     series: [
       {
         type: 'funnel',
@@ -203,9 +195,9 @@ function initPieChart() {
       orient: 'vertical',
       right: '5%',
       top: 'center',
-      textStyle: { fontSize: 13, color: '#334155' },
+      textStyle: { fontSize: 13, color: '$text-regular' },
     },
-    color: ['#3B82F6', '#059669', '#D97706', '#DC2626', '#64748B', '#b37feb', '#36cfc9'],
+    color: ['$primary-color', '$success-color', '$warning-color', '#DC2626', '$text-secondary', '#b37feb', '#36cfc9'],
     series: [
       {
         type: 'pie',
@@ -263,7 +255,7 @@ function initBarChart() {
       data: ['需求人数', '已录用'],
       top: 0,
       right: 0,
-      textStyle: { fontSize: 13, color: '#334155' },
+      textStyle: { fontSize: 13, color: '$text-regular' },
     },
     grid: {
       left: '3%',
@@ -278,15 +270,15 @@ function initBarChart() {
       axisLabel: {
         rotate: 30,
         fontSize: 12,
-        color: '#64748B',
+        color: '$text-secondary',
       },
-      axisLine: { lineStyle: { color: '#F1F5F9' } },
+      axisLine: { lineStyle: { color: '$bg-muted' } },
     },
     yAxis: {
       type: 'value',
       axisLine: { show: false },
-      splitLine: { lineStyle: { color: '#F1F5F9' } },
-      axisLabel: { color: '#64748B' },
+      splitLine: { lineStyle: { color: '$bg-muted' } },
+      axisLabel: { color: '$text-secondary' },
     },
     series: [
       {
@@ -295,7 +287,7 @@ function initBarChart() {
         barWidth: 24,
         itemStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: '#3B82F6' },
+            { offset: 0, color: '$primary-color' },
             { offset: 1, color: '#a0cfff' },
           ]),
           borderRadius: [4, 4, 0, 0],
@@ -308,7 +300,7 @@ function initBarChart() {
         barWidth: 24,
         itemStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: '#059669' },
+            { offset: 0, color: '$success-color' },
             { offset: 1, color: '#b3e19d' },
           ]),
           borderRadius: [4, 4, 0, 0],

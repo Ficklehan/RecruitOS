@@ -74,18 +74,23 @@ recruitos:
     base-url: http://localhost:8090
     enabled: true
     timeout-ms: 3000
-
-logging:
-  level:
-    com.recruitos: debug
-
-recruitos:
+  llm:
+    base-url: http://localhost:8095
+    enabled: true
+    timeout-ms: 30000
   agent:
     rpa:
+      # 寻源编排开关：true 时 Campaign 可运行（默认走模拟，不连真实平台）
       enabled: true
+      # 平台实况访问：测试阶段务必 false，禁止连接 Boss/猎聘；手动联调时再改 true
+      platform-access-enabled: false
       headless: false
       fallback-simulated: false
       session-dir: ./data/rpa-sessions
       login-timeout-seconds: 300
       action-timeout-ms: 45000
       slow-mo-ms: 80
+
+logging:
+  level:
+    com.recruitos: debug

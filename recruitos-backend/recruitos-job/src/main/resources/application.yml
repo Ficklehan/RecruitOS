@@ -72,3 +72,13 @@ knife4j:
 logging:
   level:
     com.recruitos: debug
+
+recruitos:
+  llm:
+    base-url: http://localhost:8095
+    enabled: true
+    timeout-ms: 120000
+  evolution:
+    base-url: http://localhost:8090
+    enabled: true
+    timeout-ms: 3000

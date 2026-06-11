@@ -1,18 +1,25 @@
 package com.recruitos.evolution.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.recruitos.evolution.dto.HealthVO;
 import com.recruitos.evolution.entity.EvolutionSignal;
 import com.recruitos.evolution.entity.JobWeightSnapshot;
 import com.recruitos.evolution.mapper.EvolutionSignalMapper;
 import com.recruitos.evolution.mapper.JobWeightSnapshotMapper;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Set;
 import java.util.List;
 
 @Service
@@ -27,6 +34,8 @@ public class HealthService {
     @Resource
     private JobWeightSnapshotMapper jobWeightSnapshotMapper;
 
+    @Resource
+    private ObjectMapper objectMapper;
     public HealthVO getJobHealth(Long jobId) {
         Long tenantId = TenantContextHelper.requireTenantId();
 
@@ -59,6 +68,7 @@ public class HealthService {
         vo.setOverallScore(overallScore);
         vo.setDataSufficiencyScore(dataSufficiencyScore);
         vo.setWeightStabilityScore(weightStabilityScore);
+        vo.setWeightStabilityEvidence("基于最近" + recentSnapshots.size() + "个权重快照的标签方差分析");
         vo.setMatchQualityScore(matchQualityScore);
         vo.setEvolutionFreshnessScore(evolutionFreshnessScore);
         vo.setStatus(status);
@@ -206,11 +216,81 @@ public class HealthService {
         return 20;
     }
 
+    /**
+     * 真实计算权重稳定性：比较最近N个snapshot的标签权重方差。
+     * 替代之前的硬编码75。变化越小越稳定。
+     */
     private int calculateWeightStabilityScore(List<JobWeightSnapshot> snapshots) {
         if (snapshots.size() < 2) {
             return 50;
         }
-        return 75;
+        try {
+            List<Map<String, Double>> weightVectors = new ArrayList<>();
+            for (JobWeightSnapshot s : snapshots) {
+                Map<String, Double> vec = extractWeights(s);
+                if (!vec.isEmpty()) {
+                    weightVectors.add(vec);
+                }
+            }
+            if (weightVectors.size() < 2) {
+                return 50;
+            }
+
+            double totalChange = 0;
+            int comparisons = 0;
+            for (int i = 1; i < weightVectors.size(); i++) {
+                Map<String, Double> prev = weightVectors.get(i - 1);
+                Map<String, Double> curr = weightVectors.get(i);
+                Set<String> allTags = new HashSet<>();
+                allTags.addAll(prev.keySet());
+                allTags.addAll(curr.keySet());
+                if (allTags.isEmpty()) continue;
+                double change = 0;
+                for (String tag : allTags) {
+                    double p = prev.getOrDefault(tag, 0.0);
+                    double c = curr.getOrDefault(tag, 0.0);
+                    change += Math.abs(c - p);
+                }
+                totalChange += change / allTags.size();
+                comparisons++;
+            }
+            if (comparisons == 0) return 50;
+            double avgChange = totalChange / comparisons;
+
+            if (avgChange <= 0.01) return 98;
+            if (avgChange <= 0.02) return (int)(95 - (avgChange - 0.01) / 0.01 * 10);
+            if (avgChange <= 0.05) return (int)(85 - (avgChange - 0.02) / 0.03 * 10);
+            if (avgChange <= 0.10) return (int)(75 - (avgChange - 0.05) / 0.05 * 20);
+            if (avgChange <= 0.20) return (int)(55 - (avgChange - 0.10) / 0.10 * 20);
+            return Math.max(10, (int)(35 - (avgChange - 0.20) * 50));
+        } catch (Exception e) {
+            return 50;
+        }
+    }
+
+    /**
+     * 从JobWeightSnapshot的tagsSnapshot JSON中提取标签名→权重的映射。
+     */
+    @SuppressWarnings("unchecked")
+    private Map<String, Double> extractWeights(JobWeightSnapshot snapshot) {
+        Map<String, Double> weights = new LinkedHashMap<>();
+        if (snapshot == null || !org.springframework.util.StringUtils.hasText(snapshot.getTagsSnapshot())) {
+            return weights;
+        }
+        try {
+            List<Map<String, Object>> tags = objectMapper.readValue(
+                snapshot.getTagsSnapshot(), new TypeReference<List<Map<String, Object>>>() {});
+            for (Map<String, Object> tag : tags) {
+                Object name = tag.get("tag");
+                if (name == null) continue;
+                double w = 0;
+                Object dw = tag.get("decisionWeight");
+                if (dw == null) dw = tag.get("decision_weight");
+                if (dw instanceof Number) w = ((Number) dw).doubleValue();
+                if (w > 0) weights.put(name.toString(), w);
+            }
+        } catch (Exception ignored) { }
+        return weights;
     }
 
     private int calculateMatchQualityScore(long signalCount) {

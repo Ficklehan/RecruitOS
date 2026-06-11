@@ -1,167 +1,165 @@
 <template>
-  <div class="page-container page-stack">
-    <!-- 页面头部 -->
-    <div class="page-header">
-      <h2 class="page-title">入职列表</h2>
-      <el-button type="primary" @click="handleCreate">
-        <el-icon><Plus /></el-icon>
+  <PageShell variant="list" title="入职列表" subtitle="管理候选人入职流程与状态">
+    <template #actions>
+      <RButton @click="handleCreate">
+        <Plus class="mr-2 h-4 w-4" />
         新建入职
-      </el-button>
-    </div>
+      </RButton>
+    </template>
 
-    <!-- 搜索栏 -->
-    <div class="filter-bar">
-      <el-input
+    <template #filters>
+      <RInput
         v-model="queryParams.keyword"
         placeholder="搜索候选人/岗位"
-        :prefix-icon="Search"
-        clearable
-        style="width: 240px"
+        class="w-full sm:w-60"
         @keyup.enter="handleSearch"
       />
-      <el-select v-model="queryParams.status" placeholder="入职状态" clearable style="width: 140px">
-        <el-option label="全部" value="" />
-        <el-option label="待入职" value="PENDING" />
-        <el-option label="已确认" value="CONFIRMED" />
-        <el-option label="已取消" value="CANCELLED" />
-        <el-option label="已完成" value="COMPLETED" />
-      </el-select>
-      <el-date-picker
-        v-model="queryParams.date"
-        type="daterange"
-        range-separator="至"
-        start-placeholder="开始日期"
-        end-placeholder="结束日期"
-        style="width: 260px"
-        value-format="YYYY-MM-DD"
+      <RSelect
+        v-model="queryParams.status"
+        :options="statusOptions"
+        placeholder="入职状态"
+        clearable
+        class="w-full sm:w-40"
       />
-      <el-button type="primary" @click="handleSearch">
-        <el-icon><Search /></el-icon>
+      <DateRangePicker v-model="queryParams.date" />
+    </template>
+
+    <template #filterActions>
+      <RButton @click="handleSearch">
+        <Search class="mr-2 h-4 w-4" />
         搜索
-      </el-button>
-      <el-button @click="handleReset">
-        <el-icon><RefreshRight /></el-icon>
+      </RButton>
+      <RButton variant="outline" @click="handleReset">
+        <RefreshCw class="mr-2 h-4 w-4" />
         重置
-      </el-button>
-    </div>
+      </RButton>
+    </template>
 
-    <!-- 数据表格 -->
-    <div class="data-card">
-      <el-table :data="onboardList" stripe highlight-current-row style="width: 100%">
-        <el-table-column prop="candidateName" label="候选人" width="100">
-          <template #default="{ row }">
-            <span class="title-link">{{ row.candidateName }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="jobTitle" label="岗位" min-width="160" show-overflow-tooltip />
-        <el-table-column prop="onboardDate" label="入职日期" width="130" align="center" />
-        <el-table-column prop="hrManager" label="HR负责人" width="110" />
-        <el-table-column prop="status" label="状态" width="100" align="center">
-          <template #default="{ row }">
-            <el-tag :type="getStatusType(row.status)" size="small" disable-transitions>
-              {{ getStatusLabel(row.status) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="260" fixed="right">
-          <template #default="{ row }">
-            <el-button type="primary" link size="small" @click="handleTask(row)">任务</el-button>
-            <el-button
-              v-if="row.status !== 'COMPLETED'"
-              type="success"
-              link
-              size="small"
-              @click="handleComplete(row)"
-            >完成入职</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+    <RTable v-if="onboardList.length">
+      <RTableHead>
+        <RTableRow>
+          <RTableTh class="w-[100px]">候选人</RTableTh>
+          <RTableTh class="min-w-[160px]">岗位</RTableTh>
+          <RTableTh class="w-[130px] text-center">入职日期</RTableTh>
+          <RTableTh class="w-[110px]">HR负责人</RTableTh>
+          <RTableTh class="w-[100px] text-center">状态</RTableTh>
+          <RTableTh class="w-[100px] text-center">操作</RTableTh>
+        </RTableRow>
+      </RTableHead>
+      <RTableBody>
+        <RTableRow v-for="row in onboardList" :key="row.id">
+          <RTableCell>
+            <span class="font-medium text-primary">{{ row.candidateName }}</span>
+          </RTableCell>
+          <RTableCell>{{ row.jobTitle }}</RTableCell>
+          <RTableCell class="text-center">{{ row.onboardDate }}</RTableCell>
+          <RTableCell>{{ row.hrManager }}</RTableCell>
+          <RTableCell class="text-center">
+            <RBadge :variant="elTagTypeToBadge(getStatusType(row.status))">{{ getStatusLabel(row.status) }}</RBadge>
+          </RTableCell>
+          <RTableCell class="text-center">
+            <RowActions :actions="getRowActions(row)" @action="(cmd) => handleRowCommand(cmd, row)" />
+          </RTableCell>
+        </RTableRow>
+      </RTableBody>
+    </RTable>
 
-      <!-- 分页 -->
-      <el-pagination
-        v-model:current-page="queryParams.pageNum"
-        v-model:page-size="queryParams.pageSize"
-        :page-sizes="[10, 20, 50, 100]"
-        :total="total"
-        layout="total, sizes, prev, pager, next, jumper"
-        @size-change="handleSearch"
-        @current-change="handleSearch"
-      />
-    </div>
+    <ListPagination
+      v-if="total > 0"
+      v-model:page-num="queryParams.pageNum"
+      v-model:page-size="queryParams.pageSize"
+      :total="total"
+      @change="loadData"
+    />
 
-    <!-- 创建/编辑对话框 -->
-    <el-dialog
-      v-model="dialogVisible"
-      :title="dialogTitle"
-      width="520px"
-      destroy-on-close
-    >
-      <el-form ref="formRef" :model="formData" :rules="formRules" label-width="90px">
-        <el-form-item label="候选人" prop="candidateName">
-          <el-input v-model="formData.candidateName" placeholder="请输入候选人姓名" />
-        </el-form-item>
-        <el-form-item label="岗位" prop="jobTitle">
-          <el-input v-model="formData.jobTitle" placeholder="请输入岗位名称" />
-        </el-form-item>
-        <el-form-item label="入职日期" prop="onboardDate">
-          <el-date-picker
-            v-model="formData.onboardDate"
-            type="date"
-            placeholder="选择入职日期"
-            style="width: 100%"
-            value-format="YYYY-MM-DD"
-          />
-        </el-form-item>
-        <el-form-item label="HR负责人" prop="hrManager">
-          <el-input v-model="formData.hrManager" placeholder="请输入HR负责人" />
-        </el-form-item>
-        <el-form-item label="备注" prop="remark">
-          <el-input
-            v-model="formData.remark"
-            type="textarea"
-            :rows="3"
-            placeholder="请输入备注信息"
-          />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitLoading" @click="handleSubmit">确定</el-button>
-      </template>
-    </el-dialog>
-  </div>
+    <template #below>
+      <RDialog v-model:open="dialogVisible">
+        <DialogContent class="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{{ dialogTitle }}</DialogTitle>
+          </DialogHeader>
+          <div class="grid gap-4 py-2">
+            <FormField label="候选人" required :error="formErrors.candidateName">
+              <RInput v-model="formData.candidateName" placeholder="请输入候选人姓名" />
+            </FormField>
+            <FormField label="岗位" required :error="formErrors.jobTitle">
+              <RInput v-model="formData.jobTitle" placeholder="请输入岗位名称" />
+            </FormField>
+            <FormField label="入职日期" required :error="formErrors.onboardDate">
+              <RInput v-model="formData.onboardDate" type="date" class="w-full" />
+            </FormField>
+            <FormField label="HR负责人" required :error="formErrors.hrManager">
+              <RInput v-model="formData.hrManager" placeholder="请输入HR负责人" />
+            </FormField>
+            <FormField label="备注">
+              <RTextarea v-model="formData.remark" placeholder="请输入备注信息" :rows="3" />
+            </FormField>
+          </div>
+          <DialogFooter>
+            <RButton variant="outline" @click="dialogVisible = false">取消</RButton>
+            <RButton :disabled="submitLoading" @click="handleSubmit">确定</RButton>
+          </DialogFooter>
+        </DialogContent>
+      </RDialog>
+    </template>
+  </PageShell>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import type { FormInstance, FormRules } from 'element-plus'
-import { Search, Plus, RefreshRight } from '@element-plus/icons-vue'
+import { Plus, Search, RefreshCw } from 'lucide-vue-next'
+import { toast } from '@/lib/notify'
+import { elTagTypeToBadge } from '@/lib/badgeVariants'
+import RowActions from '@/components/common/RowActions.vue'
+import PageShell from '@/components/Layout/PageShell.vue'
+import ListPagination from '@/components/common/ListPagination.vue'
+import FormField from '@/components/app/FormField.vue'
+import DateRangePicker from '@/components/app/DateRangePicker.vue'
+import {
+  RButton,
+  RInput,
+  RSelect,
+  RBadge,
+  RTable,
+  RTableHead,
+  RTableBody,
+  RTableRow,
+  RTableTh,
+  RTableCell,
+  RDialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  RTextarea,
+} from '@/components/ui'
 import { getOnboardList, createOnboard, updateOnboardStatus } from '@/api/modules/onboard'
 
 const router = useRouter()
 
-// 查询参数
 const queryParams = reactive({
   keyword: '',
-  status: '',
-  date: null as string[] | null,
+  status: '' as string | undefined,
+  date: null as [string, string] | null,
   pageNum: 1,
   pageSize: 20,
 })
 
+const statusOptions = [
+  { label: '待入职', value: 'PENDING' },
+  { label: '已确认', value: 'CONFIRMED' },
+  { label: '已取消', value: 'CANCELLED' },
+  { label: '已完成', value: 'COMPLETED' },
+]
+
 const total = ref(0)
 const onboardList = ref<any[]>([])
-
-// 对话框
 const dialogVisible = ref(false)
 const dialogType = ref<'create' | 'edit'>('create')
 const submitLoading = ref(false)
-const formRef = ref<FormInstance>()
-const currentEditId = ref<number | null>(null)
 
-const dialogTitle = computed(() => dialogType.value === 'create' ? '新建入职' : '编辑入职')
+const dialogTitle = computed(() => (dialogType.value === 'create' ? '新建入职' : '编辑入职'))
 
 const formData = reactive({
   candidateName: '',
@@ -171,14 +169,13 @@ const formData = reactive({
   remark: '',
 })
 
-const formRules: FormRules = {
-  candidateName: [{ required: true, message: '请输入候选人姓名', trigger: 'blur' }],
-  jobTitle: [{ required: true, message: '请输入岗位名称', trigger: 'blur' }],
-  onboardDate: [{ required: true, message: '请选择入职日期', trigger: 'change' }],
-  hrManager: [{ required: true, message: '请输入HR负责人', trigger: 'blur' }],
-}
+const formErrors = reactive({
+  candidateName: '',
+  jobTitle: '',
+  onboardDate: '',
+  hrManager: '',
+})
 
-// 状态映射
 function getStatusType(status: string): string {
   const map: Record<string, string> = {
     PENDING: 'warning',
@@ -199,6 +196,26 @@ function getStatusLabel(status: string): string {
   return map[status] || status
 }
 
+function getRowActions(_row: any) {
+  return [
+    { command: 'task', label: '任务', icon: 'List', primary: true },
+    { command: 'complete', label: '完成入职', icon: 'CircleCheck' },
+  ]
+}
+
+function handleRowCommand(cmd: string, row: any) {
+  if (cmd === 'task') handleTask(row)
+  else if (cmd === 'complete') handleComplete(row)
+}
+
+function validateForm(): boolean {
+  formErrors.candidateName = formData.candidateName ? '' : '请输入候选人姓名'
+  formErrors.jobTitle = formData.jobTitle ? '' : '请输入岗位名称'
+  formErrors.onboardDate = formData.onboardDate ? '' : '请选择入职日期'
+  formErrors.hrManager = formData.hrManager ? '' : '请输入HR负责人'
+  return !Object.values(formErrors).some(Boolean)
+}
+
 async function loadData() {
   const params: any = {
     pageNum: queryParams.pageNum,
@@ -206,7 +223,7 @@ async function loadData() {
   }
   if (queryParams.keyword) params.keyword = queryParams.keyword
   if (queryParams.status) params.onboardStatus = queryParams.status
-  if (queryParams.date && queryParams.date.length === 2) {
+  if (queryParams.date?.length === 2) {
     params.startDate = queryParams.date[0]
     params.endDate = queryParams.date[1]
   }
@@ -228,7 +245,7 @@ function handleSearch() {
 
 function handleReset() {
   queryParams.keyword = ''
-  queryParams.status = ''
+  queryParams.status = undefined
   queryParams.date = null
   handleSearch()
 }
@@ -239,7 +256,7 @@ function resetForm() {
   formData.onboardDate = ''
   formData.hrManager = ''
   formData.remark = ''
-  currentEditId.value = null
+  Object.keys(formErrors).forEach((k) => ((formErrors as any)[k] = ''))
 }
 
 function handleCreate() {
@@ -254,50 +271,30 @@ function handleTask(row: any) {
 
 async function handleComplete(row: any) {
   await updateOnboardStatus(row.id, 'COMPLETED')
-  ElMessage.success('入职已完成，编制已回写')
+  toast.success('入职已完成，编制已回写')
   loadData()
 }
 
 async function handleSubmit() {
-  if (!formRef.value) return
-  await formRef.value.validate(async (valid) => {
-    if (valid) {
-      submitLoading.value = true
-      try {
-        const payload = {
-          candidateName: formData.candidateName,
-          jobTitle: formData.jobTitle,
-          onboardDate: formData.onboardDate,
-          hrName: formData.hrManager,
-          remark: formData.remark,
-        }
-        await createOnboard(payload)
-        ElMessage.success('创建成功')
-        dialogVisible.value = false
-        loadData()
-      } catch {
-        // error handled by interceptor
-      } finally {
-        submitLoading.value = false
-      }
-    }
-  })
-}
-
-onMounted(() => {
-  loadData()
-})
-</script>
-
-<style lang="scss" scoped>
-@import '@/assets/styles/variables.scss';
-.title-link {
-  color: $primary-color;
-  cursor: pointer;
-  font-weight: 500;
-
-  &:hover {
-    text-decoration: underline;
+  if (!validateForm()) return
+  submitLoading.value = true
+  try {
+    await createOnboard({
+      candidateName: formData.candidateName,
+      jobTitle: formData.jobTitle,
+      onboardDate: formData.onboardDate,
+      hrName: formData.hrManager,
+      remark: formData.remark,
+    })
+    toast.success('创建成功')
+    dialogVisible.value = false
+    loadData()
+  } catch {
+    /* interceptor */
+  } finally {
+    submitLoading.value = false
   }
 }
-</style>
+
+onMounted(() => loadData())
+</script>

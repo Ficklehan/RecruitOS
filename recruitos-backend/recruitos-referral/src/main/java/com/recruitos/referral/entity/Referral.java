@@ -29,8 +29,12 @@ public class Referral extends BaseEntity {
     /** Job title */
     private String jobTitle;
 
-    /** Status: PENDING/INTERVIEW/OFFER/HIRED/REJECTED */
+    /** Status: SUBMITTED/SCREENING/INTERVIEWING/HIRED/REJECTED */
     private String status;
+
+    private java.math.BigDecimal rewardAmount;
+    private String rewardStatus;
+    private java.time.LocalDateTime rewardPaidAt;
 
     /** Remark */
     private String remark;
@@ -94,6 +98,30 @@ public class Referral extends BaseEntity {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public java.math.BigDecimal getRewardAmount() {
+        return rewardAmount;
+    }
+
+    public void setRewardAmount(java.math.BigDecimal rewardAmount) {
+        this.rewardAmount = rewardAmount;
+    }
+
+    public String getRewardStatus() {
+        return rewardStatus;
+    }
+
+    public void setRewardStatus(String rewardStatus) {
+        this.rewardStatus = rewardStatus;
+    }
+
+    public java.time.LocalDateTime getRewardPaidAt() {
+        return rewardPaidAt;
+    }
+
+    public void setRewardPaidAt(java.time.LocalDateTime rewardPaidAt) {
+        this.rewardPaidAt = rewardPaidAt;
     }
 
     public String getRemark() {

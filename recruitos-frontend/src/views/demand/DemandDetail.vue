@@ -1,52 +1,40 @@
 <template>
-  <div class="page-container page-stack">
-    <!-- 页面头部 -->
-    <div class="page-header">
-      <div class="header-left">
-        <el-button @click="goBack" text>
-          <el-icon><ArrowLeft /></el-icon>
-          返回
-        </el-button>
-        <h2 class="page-title">{{ detail.title || '招聘需求详情' }}</h2>
-        <el-tag :type="getStatusType(detail.status)" size="large" disable-transitions>
-          {{ getStatusLabel(detail.status) }}
-        </el-tag>
-      </div>
-      <div class="header-actions">
-        <el-button
+  <PageShell :title="detail.title || '招聘需求详情'">
+    <template #actions>
+      <div class="header-actions flex flex-wrap gap-2">
+        <RButton
           v-if="detail.status === 'DRAFT' || detail.status === 'REJECTED'"
+          variant="outline"
           @click="handleEdit"
         >
-          <el-icon><Edit /></el-icon>
+          <Pencil class="mr-2 h-4 w-4" />
           编辑
-        </el-button>
-        <el-button
+        </RButton>
+        <RButton
           v-if="detail.status === 'DRAFT' || detail.status === 'REJECTED'"
-          type="primary"
           @click="handleSubmit"
         >
-          <el-icon><Promotion /></el-icon>
+          <Send class="mr-2 h-4 w-4" />
           提交审批
-        </el-button>
-        <el-button
+        </RButton>
+        <RButton
           v-if="detail.status === 'APPROVED' || detail.status === 'JOB_CREATED'"
-          type="success"
+          class="bg-green-600 hover:bg-green-700"
           @click="handleCreateJob"
         >
           创建在招职位
-        </el-button>
-        <el-button
+        </RButton>
+        <RButton
           v-if="detail.status !== 'CLOSED' && detail.status !== 'COMPLETED'"
-          type="danger"
+          variant="destructive"
           @click="handleClose"
         >
-          <el-icon><Close /></el-icon>
+          <X class="mr-2 h-4 w-4" />
           关闭需求
-        </el-button>
+        </RButton>
       </div>
-    </div>
+    </template>
 
-    <!-- 基本信息卡片 -->
     <div class="detail-grid">
       <div class="info-card">
         <h3 class="card-title">基本信息</h3>
@@ -74,9 +62,9 @@
           <div class="info-item">
             <span class="info-label">紧急程度</span>
             <span class="info-value">
-              <el-tag :type="getUrgencyType(detail.urgency)" size="small">
+              <RBadge :variant="urgencyBadge(detail.urgency)">
                 {{ getUrgencyLabel(detail.urgency) }}
-              </el-tag>
+              </RBadge>
             </span>
           </div>
           <div class="info-item">
@@ -90,7 +78,9 @@
           <div class="info-item">
             <span class="info-label">工作地点</span>
             <span class="info-value">
-              <el-tag v-for="loc in parseLocations(detail.workLocations)" :key="loc" size="small" class="mr-8">{{ loc }}</el-tag>
+              <RBadge v-for="loc in parseLocations(detail.workLocations)" :key="loc" variant="secondary" class="mr-2">
+                {{ loc }}
+              </RBadge>
               <span v-if="!detail.workLocations">-</span>
             </span>
           </div>
@@ -110,7 +100,6 @@
       </div>
     </div>
 
-    <!-- 岗位职责卡片 -->
     <div class="info-card">
       <h3 class="card-title">职位描述</h3>
       <div class="card-content">
@@ -118,7 +107,6 @@
       </div>
     </div>
 
-    <!-- 任职要求卡片 -->
     <div class="info-card">
       <h3 class="card-title">任职要求</h3>
       <div class="card-content">
@@ -126,55 +114,51 @@
       </div>
     </div>
 
-    <!-- 面试官配置卡片 -->
     <div class="info-card">
       <h3 class="card-title">面试官配置</h3>
       <div class="interviewer-grid">
         <div class="interviewer-section">
           <h4 class="interviewer-label">初面面试官</h4>
           <div class="interviewer-list">
-            <el-tag
+            <RBadge
               v-for="person in parseIds(detail.initialInterviewerIds)"
               :key="person"
-              type="info"
-              effect="plain"
+              variant="outline"
               class="interviewer-tag"
             >
-              <el-icon><User /></el-icon>
+              <User class="h-3 w-3" />
               {{ person }}
-            </el-tag>
+            </RBadge>
             <span v-if="!detail.initialInterviewerIds" class="empty-text">暂未配置</span>
           </div>
         </div>
         <div class="interviewer-section">
           <h4 class="interviewer-label">复试面试官</h4>
           <div class="interviewer-list">
-            <el-tag
+            <RBadge
               v-for="person in parseIds(detail.finalInterviewerIds)"
               :key="person"
-              type="info"
-              effect="plain"
+              variant="outline"
               class="interviewer-tag"
             >
-              <el-icon><User /></el-icon>
+              <User class="h-3 w-3" />
               {{ person }}
-            </el-tag>
+            </RBadge>
             <span v-if="!detail.finalInterviewerIds" class="empty-text">暂未配置</span>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- 关联职位招聘进展 -->
     <div v-if="linkedJobs.length" class="info-card">
       <h3 class="card-title">关联职位招聘进展</h3>
       <p class="section-hint">部门负责人可在此查看各在招职位的候选人漏斗</p>
       <div v-for="job in linkedJobs" :key="job.id" class="job-funnel-block">
         <div class="job-funnel-head">
           <router-link :to="`/planning/jobs/${job.id}`" class="job-link">{{ job.title }}</router-link>
-          <el-tag size="small" :type="job.status === 'ACTIVE' ? 'success' : 'info'">
+          <RBadge :variant="job.status === 'ACTIVE' ? 'default' : 'secondary'">
             {{ jobStatusLabel(job.status) }}
-          </el-tag>
+          </RBadge>
         </div>
         <div v-if="jobFunnels[job.id]" class="funnel-row">
           <div v-for="cell in jobFunnels[job.id]" :key="cell.stage" class="funnel-cell">
@@ -186,50 +170,50 @@
       </div>
     </div>
 
-    <!-- 审批记录卡片 -->
     <div class="info-card">
       <h3 class="card-title">审批记录</h3>
-      <div class="approval-timeline" v-if="approvalRecords.length > 0">
-        <el-timeline>
-          <el-timeline-item
-            v-for="(record, index) in approvalRecords"
-            :key="index"
-            :timestamp="record.time"
-            :type="getApprovalTimelineType(record.action)"
-            :hollow="index > 0"
-            placement="top"
-          >
-            <div class="timeline-content">
-              <div class="timeline-header">
-                <span class="timeline-node">{{ record.nodeName }}</span>
-                <el-tag :type="getApprovalTagType(record.action)" size="small">
-                  {{ getApprovalLabel(record.action) }}
-                </el-tag>
-              </div>
-              <div class="timeline-info">
-                <span class="timeline-approver">
-                  <el-icon><User /></el-icon>
-                  {{ record.approver }}
-                </span>
-              </div>
-              <div v-if="record.comment" class="timeline-comment">
-                <el-icon><ChatLineSquare /></el-icon>
-                {{ record.comment }}
-              </div>
+      <div v-if="approvalRecords.length > 0" class="approval-timeline">
+        <div
+          v-for="(record, index) in approvalRecords"
+          :key="index"
+          class="timeline-item"
+        >
+          <div class="timeline-marker" :class="getApprovalTimelineClass(record.action)" />
+          <div class="timeline-content">
+            <div class="timeline-header">
+              <span class="timeline-node">{{ record.nodeName }}</span>
+              <RBadge :variant="elTagTypeToBadge(getApprovalTagType(record.action))">
+                {{ getApprovalLabel(record.action) }}
+              </RBadge>
+              <span class="timeline-time">{{ record.time }}</span>
             </div>
-          </el-timeline-item>
-        </el-timeline>
+            <div class="timeline-info">
+              <span class="timeline-approver">
+                <User class="h-3.5 w-3.5" />
+                {{ record.approver }}
+              </span>
+            </div>
+            <div v-if="record.comment" class="timeline-comment">
+              <MessageSquare class="h-3.5 w-3.5 shrink-0 mt-0.5" />
+              {{ record.comment }}
+            </div>
+          </div>
+        </div>
       </div>
       <div v-else class="empty-text">暂无审批记录</div>
     </div>
-  </div>
+</PageShell>
 </template>
 
 <script setup lang="ts">
+import PageShell from '@/components/Layout/PageShell.vue'
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowLeft, Edit, Promotion, Close, User, ChatLineSquare } from '@element-plus/icons-vue'
+import { ArrowLeft, Pencil, Send, X, User, MessageSquare } from 'lucide-vue-next'
+import { toast } from '@/lib/notify'
+import { confirm } from '@/lib/confirm'
+import { demandStatusBadge, urgencyBadge, elTagTypeToBadge } from '@/lib/badgeVariants'
+import { RButton, RBadge } from '@/components/ui'
 import { demandStatusLabel, jobStatusLabel, pipelineStageLabel } from '@/constants/businessLabels'
 import { getDemandDetail, submitDemand, closeDemand } from '@/api/modules/demand'
 import { getJobList } from '@/api/modules/job'
@@ -244,14 +228,12 @@ const approvalRecords = ref<any[]>([])
 const linkedJobs = ref<any[]>([])
 const jobFunnels = ref<Record<number, { stage: string; label: string; count: number }[]>>({})
 
-// 格式化薪资
 function formatSalary(val: any): string {
   if (val == null) return '-'
   const num = Number(val)
   return isNaN(num) ? String(val) : num.toFixed(0)
 }
 
-// 解析 JSON 数组字符串
 function parseIds(idsStr: string | null): string[] {
   if (!idsStr) return []
   try {
@@ -262,7 +244,6 @@ function parseIds(idsStr: string | null): string[] {
   }
 }
 
-// 解析工作地点
 function parseLocations(locStr: string | null): string[] {
   if (!locStr) return []
   try {
@@ -271,15 +252,6 @@ function parseLocations(locStr: string | null): string[] {
   } catch {
     return [locStr]
   }
-}
-
-// 状态映射
-function getStatusType(status: string) {
-  const map: Record<string, string> = {
-    DRAFT: 'info', PENDING: 'warning', APPROVED: 'success', REJECTED: 'danger',
-    JOB_CREATED: 'primary', RECRUITING: 'warning', COMPLETED: 'success', CLOSED: 'info',
-  }
-  return map[status] || 'info'
 }
 
 function getStatusLabel(status: string) {
@@ -291,11 +263,6 @@ function handleCreateJob() {
     path: '/planning/jobs/create',
     query: { demandNo: detail.value.demandNo || '', demandId: String(demandId) },
   })
-}
-
-function getUrgencyType(level: string) {
-  const map: Record<string, string> = { NORMAL: 'info', URGENT: 'warning', CRITICAL: 'danger' }
-  return map[level] || 'info'
 }
 
 function getUrgencyLabel(level: string) {
@@ -311,10 +278,9 @@ function getReasonLabel(reason: string) {
   return map[reason] || reason || '-'
 }
 
-// 审批时间线类型
-function getApprovalTimelineType(action: string) {
-  const map: Record<string, string> = { approve: 'success', reject: 'danger', submit: 'primary' }
-  return map[action] || 'primary'
+function getApprovalTimelineClass(action: string) {
+  const map: Record<string, string> = { approve: 'is-success', reject: 'is-danger', submit: 'is-primary' }
+  return map[action] || 'is-primary'
 }
 
 function getApprovalTagType(action: string) {
@@ -362,11 +328,8 @@ async function loadLinkedJobs() {
   }
 }
 
-// 加载详情
 async function loadDetail() {
-  if (!demandId || isNaN(demandId)) {
-    return
-  }
+  if (!demandId || isNaN(demandId)) return
   try {
     const res: any = await getDemandDetail(demandId)
     detail.value = res.data || {}
@@ -385,33 +348,28 @@ function handleEdit() {
 }
 
 async function handleSubmit() {
-  try {
-    await ElMessageBox.confirm('确定要提交该需求进行审批吗？', '提交确认', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'info',
-    })
-    await submitDemand(demandId)
-    ElMessage.success('已提交审批')
-    loadDetail()
-  } catch {
-    // 取消
-  }
+  const ok = await confirm({
+    title: '提交确认',
+    message: '确定要提交该需求进行审批吗？',
+    confirmText: '确定',
+  })
+  if (!ok) return
+  await submitDemand(demandId)
+  toast.success('已提交审批')
+  loadDetail()
 }
 
 async function handleClose() {
-  try {
-    await ElMessageBox.confirm('确定要关闭该需求吗？关闭后不可恢复。', '关闭确认', {
-      confirmButtonText: '确定关闭',
-      cancelButtonText: '取消',
-      type: 'warning',
-    })
-    await closeDemand(demandId)
-    ElMessage.success('需求已关闭')
-    loadDetail()
-  } catch {
-    // 取消
-  }
+  const ok = await confirm({
+    title: '关闭确认',
+    message: '确定要关闭该需求吗？关闭后不可恢复。',
+    confirmText: '确定关闭',
+    destructive: true,
+  })
+  if (!ok) return
+  await closeDemand(demandId)
+  toast.success('需求已关闭')
+  loadDetail()
 }
 
 function goBack() {
@@ -511,7 +469,7 @@ onMounted(() => {
 }
 
 .interviewer-tag {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 4px;
 }
@@ -551,7 +509,7 @@ onMounted(() => {
 .funnel-cell {
   min-width: 72px;
   padding: 8px 12px;
-  background: #f8fafc;
+  background: $bg-warm;
   border-radius: 8px;
   text-align: center;
 }
@@ -573,9 +531,47 @@ onMounted(() => {
   color: $text-placeholder;
 }
 
-// 审批时间线
+.approval-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding-left: 8px;
+}
+
+.timeline-item {
+  display: flex;
+  gap: 16px;
+  padding-bottom: 20px;
+  position: relative;
+
+  &:not(:last-child)::before {
+    content: '';
+    position: absolute;
+    left: 5px;
+    top: 14px;
+    bottom: 0;
+    width: 2px;
+    background: $border-color-light;
+  }
+}
+
+.timeline-marker {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-top: 4px;
+  flex-shrink: 0;
+  background: $border-color;
+  border: 2px solid $bg-card;
+
+  &.is-success { background: $success-color; }
+  &.is-danger { background: var(--r-danger); }
+  &.is-primary { background: $primary-color; }
+}
+
 .timeline-content {
-  padding-bottom: 8px;
+  flex: 1;
+  padding-bottom: 4px;
 }
 
 .timeline-header {
@@ -583,12 +579,19 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   margin-bottom: 8px;
+  flex-wrap: wrap;
 }
 
 .timeline-node {
   font-size: 14px;
   font-weight: 600;
   color: $text-primary;
+}
+
+.timeline-time {
+  font-size: 12px;
+  color: $text-secondary;
+  margin-left: auto;
 }
 
 .timeline-info {
@@ -608,18 +611,13 @@ onMounted(() => {
   color: $text-secondary;
   display: flex;
   align-items: flex-start;
-  gap: 4px;
+  gap: 6px;
   margin-top: 4px;
   padding: 8px 12px;
   background: $bg-muted;
   border-radius: 4px;
 }
 
-.mr-8 {
-  margin-right: 8px;
-}
-
-// 响应式
 @media (max-width: 1024px) {
   .info-grid {
     grid-template-columns: repeat(2, 1fr);

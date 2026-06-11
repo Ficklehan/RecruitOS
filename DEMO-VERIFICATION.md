@@ -159,7 +159,7 @@ linkage seed 会将 interview #2/#3 调整到当天，需重新执行 seed。
 | 步骤 | 路径 | 预期 |
 |------|------|------|
 | COLLECT_ONLY 启动 | 寻源启动弹窗选「仅采集入库」 | 轨迹状态 `STAGED` |
-| 暂存列表 | `/talent/channel-staging` | 列表、排序、AI 问答、批量打招呼/入库/不合适 |
+| 暂存列表 | `/talent/channel-staging` | 列表、排序、**MiMo LLM 问答**（`recruitos-llm:8095` + `.env` 中 `MIMO_*`）、批量打招呼/入库/不合适 |
 | 入库后 | 正式候选人 + 暂存状态 `IMPORTED` | 不可重复入库 |
 
 ### P2-4. 策略进化（G3 HR 确认）
@@ -179,6 +179,48 @@ linkage seed 会将 interview #2/#3 调整到当天，需重新执行 seed。
 
 ### Phase 2 端到端脚本（约 15 分钟）
 
+**自动化（推荐）** — 启动全部服务后：
+
+```bash
+cd RecruitOS/recruitos-backend
+./scripts/start-all-services.sh          # 含 llm(8095)
+RESEED=1 ./scripts/verify-phase2-e2e.sh   # 可选重载 phase2 种子
+
+# 仅重建近期改动的服务（进化/Agent/沟通/面试/LLM 等）
+./scripts/restart-hot-services.sh
+
+# 或仅跑 TestAgent
+cd TestAgent && PYTHONPATH=src python3 -m test_agent.cli phase2
+```
+
+覆盖项：登录、运营包 ACTIVE、L3 信号、暂存库、MiMo ask-ai、面试评价 L2、进化建议 confirm → ops-pack v2、候选人回复 L4、Offer 接受 L1。许可 402 需将 `tenant_license.max_jobs` 降至当前岗位数后，在 `agent.yaml` 设 `phase2.test_license_402: true`。
+
+### Phase 2.5 — 决策智能深化（PRD v6）
+
+参考 [PRD-v6.md](./PRD-v6.md) Epic D1–D3。
+
+| 页面 / 能力 | 路径 | 验收要点 |
+|-------------|------|----------|
+| 统一匹配分 | 候选人列表 / 决策面板 / Agent 轨迹 | 同一岗位+候选人，匹配分与 `JdTagMatcher` 标签对照一致（非固定 50 分启发式） |
+| 进化健康 | `/ai-tools/evolution/health` | 顶部四指标来自 `/api/evolution/health/system`；岗位列表逐岗 `/health/job/{id}`；告警来自 `/health/alerts` |
+| 进化权重 | `/ai-tools/evolution/weight` | 岗位下拉来自真实岗位 API；权重条来自 `/api/evolution/weight/{jobId}` 的 `tagsSnapshot`；历史来自 `/history` |
+| 沟通决策树 | Agent 打招呼轨迹 | 竞品公司 / 初级（≤2年）/ 复聊 / 标准 四类开场文案不同（见 `ScriptDecisionTree`） |
+| 分析漏斗 D4 | `/insight/analytics/funnel` | 渠道寻源四段 + 管道漏斗 + 渠道对比表（真实 onboard 入职数） |
+| A/B 实验 | `/ai-tools/evolution/ab-test` | 列表/创建/启动/停止接 `/api/evolution/abtest/*`（需先跑 `migration-v11-ab-test-align.sql`） |
+| 内推分享 | `/talent/referral` → 生成链接 | `POST /api/referral/link`；公开页 `/referral/submit/{token}` 投递后 `candidate.source=REFERRAL` |
+| 内推奖励 | `/talent/referral/rewards` | 统计卡 + 审批/发放接 `/api/referral/reward/stats|approve|pay` |
+
+**数据库迁移（Phase 2.5 续）**：
+
+```bash
+mysql -u root -p recruit_os < sql/migration-v11-ab-test-align.sql
+mysql -u root -p recruit_os < sql/migration-v12-referral-share-link.sql
+```
+
+**UI 栈**：前端已全面迁移至 shadcn 风格组件（`npm run build` 通过），Element Plus 已移除。
+
+**手动 UI 流程**：
+
 ```
 1. JD 解析标签 → 生成运营包 → HR 确认
 2. 启动渠道招聘（半自动 + SCREEN_THEN_GREET）
@@ -187,4 +229,6 @@ linkage seed 会将 interview #2/#3 调整到当天，需重新执行 seed。
 5. （可选）提交面试评价 → 等待进化建议
 6. AI 工具 → 策略进化待确认 → 采纳 v2
 7. 新建 Campaign 验证绑定 v2 运营包
+8. 提交面试评价 → 检查 `evolution_signal` L2；Offer 接受/拒绝 → L1
+9. 沟通对话候选人回复 API → L4；超额创建岗位/Agent → HTTP 402 hard block
 ```

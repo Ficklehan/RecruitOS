@@ -1,5 +1,9 @@
 <template>
-  <div class="match-eval-panel" v-loading="loading">
+  <div class="match-eval-panel relative">
+    <div v-if="loading" class="absolute inset-0 z-10 flex items-center justify-center bg-background/60 rounded-lg">
+      <Loader2 class="h-6 w-6 animate-spin text-primary" />
+    </div>
+
     <EmptyStateCta
       v-if="!jobId"
       description="请先选择在招职位，再查看匹配建议、符合点与待确认项"
@@ -27,13 +31,7 @@
           <div v-if="radarDimensions.length" class="radar-bars">
             <div v-for="(dim, index) in radarDimensions" :key="dim.name" class="radar-bar-row">
               <span class="dim-name">{{ dim.name }}</span>
-              <el-progress
-                :percentage="dim.value"
-                :stroke-width="6"
-                :color="radarColors[index % radarColors.length]"
-                :show-text="false"
-                style="flex: 1"
-              />
+              <Progress :value="dim.value" :max="100" class="flex-1 h-2" />
               <span class="dim-value">{{ dim.value }}</span>
             </div>
           </div>
@@ -55,12 +53,9 @@
                 <span class="req-name">{{ row.name }}</span>
                 <span v-if="row.hint" class="req-hint">{{ row.hint }}</span>
               </div>
-              <el-tag
-                size="small"
-                :type="row.judgment === '符合' ? 'success' : row.judgment === '待确认' ? 'warning' : 'danger'"
-              >
+              <Badge :variant="judgmentBadge(row.judgment)">
                 {{ row.judgment }}
-              </el-tag>
+              </Badge>
             </div>
           </div>
           <p v-else class="empty-hint">暂无任职要求对照，请先完善职位描述并提取任职要求</p>
@@ -69,9 +64,9 @@
 
       <section v-if="aiInsights.length" class="insight-card">
         <div class="insight-head">
-          <el-icon><MagicStick /></el-icon>
+          <Wand2 class="h-5 w-5" />
           <span>匹配说明</span>
-          <el-tag size="small" type="info" effect="plain">系统建议</el-tag>
+          <Badge variant="secondary">系统建议</Badge>
         </div>
         <div v-for="(insight, index) in aiInsights" :key="index" class="insight-row">
           <span class="insight-dot" :class="insight.type" />
@@ -82,11 +77,11 @@
       <div v-if="showActions" class="action-bar">
         <slot name="actions" />
         <template v-if="!$slots.actions">
-          <el-button type="success" @click="$emit('pass')">进入下一轮</el-button>
-          <el-button type="danger" @click="$emit('reject')">标记不合适</el-button>
-          <el-button type="warning" @click="$emit('reserve')">储备至人才库</el-button>
+          <Button class="bg-green-600 hover:bg-green-700" @click="$emit('pass')">进入下一轮</Button>
+          <Button variant="destructive" @click="$emit('reject')">标记不合适</Button>
+          <Button variant="outline" @click="$emit('reserve')">储备至人才库</Button>
         </template>
-        <el-button v-if="showFullPageLink" link type="primary" @click="openFullPage">全屏匹配评估</el-button>
+        <Button v-if="showFullPageLink" variant="link" @click="openFullPage">全屏匹配评估</Button>
       </div>
     </template>
   </div>
@@ -95,10 +90,12 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { Loader2, Wand2 } from 'lucide-vue-next'
 import * as echarts from 'echarts'
-import { MagicStick } from '@element-plus/icons-vue'
 import MatchVerdict from '@/components/match/MatchVerdict.vue'
 import EmptyStateCta from '@/components/common/EmptyStateCta.vue'
+import { elTagTypeToBadge } from '@/lib/badgeVariants'
+import { Badge, Button, Progress } from '@/components/ui'
 import { getDecisionPanel } from '@/api/modules/candidate'
 import {
   parseMatchDetail,
@@ -137,7 +134,11 @@ const aiInsights = ref<AiInsightRow[]>([])
 const radarChartRef = ref<HTMLElement>()
 let radarChart: echarts.ECharts | null = null
 
-const radarColors = ['#3B82F6', '#059669', '#D97706', '#DC2626', '#64748B']
+function judgmentBadge(judgment: string) {
+  if (judgment === '符合') return elTagTypeToBadge('success')
+  if (judgment === '待确认') return elTagTypeToBadge('warning')
+  return elTagTypeToBadge('danger')
+}
 
 function disposeChart() {
   if (radarChart) {
@@ -231,10 +232,10 @@ defineExpose({ reload: load })
 }
 
 .verdict-banner {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  background: var(--r-bg-card);
+  border-radius: 12px;
   padding: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .rank-text {
@@ -255,9 +256,8 @@ defineExpose({ reload: load })
 
 .eval-card,
 .insight-card {
-  background: #fafbfc;
-  border: 1px solid #eef2f6;
-  border-radius: 8px;
+  background: var(--r-bg-page);
+  border-radius: 12px;
   padding: 12px 14px;
 }
 
@@ -316,7 +316,7 @@ defineExpose({ reload: load })
   justify-content: space-between;
   gap: 12px;
   padding: 8px 0;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--r-divider);
 }
 
 .req-header {

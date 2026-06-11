@@ -1,5 +1,5 @@
 import axios, { type AxiosInstance, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios'
-import { ElMessage } from 'element-plus'
+import { toast } from '@/lib/notify'
 import { getToken, removeToken } from '@/utils/auth'
 import router from '@/router'
 
@@ -28,7 +28,7 @@ function showErrorOnce(key: string, message: string, silent?: boolean) {
   if (key === lastErrorKey && now - lastErrorAt < 3000) return
   lastErrorKey = key
   lastErrorAt = now
-  ElMessage.error(message)
+  toast.error(message)
 }
 
 function redirectToLogin(silent?: boolean) {

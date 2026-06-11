@@ -1,95 +1,96 @@
 <template>
-  <div class="page-container page-stack">
-    <div class="page-header">
-      <div>
-        <h2 class="page-title">人才库</h2>
-        <p class="page-subtitle">搜索储备人才；选择在招职位后可查看匹配建议并推荐到职位</p>
+  <PageShell title="人才库" subtitle="搜索储备人才；选择在招职位后可查看匹配建议并推荐到职位">
+    <RCard class="p-4">
+      <div class="flex flex-wrap items-center gap-4">
+        <div class="flex items-center gap-2">
+          <span class="text-sm text-muted-foreground">在招职位</span>
+          <RSelect
+            v-model="contextJobId"
+            :options="jobSelectOptions"
+            placeholder="请先选择在招职位（必选，才能显示匹配建议）"
+            clearable
+            class="w-full sm:w-80"
+            @update:model-value="onJobContextChange"
+          />
+        </div>
+        <RAlert v-if="!contextJobId" class="flex-1 min-w-[240px]">
+          <AlertTitle>提示</AlertTitle>
+          <AlertDescription>默认展示当前不在招聘流程中的人才；选择职位后可查看匹配建议</AlertDescription>
+        </RAlert>
       </div>
-    </div>
+    </RCard>
 
-    <!-- 岗位上下文：匹配结论必须先选岗位 -->
-    <div class="pool-context-bar data-card">
-      <div class="context-left">
-        <span class="context-label">在招职位</span>
-        <el-select
-          v-model="contextJobId"
-          placeholder="请先选择在招职位（必选，才能显示匹配建议）"
-          filterable
-          clearable
-          style="width: 320px"
-          @change="onJobContextChange"
-        >
-          <el-option v-for="job in jobOptions" :key="job.id" :label="job.title" :value="job.id" />
-        </el-select>
-      </div>
-      <el-alert
-        v-if="!contextJobId"
-        type="info"
-        :closable="false"
-        show-icon
-        title="默认展示当前不在招聘流程中的人才；选择职位后可查看匹配建议"
-        class="context-alert"
-      />
-    </div>
-
-    <div class="pool-search-section">
-      <div class="search-box">
-        <el-input
+    <RCard class="p-8">
+      <div class="flex flex-col sm:flex-row gap-2 mb-5">
+        <RInput
           v-model="searchKeyword"
           placeholder="搜索人才库 - 输入姓名、技能或公司名称..."
-          size="large"
-          :prefix-icon="Search"
-          clearable
+          class="flex-1"
           @keyup.enter="handleSearch"
-        >
-          <template #append>
-            <el-button type="primary" @click="handleSearch">
-              <el-icon><Search /></el-icon>
-              搜索
-            </el-button>
-          </template>
-        </el-input>
+        />
+        <RButton @click="handleSearch">
+          <Search class="mr-2 h-4 w-4" />
+          搜索
+        </RButton>
       </div>
 
-      <div class="skill-tags">
-        <span class="skill-tags-label">热门技能:</span>
-        <el-tag
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="text-sm text-muted-foreground">热门技能:</span>
+        <RBadge
           v-for="tag in hotSkills"
           :key="tag"
-          :type="selectedSkill === tag ? 'primary' : 'info'"
-          :effect="selectedSkill === tag ? 'dark' : 'plain'"
-          class="skill-tag"
+          :variant="selectedSkill === tag ? 'default' : 'secondary'"
+          class="cursor-pointer"
           @click="handleSkillFilter(tag)"
         >
           {{ tag }}
-        </el-tag>
-        <el-tag v-if="selectedSkill" type="danger" effect="plain" class="skill-tag" @click="clearSkillFilter">
+        </RBadge>
+        <RBadge
+          v-if="selectedSkill"
+          variant="destructive"
+          class="cursor-pointer"
+          @click="clearSkillFilter"
+        >
           清除筛选
-        </el-tag>
+        </RBadge>
       </div>
-    </div>
+    </RCard>
 
-    <div v-if="hasSearched" class="pool-results">
-      <div class="results-header">
-        <span class="results-count">
-          共 <strong>{{ total }}</strong> 位人才
-          <span v-if="!isSearchMode" class="results-hint">（不在流程中）</span>
+    <div v-if="hasSearched">
+      <div class="flex items-center justify-between mb-4">
+        <span class="text-sm text-muted-foreground">
+          共 <strong class="text-foreground">{{ total }}</strong> 位人才
+          <span v-if="!isSearchMode" class="ml-1.5">（不在流程中）</span>
         </span>
-        <el-radio-group v-model="viewMode" size="small">
-          <el-radio-button value="card">卡片</el-radio-button>
-          <el-radio-button value="list">列表</el-radio-button>
-        </el-radio-group>
+        <div class="flex gap-1">
+          <RButton
+            size="sm"
+            :variant="viewMode === 'card' ? 'default' : 'outline'"
+            @click="viewMode = 'card'"
+          >
+            卡片
+          </RButton>
+          <RButton
+            size="sm"
+            :variant="viewMode === 'list' ? 'default' : 'outline'"
+            @click="viewMode = 'list'"
+          >
+            列表
+          </RButton>
+        </div>
       </div>
 
-      <div v-if="viewMode === 'card'" class="talent-cards">
-        <div v-for="talent in talentList" :key="talent.id" class="talent-card">
-          <div class="talent-card-header">
-            <div class="talent-avatar">{{ talent.name?.charAt(0) }}</div>
-            <div class="talent-basic">
-              <h3 class="talent-name">{{ talent.name }}</h3>
-              <p class="talent-position">{{ talent.position || talent.currentTitle }}</p>
+      <div v-if="viewMode === 'card'" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mb-5">
+        <RCard v-for="talent in talentList" :key="talent.id" class="p-5">
+          <div class="flex items-start gap-3 mb-3">
+            <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground font-semibold">
+              {{ talent.name?.charAt(0) }}
             </div>
-            <div v-if="contextJobId && talent.matchDetail" class="talent-match-verdict">
+            <div class="flex-1 min-w-0">
+              <h3 class="font-semibold truncate">{{ talent.name }}</h3>
+              <p class="text-sm text-muted-foreground truncate">{{ talent.position || talent.currentTitle }}</p>
+            </div>
+            <div v-if="contextJobId && talent.matchDetail" class="shrink-0">
               <MatchVerdict
                 :match-score="talent.matchScore"
                 :match-detail="talent.matchDetail"
@@ -99,21 +100,21 @@
             </div>
           </div>
 
-          <div class="talent-card-body">
-            <div class="talent-info-row">
-              <el-icon><OfficeBuilding /></el-icon>
+          <div class="space-y-1.5 text-sm">
+            <div class="flex items-center gap-2 text-muted-foreground">
+              <Building2 class="h-4 w-4 shrink-0" />
               <span>{{ talent.company || talent.currentCompany }}</span>
             </div>
-            <div class="talent-info-row">
-              <el-icon><Timer /></el-icon>
+            <div class="flex items-center gap-2 text-muted-foreground">
+              <Clock class="h-4 w-4 shrink-0" />
               <span>{{ talent.workYears }}年工作经验</span>
             </div>
-            <div class="talent-skills">
-              <el-tag v-for="skill in parseSkills(talent).slice(0, 4)" :key="skill" size="small" type="info" effect="plain">
+            <div class="flex flex-wrap gap-1.5 pt-1">
+              <RBadge v-for="skill in parseSkills(talent).slice(0, 4)" :key="skill" variant="secondary">
                 {{ skill }}
-              </el-tag>
+              </RBadge>
             </div>
-            <div v-if="contextJobId && talent.matchDetail" class="match-preview">
+            <div v-if="contextJobId && talent.matchDetail" class="pt-3 mt-3 border-t">
               <MatchVerdict
                 :match-score="talent.matchScore"
                 :match-detail="talent.matchDetail"
@@ -122,47 +123,51 @@
             </div>
           </div>
 
-          <div class="talent-card-footer">
-            <el-button type="primary" link @click="handleViewDetail(talent)">查看详情</el-button>
-            <el-button v-if="talent.resumeId" type="warning" link @click="goResume(talent)">查看简历</el-button>
-            <el-button type="success" link @click="handleRecommend(talent)">推荐到职位</el-button>
+          <div class="flex justify-end gap-2 mt-4 pt-3 border-t">
+            <RButton variant="link" class="h-auto p-0" @click="handleViewDetail(talent)">查看详情</RButton>
+            <RButton v-if="talent.resumeId" variant="link" class="h-auto p-0 text-amber-600" @click="goResume(talent)">查看简历</RButton>
+            <RButton variant="link" class="h-auto p-0 text-green-600" @click="handleRecommend(talent)">推荐到职位</RButton>
           </div>
-        </div>
+        </RCard>
       </div>
 
-      <div v-else class="data-card">
-        <el-table :data="talentList" stripe highlight-current-row>
-          <el-table-column prop="name" label="姓名" width="100">
-            <template #default="{ row }">
-              <span class="title-link" @click="handleViewDetail(row)">{{ row.name }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column label="公司" min-width="140" show-overflow-tooltip>
-            <template #default="{ row }">{{ row.company || row.currentCompany }}</template>
-          </el-table-column>
-          <el-table-column label="职位" min-width="140" show-overflow-tooltip>
-            <template #default="{ row }">{{ row.position || row.currentTitle }}</template>
-          </el-table-column>
-          <el-table-column v-if="contextJobId" label="匹配建议" min-width="220">
-            <template #default="{ row }">
-              <MatchVerdict
-                v-if="row.matchDetail"
-                :match-score="row.matchScore"
-                :match-detail="row.matchDetail"
-                mode="compact"
-                :show-score="false"
-              />
-              <span v-else class="text-muted">待评估</span>
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" width="180" fixed="right">
-            <template #default="{ row }">
-              <el-button type="primary" link size="small" @click="handleViewDetail(row)">详情</el-button>
-              <el-button type="success" link size="small" @click="handleRecommend(row)">推荐</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-      </div>
+      <RCard v-else class="overflow-hidden">
+        <RTable v-if="talentList.length">
+          <RTableHead>
+            <RTableRow>
+              <RTableTh class="w-[100px]">姓名</RTableTh>
+              <RTableTh class="min-w-[140px]">公司</RTableTh>
+              <RTableTh class="min-w-[140px]">职位</RTableTh>
+              <RTableTh v-if="contextJobId" class="min-w-[220px]">匹配建议</RTableTh>
+              <RTableTh class="w-[100px] text-center">操作</RTableTh>
+            </RTableRow>
+          </RTableHead>
+          <RTableBody>
+            <RTableRow v-for="row in talentList" :key="row.id">
+              <RTableCell>
+                <button type="button" class="font-medium text-primary hover:underline" @click="handleViewDetail(row)">
+                  {{ row.name }}
+                </button>
+              </RTableCell>
+              <RTableCell>{{ row.company || row.currentCompany }}</RTableCell>
+              <RTableCell>{{ row.position || row.currentTitle }}</RTableCell>
+              <RTableCell v-if="contextJobId">
+                <MatchVerdict
+                  v-if="row.matchDetail"
+                  :match-score="row.matchScore"
+                  :match-detail="row.matchDetail"
+                  mode="compact"
+                  :show-score="false"
+                />
+                <span v-else class="text-sm text-muted-foreground">待评估</span>
+              </RTableCell>
+              <RTableCell class="text-center">
+                <RowActions :actions="getRowActions(row)" @action="(cmd) => handleRowCommand(cmd, row)" />
+              </RTableCell>
+            </RTableRow>
+          </RTableBody>
+        </RTable>
+      </RCard>
 
       <EmptyStateCta
         v-if="!talentList.length && !loading"
@@ -174,21 +179,18 @@
         ]"
       />
 
-      <el-pagination
+      <ListPagination
         v-if="talentList.length"
-        v-model:current-page="pageNum"
+        v-model:page-num="pageNum"
         v-model:page-size="pageSize"
-        :page-sizes="[12, 24, 48]"
         :total="total"
-        layout="total, sizes, prev, pager, next"
-        @size-change="handleSearch"
-        @current-change="handleSearch"
+        @change="loadData"
       />
     </div>
 
-    <div v-else-if="loading" class="pool-empty">
-      <el-icon class="is-loading" :size="48"><Loading /></el-icon>
-      <p class="empty-desc">加载人才库...</p>
+    <div v-else-if="loading" class="text-center py-20">
+      <Loader2 class="h-12 w-12 animate-spin mx-auto text-muted-foreground" />
+      <p class="text-sm text-muted-foreground mt-4">加载人才库...</p>
     </div>
 
     <EmptyStateCta
@@ -201,32 +203,65 @@
       ]"
     />
 
-    <el-dialog v-model="recommendVisible" title="推荐到在招职位" width="480px">
-      <el-form label-width="96px">
-        <el-form-item label="候选人">
-          <el-input :model-value="currentTalent?.name" disabled />
-        </el-form-item>
-        <el-form-item label="在招职位">
-          <el-select v-model="recommendJobId" placeholder="请选择推荐职位" style="width: 100%">
-            <el-option v-for="job in jobOptions" :key="job.id" :label="job.title" :value="job.id" />
-          </el-select>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="recommendVisible = false">取消</el-button>
-        <el-button type="primary" :loading="recommendLoading" @click="confirmRecommend">确定推荐</el-button>
-      </template>
-    </el-dialog>
-  </div>
+    <RDialog v-model:open="recommendVisible">
+      <DialogContent class="max-w-md">
+        <DialogHeader>
+          <DialogTitle>推荐到在招职位</DialogTitle>
+        </DialogHeader>
+        <div class="grid gap-4 py-2">
+          <FormField label="候选人">
+            <RInput :model-value="currentTalent?.name" disabled />
+          </FormField>
+          <FormField label="在招职位">
+            <RSelect
+              v-model="recommendJobId"
+              :options="jobSelectOptions"
+              placeholder="请选择推荐职位"
+              class="w-full"
+            />
+          </FormField>
+        </div>
+        <DialogFooter>
+          <RButton variant="outline" @click="recommendVisible = false">取消</RButton>
+          <RButton :disabled="recommendLoading" @click="confirmRecommend">确定推荐</RButton>
+        </DialogFooter>
+      </DialogContent>
+    </RDialog>
+  </PageShell>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { Search, OfficeBuilding, Timer, Loading } from '@element-plus/icons-vue'
+import { Search, Building2, Clock, Loader2 } from 'lucide-vue-next'
+import { toast } from '@/lib/notify'
+import PageShell from '@/components/Layout/PageShell.vue'
+import RowActions from '@/components/common/RowActions.vue'
+import ListPagination from '@/components/common/ListPagination.vue'
+import FormField from '@/components/app/FormField.vue'
 import MatchVerdict from '@/components/match/MatchVerdict.vue'
 import EmptyStateCta from '@/components/common/EmptyStateCta.vue'
+import {
+  RButton,
+  RInput,
+  RSelect,
+  RBadge,
+  RCard,
+  RTable,
+  RTableHead,
+  RTableBody,
+  RTableRow,
+  RTableTh,
+  RTableCell,
+  RAlert,
+  AlertTitle,
+  AlertDescription,
+  RDialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui'
 import { getTalentPool, addToJob } from '@/api/modules/candidate'
 import { getJobList } from '@/api/modules/job'
 
@@ -243,6 +278,7 @@ const total = ref(0)
 const talentList = ref<any[]>([])
 const contextJobId = ref<number | null>(null)
 const jobOptions = ref<any[]>([])
+const jobSelectOptions = computed(() => jobOptions.value.map((j) => ({ label: j.title, value: j.id })))
 
 const recommendVisible = ref(false)
 const recommendLoading = ref(false)
@@ -312,6 +348,18 @@ async function loadBrowsePool() {
   await loadData()
 }
 
+function getRowActions(_row: any) {
+  return [
+    { command: 'view', label: '查看详情', icon: 'View', primary: true },
+    { command: 'link', label: '关联职位', icon: 'Connection' },
+  ]
+}
+
+function handleRowCommand(cmd: string, row: any) {
+  if (cmd === 'view') handleViewDetail(row)
+  else if (cmd === 'link') handleRecommend(row)
+}
+
 async function loadData() {
   loading.value = true
   try {
@@ -327,7 +375,7 @@ async function loadData() {
     talentList.value = rows.map(mapTalent)
     total.value = res.data?.total || 0
   } catch {
-    ElMessage.error('加载人才库失败')
+    toast.error('加载人才库失败')
     talentList.value = []
     total.value = 0
   } finally {
@@ -353,7 +401,7 @@ async function confirmRecommend() {
   recommendLoading.value = true
   try {
     await addToJob(currentTalent.value.id, recommendJobId.value)
-    ElMessage.success('已推荐到职位，可在招聘进展中查看')
+    toast.success('已推荐到职位，可在招聘进展中查看')
     recommendVisible.value = false
     if (hasSearched.value) loadData()
   } finally {
@@ -366,55 +414,3 @@ onMounted(async () => {
   await loadBrowsePool()
 })
 </script>
-
-<style lang="scss" scoped>
-@import '@/assets/styles/variables.scss';
-.pool-context-bar {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 16px;
-  margin-bottom: 16px;
-  flex-wrap: wrap;
-}
-.context-label { font-size: 13px; color: $text-secondary; margin-right: 8px; }
-.context-alert { flex: 1; min-width: 240px; }
-.results-hint { margin-left: 6px; font-size: 13px; color: $text-secondary; font-weight: normal; }
-.pool-search-section {
-  background: $bg-card;
-  border-radius: 8px;
-  padding: 32px 32px 24px;
-  margin-bottom: 20px;
-  .search-box { width: 100%; max-width: none; margin-bottom: 20px; }
-  .skill-tags { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; }
-}
-.pool-results .talent-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 16px;
-  margin-bottom: 20px;
-}
-.talent-card {
-  background: $bg-card;
-  border-radius: 8px;
-  padding: 20px;
-  border: 1px solid $border-color-light;
-}
-.talent-card-header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
-.talent-avatar {
-  width: 48px; height: 48px; border-radius: 50%;
-  background: linear-gradient(135deg, $primary-color, $primary-light);
-  color: #fff; display: flex; align-items: center; justify-content: center;
-  font-weight: 600; flex-shrink: 0;
-}
-.talent-basic { flex: 1; min-width: 0; }
-.talent-name { margin: 0; font-size: 16px; }
-.talent-position { margin: 0; font-size: 13px; color: $text-secondary; }
-.talent-info-row { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 6px; }
-.talent-skills { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
-.match-preview { margin-top: 12px; padding-top: 12px; border-top: 1px solid #f1f5f9; }
-.talent-card-footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
-.pool-empty { text-align: center; padding: 80px 20px; }
-.title-link { color: $primary-color; cursor: pointer; }
-.text-muted { color: #94a3b8; font-size: 12px; }
-</style>

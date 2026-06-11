@@ -1,12 +1,6 @@
 <template>
-  <div class="page-container page-stack">
-    <!-- 页面头部 -->
-    <div class="page-header">
-      <h2 class="page-title">面试官效能</h2>
-    </div>
-
-    <!-- Top 3 表现最佳面试官 -->
-    <div class="top-performers">
+  <PageShell title="面试官效能">
+<div class="top-performers">
       <h3 class="section-title">最佳面试官</h3>
       <div class="top-cards">
         <div
@@ -26,93 +20,84 @@
       </div>
     </div>
 
-    <!-- 数据表格 -->
-    <div class="data-card">
-      <el-table :data="interviewerList" stripe highlight-current-row style="width: 100%">
-        <el-table-column prop="name" label="面试官" width="120">
-          <template #default="{ row }">
-            <div class="interviewer-cell">
-              <span class="interviewer-name">{{ row.name }}</span>
-              <span class="interviewer-dept">{{ row.department }}</span>
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column prop="interviewCount" label="面试次数" width="100" align="center" />
-        <el-table-column prop="passCount" label="通过次数" width="100" align="center" />
-        <el-table-column label="通过率" width="180" align="center">
-          <template #default="{ row }">
-            <div class="rate-cell">
-              <el-progress
-                :percentage="row.passRate"
-                :stroke-width="14"
-                :text-inside="true"
-                :color="getProgressColor(row.passRate)"
-              />
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column label="平均评分" width="160" align="center">
-          <template #default="{ row }">
-            <div class="rating-cell">
-              <el-rate
-                v-model="row.avgScore"
-                disabled
-                :max="5"
-                :colors="['#DC2626', '#D97706', '#059669']"
-                :allow-half="true"
-                size="small"
-              />
-              <span class="rating-value">{{ row.avgScore }}</span>
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column prop="avgDecisionDays" label="平均决策天数" width="130" align="center">
-          <template #default="{ row }">
-            <span :class="{ 'fast-decision': row.avgDecisionDays <= 2 }">
-              {{ row.avgDecisionDays }} 天
-            </span>
-          </template>
-        </el-table-column>
-      </el-table>
+    <div class="rounded-xl bg-card text-card-foreground shadow-soft">
+      <RTable v-if="interviewerList.length">
+        <RTableHead>
+          <RTableRow>
+            <RTableTh class="w-[120px]">面试官</RTableTh>
+            <RTableTh class="w-[100px] text-center">面试次数</RTableTh>
+            <RTableTh class="w-[100px] text-center">通过次数</RTableTh>
+            <RTableTh class="w-[180px] text-center">通过率</RTableTh>
+            <RTableTh class="w-[160px] text-center">平均评分</RTableTh>
+            <RTableTh class="w-[130px] text-center">平均决策天数</RTableTh>
+          </RTableRow>
+        </RTableHead>
+        <RTableBody>
+          <RTableRow v-for="row in interviewerList" :key="row.name">
+            <RTableCell>
+              <div class="interviewer-cell">
+                <span class="interviewer-name">{{ row.name }}</span>
+                <span class="interviewer-dept">{{ row.department }}</span>
+              </div>
+            </RTableCell>
+            <RTableCell class="text-center">{{ row.interviewCount }}</RTableCell>
+            <RTableCell class="text-center">{{ row.passCount }}</RTableCell>
+            <RTableCell>
+              <div class="rate-cell">
+                <RProgress :value="row.passRate" class="h-3" />
+                <span class="rate-text">{{ row.passRate }}%</span>
+              </div>
+            </RTableCell>
+            <RTableCell class="text-center">
+              <div class="rating-cell">
+                <div class="star-row">
+                  <Star
+                    v-for="i in 5"
+                    :key="i"
+                    class="h-4 w-4"
+                    :class="i <= Math.round(row.avgScore) ? 'text-amber-400 fill-amber-400' : 'text-muted-foreground'"
+                  />
+                </div>
+                <span class="rating-value">{{ row.avgScore }}</span>
+              </div>
+            </RTableCell>
+            <RTableCell class="text-center">
+              <span :class="{ 'fast-decision': row.avgDecisionDays <= 2 }">
+                {{ row.avgDecisionDays }} 天
+              </span>
+            </RTableCell>
+          </RTableRow>
+        </RTableBody>
+      </RTable>
     </div>
-  </div>
+</PageShell>
 </template>
 
 <script setup lang="ts">
+import PageShell from '@/components/Layout/PageShell.vue'
 import { ref, computed, onMounted } from 'vue'
+import { Star } from 'lucide-vue-next'
+import { RTable, RTableHead, RTableBody, RTableRow, RTableTh, RTableCell, RProgress } from '@/components/ui'
 import { getInterviewerData } from '@/api/modules/analytics'
 
 const interviewerList = ref<any[]>([])
 
-// Top 3 面试官
-const topInterviewers = computed(() => {
-  return [...interviewerList.value]
-    .sort((a, b) => b.passRate - a.passRate)
-    .slice(0, 3)
-})
-
-// 进度条颜色
-function getProgressColor(rate: number): string {
-  if (rate >= 60) return '#059669'
-  if (rate >= 40) return '#3B82F6'
-  if (rate >= 20) return '#D97706'
-  return '#DC2626'
-}
+const topInterviewers = computed(() =>
+  [...interviewerList.value].sort((a, b) => b.passRate - a.passRate).slice(0, 3)
+)
 
 async function loadData() {
   const res = await getInterviewerData()
   interviewerList.value = res.data.records || res.data.list || res.data || []
 }
 
-onMounted(() => {
-  loadData()
-})
+onMounted(loadData)
 </script>
 
 <style lang="scss" scoped>
 @import '@/assets/styles/variables.scss';
 .section-title {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   color: $text-primary;
   margin: 0 0 16px 0;
@@ -136,17 +121,9 @@ onMounted(() => {
   position: relative;
   overflow: hidden;
 
-  &.rank-1 {
-    border-top: 3px solid #FFD700;
-  }
-
-  &.rank-2 {
-    border-top: 3px solid #C0C0C0;
-  }
-
-  &.rank-3 {
-    border-top: 3px solid #CD7F32;
-  }
+  &.rank-1 { border-top: 3px solid #FFD700; }
+  &.rank-2 { border-top: 3px solid #C0C0C0; }
+  &.rank-3 { border-top: 3px solid #CD7F32; }
 }
 
 .rank-badge {
@@ -157,26 +134,16 @@ onMounted(() => {
   height: 28px;
   border-radius: 50%;
   background: $primary-color;
-  color: #fff;
+  color: var(--r-bg-card);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 14px;
   font-weight: 700;
 
-  .rank-1 & {
-    background: #FFD700;
-    color: $text-primary;
-  }
-
-  .rank-2 & {
-    background: #C0C0C0;
-    color: $text-primary;
-  }
-
-  .rank-3 & {
-    background: #CD7F32;
-  }
+  .rank-1 & { background: #FFD700; color: $text-primary; }
+  .rank-2 & { background: #C0C0C0; color: $text-primary; }
+  .rank-3 & { background: #CD7F32; }
 }
 
 .top-name {
@@ -223,7 +190,15 @@ onMounted(() => {
 }
 
 .rate-cell {
-  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rate-text {
+  font-size: 12px;
+  font-weight: 600;
+  min-width: 36px;
 }
 
 .rating-cell {
@@ -231,6 +206,11 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   gap: 8px;
+}
+
+.star-row {
+  display: flex;
+  gap: 2px;
 }
 
 .rating-value {

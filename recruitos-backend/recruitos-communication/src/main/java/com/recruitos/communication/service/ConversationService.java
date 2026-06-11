@@ -2,7 +2,9 @@ package com.recruitos.communication.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.recruitos.common.evolution.ModuleEvolutionEmitter;
 import com.recruitos.common.exception.BizException;
+import com.recruitos.common.license.LicenseQuotaService;
 import com.recruitos.common.result.PageResult;
 import com.recruitos.common.tenant.TenantContext;
 import com.recruitos.communication.dto.ConversationMessageVO;
@@ -37,6 +39,15 @@ public class ConversationService {
 
     @Resource
     private MessageTemplateMapper templateMapper;
+
+    @Resource
+    private LicenseQuotaService licenseQuotaService;
+
+    @Resource
+    private ModuleEvolutionEmitter moduleEvolutionEmitter;
+
+    @Resource
+    private CandidateReplyGuard candidateReplyGuard;
 
     /**
      * Get paginated conversation list with filters
@@ -105,8 +116,21 @@ public class ConversationService {
         if (!conversation.getTenantId().equals(tenantId)) {
             throw new BizException("Access denied");
         }
+        return sendMessageInternal(conversation, content, templateId, false);
+    }
+
+    /**
+     * 内部发送（复聊调度可跳过配额二次校验时使用 skipQuotaCheck）。
+     */
+    @Transactional
+    public ConversationVO sendMessageInternal(Conversation conversation, String content,
+                                              Long templateId, boolean skipQuotaCheck) {
+        Long tenantId = conversation.getTenantId();
         if ("CLOSED".equals(conversation.getStatus())) {
             throw new BizException("Cannot send message to a closed conversation");
+        }
+        if (!skipQuotaCheck) {
+            licenseQuotaService.assertCanSendMessage(tenantId);
         }
 
         // If templateId is provided, use template content
@@ -124,18 +148,64 @@ public class ConversationService {
         // Create message
         ConversationMessage message = new ConversationMessage();
         message.setTenantId(tenantId);
-        message.setConversationId(conversationId);
+        message.setConversationId(conversation.getId());
         message.setSenderType("AGENT");
+        message.setDirection("OUT");
         message.setContent(messageContent);
         message.setTemplateId(templateId);
         message.setSentAt(LocalDateTime.now());
         message.setStatus("SENT");
         messageMapper.insert(message);
 
+        if (!skipQuotaCheck) {
+            licenseQuotaService.recordMessageSent(tenantId);
+        }
+
         // Update conversation
         conversation.setLastMessageAt(LocalDateTime.now());
         conversation.setMessageCount(conversation.getMessageCount() != null ? conversation.getMessageCount() + 1 : 1);
         conversationMapper.updateById(conversation);
+
+        return convertToVO(conversation, true);
+    }
+
+    /**
+     * 记录候选人回复（Demo / Webhook），并发射 L4 信号。
+     */
+    @Transactional
+    public ConversationVO recordCandidateReply(Long conversationId, String content) {
+        Long tenantId = TenantContext.getTenantId();
+        Conversation conversation = conversationMapper.selectById(conversationId);
+        if (conversation == null || !conversation.getTenantId().equals(tenantId)) {
+            throw new BizException("Conversation not found");
+        }
+        if (!StringUtils.hasText(content)) {
+            throw new BizException("回复内容不能为空");
+        }
+        ConversationMessage message = new ConversationMessage();
+        message.setTenantId(tenantId);
+        message.setConversationId(conversationId);
+        message.setSenderType("CANDIDATE");
+        message.setDirection("IN");
+        message.setContent(content);
+        message.setSentAt(LocalDateTime.now());
+        message.setStatus("DELIVERED");
+        messageMapper.insert(message);
+
+        conversation.setLastMessageAt(LocalDateTime.now());
+        conversation.setMessageCount(conversation.getMessageCount() != null ? conversation.getMessageCount() + 1 : 1);
+
+        if (candidateReplyGuard.isDeclineReply(content)) {
+            conversation.setStatus("CLOSED");
+            conversationMapper.updateById(conversation);
+            moduleEvolutionEmitter.emitCandidateDecline(
+                    conversation.getJobId(), conversation.getCandidateId(), conversationId);
+            return convertToVO(conversation, true);
+        }
+
+        conversationMapper.updateById(conversation);
+        moduleEvolutionEmitter.emitCandidateReply(
+                conversation.getJobId(), conversation.getCandidateId(), conversationId);
 
         return convertToVO(conversation, true);
     }

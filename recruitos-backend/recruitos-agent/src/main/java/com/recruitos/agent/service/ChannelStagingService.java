@@ -14,6 +14,9 @@ import com.recruitos.agent.mapper.ChannelStagingCandidateMapper;
 import com.recruitos.agent.platform.PlatformCandidate;
 import com.recruitos.agent.platform.PlatformResume;
 import com.recruitos.common.exception.BizException;
+import com.recruitos.common.license.LicenseQuotaService;
+import com.recruitos.common.llm.LlmChatRequest;
+import com.recruitos.common.llm.LlmClient;
 import com.recruitos.common.result.PageResult;
 import com.recruitos.common.tenant.TenantContext;
 import org.springframework.stereotype.Service;
@@ -43,6 +46,12 @@ public class ChannelStagingService {
     private CampaignEvolutionEmitter evolutionEmitter;
     @Resource
     private ObjectMapper objectMapper;
+
+    @Resource
+    private LlmClient llmClient;
+
+    @Resource
+    private LicenseQuotaService licenseQuotaService;
 
     public PageResult<ChannelStagingVO> list(ChannelStagingQueryDTO query) {
         Long tenantId = TenantContext.getTenantId();
@@ -94,17 +103,42 @@ public class ChannelStagingService {
     @Transactional
     public Map<String, Object> askAi(Long id, String question) {
         ChannelStagingCandidate row = requireStaging(id);
-        String answer = extractAnswer(row, question);
+        Long tenantId = row.getTenantId();
+        licenseQuotaService.assertCanSendMessage(tenantId);
+
         Map<String, Object> fields = parseFields(row.getExtractedFieldsJson());
+        String answer = callLlmForStaging(row, question, fields);
+        if (!StringUtils.hasText(answer)) {
+            answer = extractAnswer(row, question);
+        }
+
         fields.put("_lastQuestion", question);
         fields.put("_lastAnswer", answer);
         fields.put("aiAnswerAt", LocalDateTime.now().toString());
         updateExtractedFields(id, fields);
+        licenseQuotaService.recordMessageSent(tenantId);
+
         Map<String, Object> resp = new LinkedHashMap<>();
         resp.put("question", question);
         resp.put("answer", answer);
         resp.put("extractedFields", fields);
         return resp;
+    }
+
+    private String callLlmForStaging(ChannelStagingCandidate row, String question, Map<String, Object> fields) {
+        LlmChatRequest req = new LlmChatRequest();
+        req.setScenario("channel_staging_qa");
+        req.setSystemPrompt("你是招聘 HR 助手。根据候选人暂存库中的简历与结构化字段回答问题。"
+                + "只基于给定上下文作答；信息不足时明确说明，不要编造。");
+        req.setUserPrompt(question);
+        Map<String, Object> ctx = new LinkedHashMap<>();
+        ctx.put("candidateName", row.getCandidateName());
+        ctx.put("platform", row.getPlatform());
+        ctx.put("matchScore", row.getMatchScore());
+        ctx.put("resumeText", row.getResumeText());
+        ctx.put("extractedFields", fields);
+        req.setContext(ctx);
+        return llmClient.chat(req);
     }
 
     @Transactional

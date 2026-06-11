@@ -1,21 +1,15 @@
 <template>
-  <div class="page-container page-stack">
-    <div class="page-header">
-      <div>
-        <h2 class="page-title">简历详情</h2>
-        <p class="page-subtitle">{{ resume.name || '未识别姓名' }} — {{ resume.position || '未知职位' }}</p>
-      </div>
-      <div class="header-actions">
-        <el-button @click="$router.back()">
-          <el-icon><ArrowLeft /></el-icon>
-          返回
-        </el-button>
-        <el-button type="primary" @click="handleImportPool">
-          <el-icon><FolderAdd /></el-icon>
-          加入人才库
-        </el-button>
-      </div>
-    </div>
+  <PageShell title="简历详情">
+    <template #actions>
+      <RButton variant="outline" @click="$router.back()">
+        <ArrowLeft class="mr-2 h-4 w-4" />
+        返回
+      </RButton>
+      <RButton @click="handleImportPool">
+        <FolderPlus class="mr-2 h-4 w-4" />
+        加入人才库
+      </RButton>
+    </template>
 
     <div class="detail-grid">
       <!-- 左栏：基本信息 + 经历 -->
@@ -61,14 +55,14 @@
         <div class="detail-card">
           <h4 class="card-title">技能标签</h4>
           <div class="skill-tags">
-            <el-tag
+            <RBadge
               v-for="skill in resume.skills"
               :key="skill"
-              effect="plain"
+              variant="outline"
               class="skill-tag"
             >
               {{ skill }}
-            </el-tag>
+            </RBadge>
             <span v-if="!resume.skills?.length" class="empty-text">暂无技能标签</span>
           </div>
         </div>
@@ -119,18 +113,18 @@
           />
           <div v-if="resume.aiInsights" class="ai-insights">
             <div class="insight-item">
-              <el-icon color="#059669"><CircleCheck /></el-icon>
+              <CircleCheck class="h-4 w-4 text-green-600 shrink-0" />
               <span>{{ resume.aiInsights.strength }}</span>
             </div>
             <div class="insight-item">
-              <el-icon color="#D97706"><Warning /></el-icon>
+              <AlertTriangle class="h-4 w-4 text-amber-500 shrink-0" />
               <span>{{ resume.aiInsights.risk }}</span>
             </div>
           </div>
-          <el-button type="primary" style="width: 100%; margin-top: 12px" @click="handleParse">
-            <el-icon><MagicStick /></el-icon>
+          <RButton class="w-full mt-3" @click="handleParse">
+            <Wand2 class="mr-2 h-4 w-4" />
             重新解析
-          </el-button>
+          </RButton>
         </div>
 
         <!-- 推荐在招职位 -->
@@ -146,7 +140,7 @@
                 :show-score="false"
               />
             </div>
-            <el-button type="primary" link size="small">推荐</el-button>
+            <RButton variant="link" size="sm">推荐</RButton>
           </div>
           <span v-if="!resume.recommendedJobs?.length" class="empty-text">暂无推荐</span>
         </div>
@@ -154,24 +148,25 @@
         <!-- 状态管理 -->
         <div class="detail-card">
           <h4 class="card-title">状态管理</h4>
-          <el-select v-model="resume.status" style="width: 100%" @change="handleStatusChange">
-            <el-option label="新简历" value="NEW" />
-            <el-option label="待初筛" value="PENDING" />
-            <el-option label="已通过" value="PASSED" />
-            <el-option label="已淘汰" value="REJECTED" />
-            <el-option label="已入职" value="ONBOARD" />
-          </el-select>
+          <RSelect
+            v-model="resume.status"
+            class="w-full"
+            :options="statusOptions"
+            @update:model-value="handleStatusChange"
+          />
         </div>
       </div>
     </div>
-  </div>
+</PageShell>
 </template>
 
 <script setup lang="ts">
+import PageShell from '@/components/Layout/PageShell.vue'
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { ArrowLeft, FolderAdd, CircleCheck, Warning, MagicStick } from '@element-plus/icons-vue'
+import { toast } from '@/lib/notify'
+import { ArrowLeft, FolderPlus, CircleCheck, AlertTriangle, Wand2 } from 'lucide-vue-next'
+import { RButton, RBadge, RSelect } from '@/components/ui'
 import MatchVerdict from '@/components/match/MatchVerdict.vue'
 import { getResumeDetail, parseResume, importToTalentPool, updateResume } from '@/api/modules/resume'
 
@@ -202,38 +197,42 @@ const sourceLabelMap: Record<string, string> = {
   MANUAL: '手动上传', REFERRAL: '内推', HEADHUNTER: '猎头',
 }
 
-function getScoreColor(score: number) {
-  if (score >= 80) return '#059669'
-  if (score >= 60) return '#D97706'
-  return '#DC2626'
-}
+const statusOptions = [
+  { label: '新简历', value: 'NEW' },
+  { label: '待初筛', value: 'PENDING' },
+  { label: '已通过', value: 'PASSED' },
+  { label: '已淘汰', value: 'REJECTED' },
+  { label: '已入职', value: 'ONBOARD' },
+]
 
 async function handleParse() {
   try {
     const res: any = await parseResume(route.params.id as string)
     const data = res.data || res
     Object.assign(resume.value, data)
-    ElMessage.success('解析完成')
+    toast.success('解析完成')
   } catch {
-    ElMessage.error('解析失败')
+    toast.error('解析失败')
   }
 }
 
 async function handleImportPool() {
   try {
     await importToTalentPool(route.params.id as string)
-    ElMessage.success('已导入人才库')
+    toast.success('已导入人才库')
   } catch {
-    ElMessage.error('导入失败')
+    toast.error('导入失败')
   }
 }
 
-async function handleStatusChange(val: string) {
+async function handleStatusChange(val: string | number | undefined) {
+  if (!val) return
+  const status = String(val)
   try {
-    await updateResume(route.params.id as string, { status: val })
-    ElMessage.success('状态已更新')
+    await updateResume(route.params.id as string, { status })
+    toast.success('状态已更新')
   } catch {
-    ElMessage.error('更新失败')
+    toast.error('更新失败')
   }
 }
 
@@ -243,7 +242,7 @@ async function loadData() {
     const data = res.data || res
     resume.value = { ...resume.value, ...data }
   } catch {
-    ElMessage.error('加载失败')
+    toast.error('加载失败')
   }
 }
 
@@ -334,7 +333,7 @@ onMounted(() => loadData())
 }
 
 .card-title {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   color: $text-primary;
   margin-bottom: 16px;

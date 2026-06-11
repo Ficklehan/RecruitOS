@@ -59,3 +59,13 @@ knife4j:
 logging:
   level:
     com.recruitos: debug
+
+recruitos:
+  evolution:
+    base-url: http://localhost:8090
+    enabled: true
+    timeout-ms: 3000
+  communication:
+    rechat:
+      interval-hours: 48
+      max-attempts: 2

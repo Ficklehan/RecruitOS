@@ -1,28 +1,13 @@
 <template>
-  <div class="page-container page-stack">
-    <!-- 页面头部 -->
-    <div class="page-header">
-      <h2 class="page-title">招聘周期</h2>
-    </div>
-
-    <!-- 日期选择 -->
-    <div class="filter-bar">
-      <el-date-picker
-        v-model="dateRange"
-        type="daterange"
-        range-separator="至"
-        start-placeholder="开始日期"
-        end-placeholder="结束日期"
-        value-format="YYYY-MM-DD"
-        style="width: 300px"
-      />
-      <el-button type="primary" @click="handleSearch">
-        <el-icon><Search /></el-icon>
+  <PageShell title="招聘周期">
+<div class="flex flex-wrap items-center gap-3 rounded-lg border bg-card p-4 shadow-sm">
+      <DateRangePicker v-model="dateRange" />
+      <RButton @click="handleSearch">
+        <Search class="mr-2 h-4 w-4" />
         查询
-      </el-button>
+      </RButton>
     </div>
 
-    <!-- 整体统计 -->
     <div class="overall-card">
       <div class="overall-item">
         <div class="overall-label">平均招聘周期</div>
@@ -32,11 +17,11 @@
         <div class="overall-label">本月</div>
         <div class="overall-value">
           {{ currentMonthDays }} 天
-          <span v-if="monthDiff < 0" class="trend-down">
-            <el-icon><Bottom /></el-icon> {{ Math.abs(monthDiff) }}天
+          <span v-if="Number(monthDiff) < 0" class="trend-down">
+            <ArrowDown class="h-4 w-4" /> {{ Math.abs(Number(monthDiff)) }}天
           </span>
-          <span v-else-if="monthDiff > 0" class="trend-up">
-            <el-icon><Top /></el-icon> +{{ monthDiff }}天
+          <span v-else-if="Number(monthDiff) > 0" class="trend-up">
+            <ArrowUp class="h-4 w-4" /> +{{ monthDiff }}天
           </span>
           <span v-else class="trend-flat">持平</span>
         </div>
@@ -47,15 +32,10 @@
       </div>
     </div>
 
-    <!-- 各阶段耗时 -->
-    <div class="data-card">
+    <div class="rounded-xl bg-card text-card-foreground shadow-soft">
       <h3 class="section-title">各阶段平均耗时</h3>
       <div class="stage-chart">
-        <div
-          v-for="stage in stageData"
-          :key="stage.name"
-          class="stage-row"
-        >
+        <div v-for="stage in stageData" :key="stage.name" class="stage-row">
           <div class="stage-label">{{ stage.name }}</div>
           <div class="stage-track">
             <div
@@ -67,10 +47,10 @@
           </div>
           <div class="stage-compare">
             <span v-if="stage.diff < 0" class="trend-down">
-              <el-icon><Bottom /></el-icon> {{ Math.abs(stage.diff) }}天
+              <ArrowDown class="h-4 w-4" /> {{ Math.abs(stage.diff) }}天
             </span>
             <span v-else-if="stage.diff > 0" class="trend-up">
-              <el-icon><Top /></el-icon> +{{ stage.diff }}天
+              <ArrowUp class="h-4 w-4" /> +{{ stage.diff }}天
             </span>
             <span v-else class="trend-flat">持平</span>
           </div>
@@ -78,15 +58,10 @@
       </div>
     </div>
 
-    <!-- 时间线视图 -->
-    <div class="data-card">
+    <div class="rounded-xl bg-card text-card-foreground shadow-soft">
       <h3 class="section-title">招聘周期时间线</h3>
       <div class="timeline">
-        <div
-          v-for="stage in stageData"
-          :key="stage.name"
-          class="timeline-item"
-        >
+        <div v-for="stage in stageData" :key="stage.name" class="timeline-item">
           <div class="timeline-dot" :style="{ backgroundColor: stage.color }"></div>
           <div class="timeline-content">
             <div class="timeline-name">{{ stage.name }}</div>
@@ -101,45 +76,34 @@
         </div>
       </div>
     </div>
-  </div>
+</PageShell>
 </template>
 
 <script setup lang="ts">
+import PageShell from '@/components/Layout/PageShell.vue'
 import { ref, computed, onMounted } from 'vue'
-import { Search, Top, Bottom } from '@element-plus/icons-vue'
+import { Search, ArrowUp, ArrowDown } from 'lucide-vue-next'
+import { RButton } from '@/components/ui'
+import DateRangePicker from '@/components/app/DateRangePicker.vue'
 import { getCycleData } from '@/api/modules/analytics'
 
-const dateRange = ref<string[]>([])
-const stageColors = ['#3B82F6', '#059669', '#D97706', '#DC2626', '#64748B', '#3B82F6']
+const dateRange = ref<[string, string] | null>(null)
+const stageColors = ['$primary-color', '$success-color', '$warning-color', '#DC2626', '$text-secondary', '$primary-color']
 const totalAvgFromApi = ref<number | null>(null)
 
 const stageData = ref<{ name: string; days: number; diff: number; color: string }[]>([])
 
-// 最大天数（用于计算条形图宽度）
-const maxDays = computed(() =>
-  Math.max(...stageData.value.map(s => s.days))
-)
+const maxDays = computed(() => Math.max(...stageData.value.map((s) => s.days)))
 
-// 平均招聘周期
 const avgCycleDays = computed(() => {
   if (totalAvgFromApi.value != null) return totalAvgFromApi.value.toFixed(1)
   return stageData.value.reduce((sum, s) => sum + s.days, 0).toFixed(1)
 })
 
-// 本月与上月对比
-const currentMonthDays = computed(() =>
-  Number(avgCycleDays.value)
-)
+const currentMonthDays = computed(() => Number(avgCycleDays.value))
+const lastMonthDays = computed(() => (Number(avgCycleDays.value) + 1.3).toFixed(1))
+const monthDiff = computed(() => (currentMonthDays.value - Number(lastMonthDays.value)).toFixed(1))
 
-const lastMonthDays = computed(() =>
-  (Number(avgCycleDays.value) + 1.3).toFixed(1)
-)
-
-const monthDiff = computed(() =>
-  (currentMonthDays.value - Number(lastMonthDays.value)).toFixed(1)
-)
-
-// 条形图宽度百分比
 function getStageWidth(days: number): number {
   return maxDays.value > 0 ? (days / maxDays.value) * 100 : 0
 }
@@ -205,7 +169,7 @@ onMounted(loadCycle)
 }
 
 .section-title {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   color: $text-primary;
   margin: 0 0 20px 0;
@@ -234,7 +198,7 @@ onMounted(loadCycle)
 .stage-track {
   flex: 1;
   height: 32px;
-  background: #f0f2f5;
+  background: $bg-page;
   border-radius: 4px;
   overflow: hidden;
 }
@@ -253,7 +217,7 @@ onMounted(loadCycle)
 .stage-value {
   font-size: 13px;
   font-weight: 600;
-  color: #fff;
+  color: var(--r-bg-card);
 }
 
 .stage-compare {
@@ -281,7 +245,6 @@ onMounted(loadCycle)
   color: $text-secondary;
 }
 
-// 时间线视图
 .timeline {
   display: flex;
   flex-direction: column;
@@ -314,7 +277,7 @@ onMounted(loadCycle)
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  border: 3px solid #fff;
+  border: 3px solid var(--r-bg-card);
   box-shadow: 0 0 0 2px $border-color;
   z-index: 1;
 }
@@ -339,7 +302,7 @@ onMounted(loadCycle)
 .timeline-bar-wrapper {
   flex: 1;
   height: 24px;
-  background: #f0f2f5;
+  background: $bg-page;
   border-radius: 4px;
   overflow: hidden;
 }

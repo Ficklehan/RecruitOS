@@ -10,11 +10,11 @@
             <template v-if="resume.company"> @ {{ resume.company }}</template>
           </p>
           <div class="profile-tags">
-            <el-tag v-if="resume.workYears" size="small" type="info">{{ resume.workYears }} 年经验</el-tag>
-            <el-tag v-if="resume.education" size="small">{{ resume.education }}</el-tag>
-            <el-tag v-if="parseStatusLabel(resume.parseStatus)" size="small" :type="parseStatusTag(resume.parseStatus)">
+            <Badge v-if="resume.workYears" variant="secondary">{{ resume.workYears }} 年经验</Badge>
+            <Badge v-if="resume.education" variant="outline">{{ resume.education }}</Badge>
+            <Badge v-if="parseStatusLabel(resume.parseStatus)" :variant="parseStatusBadge(resume.parseStatus)">
               {{ parseStatusLabel(resume.parseStatus) }}
-            </el-tag>
+            </Badge>
           </div>
         </div>
       </div>
@@ -112,6 +112,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import SkillChips from '@/components/candidate/SkillChips.vue'
+import { Badge } from '@/components/ui'
+import { elTagTypeToBadge } from '@/lib/badgeVariants'
 import type { NormalizedResume } from '@/utils/resumeParser'
 import { parseStatusLabel } from '@/utils/resumeParser'
 
@@ -152,12 +154,12 @@ function formatSalary(val: unknown) {
   return String(val)
 }
 
-function parseStatusTag(status?: string) {
+function parseStatusBadge(status?: string) {
   const s = String(status || '')
-  if (s === '2' || s.toUpperCase() === 'SUCCESS') return 'success'
-  if (s === '3' || s.toUpperCase() === 'FAILED') return 'danger'
-  if (s === '1' || s.toUpperCase() === 'PARSING') return 'warning'
-  return 'info'
+  if (s === '2' || s.toUpperCase() === 'SUCCESS') return elTagTypeToBadge('success')
+  if (s === '3' || s.toUpperCase() === 'FAILED') return elTagTypeToBadge('danger')
+  if (s === '1' || s.toUpperCase() === 'PARSING') return elTagTypeToBadge('warning')
+  return elTagTypeToBadge('info')
 }
 </script>
 
@@ -223,10 +225,10 @@ function parseStatusTag(status?: string) {
 
 .profile-card,
 .section-card {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  background: var(--r-bg-card);
+  border-radius: 12px;
   padding: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .profile-header {
@@ -240,7 +242,7 @@ function parseStatusTag(status?: string) {
   height: 52px;
   border-radius: 12px;
   background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-  color: #fff;
+  color: var(--r-bg-card);
   font-size: 20px;
   font-weight: 700;
   display: flex;
@@ -412,10 +414,10 @@ function parseStatusTag(status?: string) {
 
 .edu-row {
   padding: 10px 0;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--r-divider);
 
   &:last-child {
-    border-bottom: none;
+    box-shadow: none;
     padding-bottom: 0;
   }
 }

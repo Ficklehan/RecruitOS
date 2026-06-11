@@ -16,8 +16,14 @@ public class FunnelVO implements Serializable {
     /** Date range end */
     private String dateTo;
 
-    /** Funnel stages */
+    /** Pipeline funnel stages (筛选→入职) */
     private List<FunnelStageVO> stages;
+
+    /** Campaign sourcing stages (平台检索→纳入候选人) */
+    private List<FunnelStageVO> sourcingStages;
+
+    /** Channel comparison: 自招 / 内推 / 猎头 */
+    private List<ChannelCompareVO> channels;
 
     // Getters and Setters
 
@@ -43,5 +49,21 @@ public class FunnelVO implements Serializable {
 
     public void setStages(List<FunnelStageVO> stages) {
         this.stages = stages;
+    }
+
+    public List<FunnelStageVO> getSourcingStages() {
+        return sourcingStages;
+    }
+
+    public void setSourcingStages(List<FunnelStageVO> sourcingStages) {
+        this.sourcingStages = sourcingStages;
+    }
+
+    public List<ChannelCompareVO> getChannels() {
+        return channels;
+    }
+
+    public void setChannels(List<ChannelCompareVO> channels) {
+        this.channels = channels;
     }
 }

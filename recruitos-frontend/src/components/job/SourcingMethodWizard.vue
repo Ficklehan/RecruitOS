@@ -1,19 +1,23 @@
 <template>
-  <div class="sourcing-wizard" v-loading="loading">
-    <div class="wizard-status data-card">
+  <div class="sourcing-wizard relative">
+    <div v-if="loading" class="absolute inset-0 z-10 flex items-center justify-center bg-background/60 rounded-lg">
+      <Loader2 class="h-6 w-6 animate-spin text-primary" />
+    </div>
+
+    <div class="wizard-status rounded-xl bg-card shadow-soft">
       <div class="status-left">
         <span v-if="activePack" class="status-chip active">已生效 v{{ activePack.version }}</span>
         <span v-if="draftPack" class="status-chip draft">草案 v{{ draftPack.version }}</span>
         <span v-if="!activePack && !draftPack" class="status-chip empty">待设置招人方式</span>
       </div>
       <div class="status-actions">
-        <el-button type="primary" :loading="generating" :disabled="!jobId" @click="handleGenerate">
+        <Button :disabled="generating || !jobId" @click="handleGenerate">
           {{ draftPack || activePack ? '重新生成' : '生成招人方式' }}
-        </el-button>
-        <el-button v-if="draftPack" :loading="saving" @click="handleSaveDraft">保存草案</el-button>
-        <el-button v-if="draftPack" type="success" :loading="confirming" @click="handleConfirmPublish">
+        </Button>
+        <Button v-if="draftPack" variant="outline" :disabled="saving" @click="handleSaveDraft">保存草案</Button>
+        <Button v-if="draftPack" class="bg-green-600 hover:bg-green-700" :disabled="confirming" @click="handleConfirmPublish">
           确认并发布
-        </el-button>
+        </Button>
       </div>
     </div>
 
@@ -27,98 +31,109 @@
     />
 
     <template v-else>
-      <el-tabs v-model="wizardTab" class="wizard-tabs">
-        <el-tab-pane label="找什么人" name="keywords">
+      <Tabs v-model="wizardTab" class="wizard-tabs">
+        <TabsList>
+          <TabsTrigger value="keywords">找什么人</TabsTrigger>
+          <TabsTrigger value="screening">怎么筛</TabsTrigger>
+          <TabsTrigger value="comm">对外怎么说</TabsTrigger>
+          <TabsTrigger value="rechat">跟进节奏</TabsTrigger>
+          <TabsTrigger value="touch">触达方式</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="keywords">
           <p class="tab-hint">系统将根据这些关键词在招聘平台上搜寻候选人。</p>
           <div class="keyword-editor">
-            <el-tag
-              v-for="(kw, idx) in packForm.searchKeywords"
-              :key="idx"
-              closable
-              class="kw-tag"
-              @close="removeKeyword(idx)"
-            >
+            <Badge v-for="(kw, idx) in packForm.searchKeywords" :key="idx" variant="secondary" class="gap-1">
               {{ kw }}
-            </el-tag>
-            <el-input
+              <button type="button" class="ml-1" @click="removeKeyword(idx)">×</button>
+            </Badge>
+            <Input
               v-if="keywordInputVisible"
               ref="keywordInputRef"
               v-model="keywordInput"
-              size="small"
-              class="kw-input"
+              class="kw-input w-36 h-8"
               @keyup.enter="addKeyword"
               @blur="addKeyword"
             />
-            <el-button v-else size="small" @click="showKeywordInput">+ 添加关键词</el-button>
+            <Button v-else size="sm" variant="outline" @click="showKeywordInput">+ 添加关键词</Button>
           </div>
-        </el-tab-pane>
+        </TabsContent>
 
-        <el-tab-pane label="怎么筛" name="screening">
+        <TabsContent value="screening">
           <p class="tab-hint">两阶段筛选：先看平台卡片信息，通过后再看完整简历。</p>
-          <el-form label-width="100px" size="default">
-            <el-form-item label="通过线">
-              <el-slider v-model="passThreshold" :min="40" :max="90" show-input />
-            </el-form-item>
-          </el-form>
-        </el-tab-pane>
+          <FormField label="通过线">
+            <RangeSlider v-model="passThreshold" :min="40" :max="90" />
+          </FormField>
+        </TabsContent>
 
-        <el-tab-pane label="对外怎么说" name="comm">
+        <TabsContent value="comm">
           <p class="tab-hint">首次联系与后续沟通的风格（可在「对外沟通风格」设置租户默认）。</p>
-          <el-form label-width="100px">
-            <el-form-item label="沟通人设">
-              <el-input v-model="commPersona" type="textarea" :rows="2" placeholder="如：专业、简洁、尊重候选人" />
-            </el-form-item>
-            <el-form-item label="公司介绍">
-              <el-input v-model="commBackground" type="textarea" :rows="3" placeholder="首次联系时可用的公司背景" />
-            </el-form-item>
-          </el-form>
-        </el-tab-pane>
+          <FormField label="沟通人设">
+            <Textarea v-model="commPersona" :rows="2" placeholder="如：专业、简洁、尊重候选人" />
+          </FormField>
+          <FormField label="公司介绍" class="mt-4">
+            <Textarea v-model="commBackground" :rows="3" placeholder="首次联系时可用的公司背景" />
+          </FormField>
+        </TabsContent>
 
-        <el-tab-pane label="跟进节奏" name="rechat">
-          <el-form label-width="120px">
-            <el-form-item label="最多跟进次数">
-              <el-input-number v-model="rechatMax" :min="0" :max="5" />
-            </el-form-item>
-            <el-form-item label="间隔（小时）">
-              <el-input-number v-model="rechatHours" :min="12" :max="168" :step="12" />
-            </el-form-item>
-          </el-form>
-        </el-tab-pane>
+        <TabsContent value="rechat">
+          <FormField label="最多跟进次数">
+            <NumberInput v-model="rechatMax" :min="0" :max="5" class="w-32" />
+          </FormField>
+          <FormField label="间隔（小时）" class="mt-4">
+            <NumberInput v-model="rechatHours" :min="12" :max="168" :step="12" class="w-32" />
+          </FormField>
+        </TabsContent>
 
-        <el-tab-pane label="触达方式" name="touch">
-          <el-form label-width="120px">
-            <el-form-item :label="OBJECTS.sourcingMethod">
-              <el-radio-group v-model="packForm.greetStrategy">
-                <el-radio label="SCREEN_THEN_GREET">{{ greetStrategyLabel('SCREEN_THEN_GREET') }}</el-radio>
-                <el-radio label="COLLECT_ONLY">{{ greetStrategyLabel('COLLECT_ONLY') }}</el-radio>
-              </el-radio-group>
-            </el-form-item>
-            <el-form-item label="Boss 日配额">
-              <el-input-number v-model="packForm.platformQuotas!.BOSS" :min="1" :max="200" />
-            </el-form-item>
-            <el-form-item label="猎聘 日配额">
-              <el-input-number v-model="packForm.platformQuotas!.LIEPIN" :min="1" :max="200" />
-            </el-form-item>
-          </el-form>
-          <el-collapse class="advanced-collapse">
-            <el-collapse-item title="高级选项（实施顾问）" name="adv">
-              <el-radio-group v-model="packForm.greetStrategy">
-                <el-radio label="CARD_GREET">{{ greetStrategyLabel('CARD_GREET') }}</el-radio>
-              </el-radio-group>
-              <pre v-if="showJson" class="json-preview">{{ jsonPreview }}</pre>
-              <el-button link type="primary" @click="showJson = !showJson">{{ showJson ? '隐藏' : '查看' }} JSON</el-button>
-            </el-collapse-item>
-          </el-collapse>
-        </el-tab-pane>
-      </el-tabs>
+        <TabsContent value="touch">
+          <FormField :label="OBJECTS.sourcingMethod">
+            <RadioGroup v-model="packForm.greetStrategy" class="flex flex-col gap-2">
+              <label class="flex items-center gap-2 text-sm">
+                <RadioGroupItem value="SCREEN_THEN_GREET" />
+                {{ greetStrategyLabel('SCREEN_THEN_GREET') }}
+              </label>
+              <label class="flex items-center gap-2 text-sm">
+                <RadioGroupItem value="COLLECT_ONLY" />
+                {{ greetStrategyLabel('COLLECT_ONLY') }}
+              </label>
+            </RadioGroup>
+          </FormField>
+          <FormField label="Boss 日配额" class="mt-4">
+            <NumberInput v-model="packForm.platformQuotas!.BOSS" :min="1" :max="200" class="w-32" />
+          </FormField>
+          <FormField label="猎聘 日配额" class="mt-4">
+            <NumberInput v-model="packForm.platformQuotas!.LIEPIN" :min="1" :max="200" class="w-32" />
+          </FormField>
+          <CollapsibleSection title="高级选项（实施顾问）" class="mt-4">
+            <RadioGroup v-model="packForm.greetStrategy" class="flex flex-col gap-2 mb-3">
+              <label class="flex items-center gap-2 text-sm">
+                <RadioGroupItem value="CARD_GREET" />
+                {{ greetStrategyLabel('CARD_GREET') }}
+              </label>
+            </RadioGroup>
+            <pre v-if="showJson" class="json-preview">{{ jsonPreview }}</pre>
+            <Button variant="link" @click="showJson = !showJson">{{ showJson ? '隐藏' : '查看' }} JSON</Button>
+          </CollapsibleSection>
+        </TabsContent>
+      </Tabs>
     </template>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { Loader2 } from 'lucide-vue-next'
+import { toast } from '@/lib/notify'
+import { confirm } from '@/lib/confirm'
 import EmptyStateCta from '@/components/common/EmptyStateCta.vue'
+import FormField from '@/components/app/FormField.vue'
+import RangeSlider from '@/components/app/RangeSlider.vue'
+import NumberInput from '@/components/app/NumberInput.vue'
+import CollapsibleSection from '@/components/app/CollapsibleSection.vue'
+import {
+  Button, Badge, Input, Textarea, Tabs, TabsList, TabsTrigger, TabsContent,
+  RadioGroup, RadioGroupItem,
+} from '@/components/ui'
 import { OBJECTS, greetStrategyLabel } from '@/constants/businessLabels'
 import {
   type OpsPackBody,
@@ -150,7 +165,7 @@ const packForm = reactive<OpsPackBody>(mergeOpsPackBody(null))
 
 const keywordInput = ref('')
 const keywordInputVisible = ref(false)
-const keywordInputRef = ref<any>(null)
+const keywordInputRef = ref<InstanceType<typeof Input> | null>(null)
 
 const passThreshold = computed({
   get: () => packForm.screeningProfile?.passThreshold ?? 60,
@@ -207,7 +222,10 @@ function buildPackPayload() {
 
 function showKeywordInput() {
   keywordInputVisible.value = true
-  nextTick(() => keywordInputRef.value?.focus?.())
+  nextTick(() => {
+    const el = keywordInputRef.value?.$el as HTMLInputElement | undefined
+    el?.focus?.()
+  })
 }
 
 function addKeyword() {
@@ -252,7 +270,7 @@ async function handleGenerate() {
     const res: any = await generateOpsPack(props.jobId)
     draftPack.value = res.data
     applyPackToForm(res.data?.pack)
-    ElMessage.success('已生成招人方式草案，请检查后确认发布')
+    toast.success('已生成招人方式草案，请检查后确认发布')
   } finally {
     generating.value = false
   }
@@ -264,7 +282,7 @@ async function handleSaveDraft() {
   try {
     const res: any = await updateOpsPack(props.jobId, draftPack.value.id, buildPackPayload())
     draftPack.value = res.data
-    ElMessage.success('草案已保存')
+    toast.success('草案已保存')
   } finally {
     saving.value = false
   }
@@ -274,21 +292,18 @@ async function handleConfirmPublish() {
   if (!draftPack.value?.id) return
   await handleSaveDraft()
   const summary = opsPackHumanSummary(buildPackPayload()).join('\n')
-  try {
-    await ElMessageBox.confirm(
-      `将发布新的招人方式（v${(draftPack.value.version || 0) + 1} 或确认当前草案）。\n\n${summary}\n\n只影响此后新开启的平台招人任务；正在进行的任务不变。`,
-      '确认并发布招人方式',
-      { confirmButtonText: '确认发布', cancelButtonText: '取消', type: 'warning' },
-    )
-  } catch {
-    return
-  }
+  const ok = await confirm({
+    title: '确认并发布招人方式',
+    message: `将发布新的招人方式（v${(draftPack.value.version || 0) + 1} 或确认当前草案）。\n\n${summary}\n\n只影响此后新开启的平台招人任务；正在进行的任务不变。`,
+    confirmText: '确认发布',
+  })
+  if (!ok) return
   confirming.value = true
   try {
     const res: any = await confirmOpsPack(props.jobId, draftPack.value.id)
     activePack.value = res.data
     draftPack.value = null
-    ElMessage.success('新的招人方式已生效')
+    toast.success('新的招人方式已生效')
     emit('confirmed', res.data?.version || 0)
     await loadPacks()
   } finally {
@@ -323,9 +338,6 @@ defineExpose({ reload: loadPacks, activeVersion: computed(() => activePack.value
 .status-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .tab-hint { color: #64748b; font-size: 13px; margin-bottom: 12px; }
 .keyword-editor { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.kw-tag { margin: 0; }
-.kw-input { width: 140px; }
-.advanced-collapse { margin-top: 16px; }
 .json-preview {
   background: #f8fafc;
   padding: 12px;

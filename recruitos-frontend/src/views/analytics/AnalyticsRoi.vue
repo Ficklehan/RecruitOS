@@ -1,29 +1,14 @@
 <template>
-  <div class="page-container page-stack">
-    <!-- 页面头部 -->
-    <div class="page-header">
-      <h2 class="page-title">渠道ROI</h2>
-    </div>
-
-    <!-- 日期选择 -->
-    <div class="filter-bar">
-      <el-date-picker
-        v-model="dateRange"
-        type="daterange"
-        range-separator="至"
-        start-placeholder="开始日期"
-        end-placeholder="结束日期"
-        value-format="YYYY-MM-DD"
-        style="width: 300px"
-      />
-      <el-button type="primary" @click="handleSearch">
-        <el-icon><Search /></el-icon>
+  <PageShell title="渠道ROI">
+<div class="flex flex-wrap items-center gap-3 rounded-lg border bg-card p-4 shadow-sm">
+      <DateRangePicker v-model="dateRange" />
+      <RButton @click="handleSearch">
+        <Search class="mr-2 h-4 w-4" />
         查询
-      </el-button>
+      </RButton>
     </div>
 
-    <!-- 汇总卡片 -->
-    <div class="stats-row">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       <div class="stat-card">
         <div class="stat-label">总投入</div>
         <div class="stat-value">¥ {{ totalInvestment.toLocaleString() }}</div>
@@ -38,45 +23,37 @@
       </div>
     </div>
 
-    <!-- 数据表格 -->
-    <div class="data-card">
-      <el-table :data="channelData" stripe highlight-current-row style="width: 100%">
-        <el-table-column prop="channelName" label="渠道名称" min-width="140" />
-        <el-table-column prop="investment" label="投入成本" width="130" align="right">
-          <template #default="{ row }">
-            ¥ {{ row.investment.toLocaleString() }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="hires" label="入职人数" width="100" align="center" />
-        <el-table-column prop="costPerHire" label="单位成本" width="130" align="right">
-          <template #default="{ row }">
-            ¥ {{ row.costPerHire.toLocaleString() }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="conversionRate" label="转化率" width="100" align="center">
-          <template #default="{ row }">
-            {{ row.conversionRate }}%
-          </template>
-        </el-table-column>
-        <el-table-column prop="roiRating" label="ROI评级" width="100" align="center">
-          <template #default="{ row }">
-            <el-tag :type="getRoiTagType(row.roiRating)" size="small" disable-transitions>
-              {{ row.roiRating }}
-            </el-tag>
-          </template>
-        </el-table-column>
-      </el-table>
+    <div class="rounded-xl bg-card text-card-foreground shadow-soft">
+      <RTable v-if="channelData.length">
+        <RTableHead>
+          <RTableRow>
+            <RTableTh class="min-w-[140px]">渠道名称</RTableTh>
+            <RTableTh class="w-[130px] text-right">投入成本</RTableTh>
+            <RTableTh class="w-[100px] text-center">入职人数</RTableTh>
+            <RTableTh class="w-[130px] text-right">单位成本</RTableTh>
+            <RTableTh class="w-[100px] text-center">转化率</RTableTh>
+            <RTableTh class="w-[100px] text-center">ROI评级</RTableTh>
+          </RTableRow>
+        </RTableHead>
+        <RTableBody>
+          <RTableRow v-for="row in channelData" :key="row.channelName">
+            <RTableCell>{{ row.channelName }}</RTableCell>
+            <RTableCell class="text-right">¥ {{ row.investment.toLocaleString() }}</RTableCell>
+            <RTableCell class="text-center">{{ row.hires }}</RTableCell>
+            <RTableCell class="text-right">¥ {{ row.costPerHire.toLocaleString() }}</RTableCell>
+            <RTableCell class="text-center">{{ row.conversionRate }}%</RTableCell>
+            <RTableCell class="text-center">
+              <RBadge :variant="roiBadge(row.roiRating)">{{ row.roiRating }}</RBadge>
+            </RTableCell>
+          </RTableRow>
+        </RTableBody>
+      </RTable>
     </div>
 
-    <!-- 单位成本横向对比 -->
-    <div class="data-card">
+    <div class="rounded-xl bg-card text-card-foreground shadow-soft">
       <h3 class="section-title">单位成本对比</h3>
       <div class="bar-chart">
-        <div
-          v-for="item in channelData"
-          :key="item.channelName"
-          class="bar-row"
-        >
+        <div v-for="item in channelData" :key="item.channelName" class="bar-row">
           <div class="bar-label">{{ item.channelName }}</div>
           <div class="bar-track">
             <div
@@ -89,15 +66,19 @@
         </div>
       </div>
     </div>
-  </div>
+</PageShell>
 </template>
 
 <script setup lang="ts">
+import PageShell from '@/components/Layout/PageShell.vue'
 import { ref, computed, onMounted } from 'vue'
-import { Search } from '@element-plus/icons-vue'
+import { Search } from 'lucide-vue-next'
+import { RButton, RBadge, RTable, RTableHead, RTableBody, RTableRow, RTableTh, RTableCell } from '@/components/ui'
+import DateRangePicker from '@/components/app/DateRangePicker.vue'
+import type { BadgeVariant } from '@/lib/badgeVariants'
 import { getRoiData } from '@/api/modules/analytics'
 
-const dateRange = ref<string[]>([])
+const dateRange = ref<[string, string] | null>(null)
 
 const channelData = ref<{
   channelName: string
@@ -115,49 +96,28 @@ function roiRating(costPerHire: number): string {
   return 'D'
 }
 
-// 汇总计算
-const totalInvestment = computed(() =>
-  channelData.value.reduce((sum, c) => sum + c.investment, 0)
-)
+const totalInvestment = computed(() => channelData.value.reduce((sum, c) => sum + c.investment, 0))
+const totalHires = computed(() => channelData.value.reduce((sum, c) => sum + c.hires, 0))
+const avgCost = computed(() => (totalHires.value > 0 ? Math.round(totalInvestment.value / totalHires.value) : 0))
+const maxCost = computed(() => Math.max(...channelData.value.map((c) => c.costPerHire)))
 
-const totalHires = computed(() =>
-  channelData.value.reduce((sum, c) => sum + c.hires, 0)
-)
-
-const avgCost = computed(() =>
-  totalHires.value > 0 ? Math.round(totalInvestment.value / totalHires.value) : 0
-)
-
-// 最高单位成本（用于计算条形图宽度）
-const maxCost = computed(() =>
-  Math.max(...channelData.value.map(c => c.costPerHire))
-)
-
-// ROI 评级标签颜色
-function getRoiTagType(rating: string): string {
-  const map: Record<string, string> = {
-    A: 'success',
-    B: '',
-    C: 'warning',
-    D: 'danger',
-  }
-  return map[rating] || 'info'
+function roiBadge(rating: string): BadgeVariant {
+  const map: Record<string, BadgeVariant> = { A: 'default', B: 'secondary', C: 'outline', D: 'destructive' }
+  return map[rating] ?? 'secondary'
 }
 
-// 条形图宽度百分比
 function getCostBarWidth(cost: number): number {
   return maxCost.value > 0 ? (cost / maxCost.value) * 100 : 0
 }
 
-// 条形图颜色
 function getCostBarColor(rating: string): string {
   const map: Record<string, string> = {
-    A: '#059669',
-    B: '#3B82F6',
-    C: '#D97706',
+    A: '$success-color',
+    B: '$primary-color',
+    C: '$warning-color',
     D: '#DC2626',
   }
-  return map[rating] || '#64748B'
+  return map[rating] || '$text-secondary'
 }
 
 async function loadRoi() {
@@ -215,18 +175,13 @@ onMounted(loadRoi)
     font-weight: 600;
     color: $text-primary;
 
-    &.primary {
-      color: $primary-color;
-    }
-
-    &.success {
-      color: $success-color;
-    }
+    &.primary { color: $primary-color; }
+    &.success { color: $success-color; }
   }
 }
 
 .section-title {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   color: $text-primary;
   margin: 0 0 20px 0;
@@ -255,7 +210,7 @@ onMounted(loadRoi)
 .bar-track {
   flex: 1;
   height: 28px;
-  background: #f0f2f5;
+  background: $bg-page;
   border-radius: 4px;
   overflow: hidden;
 }
@@ -274,6 +229,6 @@ onMounted(loadRoi)
 .bar-value {
   font-size: 12px;
   font-weight: 600;
-  color: #fff;
+  color: var(--r-bg-card);
 }
 </style>

@@ -2,6 +2,7 @@ package com.recruitos.interview.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.recruitos.common.evolution.ModuleEvolutionEmitter;
 import com.recruitos.common.exception.BizException;
 import com.recruitos.common.result.PageResult;
 import com.recruitos.common.tenant.TenantContext;
@@ -41,6 +42,9 @@ public class InterviewService {
 
     @Resource
     private InterviewEvaluationMapper evaluationMapper;
+
+    @Resource
+    private ModuleEvolutionEmitter moduleEvolutionEmitter;
 
     @Resource
     private InterviewSlotMapper slotMapper;
@@ -251,12 +255,18 @@ public class InterviewService {
         evaluation.setRound(interview.getRound());
         evaluation.setDecision(dto.getDecision());
         evaluation.setOverallScore(dto.getOverallScore());
-        evaluation.setDimensions(dto.getDimensions());
+        evaluation.setDimensions(StringUtils.hasText(dto.getDimensions()) ? dto.getDimensions() : "{}");
         evaluation.setEvolutionFeedback(dto.getEvolutionFeedback());
         evaluation.setComment(dto.getComment());
         evaluation.setSubmittedAt(LocalDateTime.now());
 
         evaluationMapper.insert(evaluation);
+
+        moduleEvolutionEmitter.emitInterviewResult(
+                interview.getJobId(),
+                interview.getCandidateId(),
+                dto.getDecision(),
+                dto.getOverallScore());
 
         // Trigger next round if initial interview passed
         if ("INITIAL".equals(interview.getRound()) && "PASS".equals(dto.getDecision())) {

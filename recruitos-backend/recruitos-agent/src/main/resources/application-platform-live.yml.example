@@ -1,0 +1,11 @@
+# 手动联调 Boss直聘 / 猎聘 时复制为 application-platform-live.yml 并启动：
+#   java -jar recruitos-agent.jar --spring.profiles.active=platform-live
+#
+# 警告：开启后将真实访问招聘平台，可能触发风控。仅在需要人工验证 RPA 时使用。
+
+recruitos:
+  agent:
+    rpa:
+      enabled: true
+      platform-access-enabled: true
+      headless: false

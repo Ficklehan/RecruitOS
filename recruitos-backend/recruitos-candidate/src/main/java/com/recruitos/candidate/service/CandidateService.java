@@ -8,8 +8,12 @@ import com.recruitos.candidate.entity.CandidateJob;
 import com.recruitos.candidate.entity.Resume;
 import com.recruitos.candidate.mapper.CandidateJobMapper;
 import com.recruitos.candidate.mapper.CandidateMapper;
+import com.recruitos.candidate.mapper.JobPositionReadMapper;
 import com.recruitos.candidate.mapper.ResumeMapper;
 import com.recruitos.common.exception.BizException;
+import com.recruitos.common.match.TagMatchScoreCalculator;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.recruitos.common.result.PageResult;
 import com.recruitos.common.tenant.TenantContext;
 import org.slf4j.Logger;
@@ -42,6 +46,12 @@ public class CandidateService {
 
     @Resource
     private MatchVerdictService matchVerdictService;
+
+    @Resource
+    private JobPositionReadMapper jobPositionReadMapper;
+
+    @Resource
+    private ObjectMapper objectMapper;
 
     /**
      * Create a new candidate
@@ -380,60 +390,64 @@ public class CandidateService {
     }
 
     /**
-     * Simulated match score calculation.
-     * In a real system this would use AI/embedding matching.
-     *
-     * Logic:
-     * 1. Get job tag weights
-     * 2. Get candidate resume parsed skill tags
-     * 3. Calculate match per tag
-     * 4. Weighted sum to get total score
-     * 5. Save to candidate_job table
+     * 岗位 JD 标签与候选人技能画像的统一匹配分（与 agent 筛选、决策面板一致）。
      */
     private BigDecimal calculateMatchScore(Long candidateId, Long jobId) {
         Candidate candidate = candidateMapper.selectById(candidateId);
-        if (candidate == null) {
+        if (candidate == null || jobId == null) {
             return BigDecimal.ZERO;
         }
+        Long tenantId = TenantContext.getTenantId();
+        String jobTags = jobPositionReadMapper.selectTags(jobId, tenantId);
 
-        // Simulated: use candidate fields to compute a score
-        double score = 50.0; // base score
+        TagMatchScoreCalculator.CandidateSkillProfile profile = new TagMatchScoreCalculator.CandidateSkillProfile();
+        profile.setTags(combineCandidateTags(candidate.getTags(), extractResumeSkills(candidateId)));
+        profile.setCurrentTitle(candidate.getCurrentTitle());
+        profile.setCurrentCompany(candidate.getCurrentCompany());
+        profile.setWorkYears(candidate.getWorkYears());
+        profile.setEducation(candidate.getEducation());
+        profile.setHasParsedResume(matchVerdictService.hasParsedResume(candidateId));
 
-        // Bonus for work years
-        if (candidate.getWorkYears() != null && candidate.getWorkYears() >= 3) {
-            score += 10.0;
+        return TagMatchScoreCalculator.calculate(jobTags, profile, objectMapper);
+    }
+
+    private String combineCandidateTags(String candidateTags, String resumeSkills) {
+        if (!StringUtils.hasText(resumeSkills)) {
+            return candidateTags;
         }
-        if (candidate.getWorkYears() != null && candidate.getWorkYears() >= 5) {
-            score += 5.0;
+        if (!StringUtils.hasText(candidateTags)) {
+            return resumeSkills;
         }
+        return candidateTags + "," + resumeSkills;
+    }
 
-        // Bonus for education
-        if (StringUtils.hasText(candidate.getEducation())) {
-            String edu = candidate.getEducation();
-            if (edu.contains("硕士") || edu.contains("Master")) {
-                score += 10.0;
-            } else if (edu.contains("博士") || edu.contains("PhD")) {
-                score += 15.0;
-            } else if (edu.contains("本科") || edu.contains("Bachelor")) {
-                score += 5.0;
+    private String extractResumeSkills(Long candidateId) {
+        LambdaQueryWrapper<Resume> w = new LambdaQueryWrapper<>();
+        w.eq(Resume::getCandidateId, candidateId)
+                .in(Resume::getParseStatus, "SUCCESS", "PARSED", "2")
+                .orderByDesc(Resume::getCreatedAt)
+                .last("LIMIT 1");
+        Resume resume = resumeMapper.selectOne(w);
+        if (resume == null || !StringUtils.hasText(resume.getParsedJson())) {
+            return null;
+        }
+        try {
+            Map<String, Object> parsed = objectMapper.readValue(resume.getParsedJson(),
+                    new TypeReference<Map<String, Object>>() {});
+            Object skills = parsed.get("skills");
+            if (skills instanceof List) {
+                StringBuilder sb = new StringBuilder();
+                for (Object item : (List<?>) skills) {
+                    if (item != null) {
+                        sb.append(item).append(',');
+                    }
+                }
+                return sb.length() > 0 ? sb.toString() : null;
             }
+        } catch (Exception ignored) {
+            /* fall through */
         }
-
-        // Bonus for having a resume parsed
-        LambdaQueryWrapper<Resume> resumeWrapper = new LambdaQueryWrapper<>();
-        resumeWrapper.eq(Resume::getCandidateId, candidateId)
-                .eq(Resume::getParseStatus, "SUCCESS");
-        Long resumeCount = resumeMapper.selectCount(resumeWrapper);
-        if (resumeCount > 0) {
-            score += 10.0;
-        }
-
-        // Cap at 100
-        if (score > 100.0) {
-            score = 100.0;
-        }
-
-        return BigDecimal.valueOf(score).setScale(2, RoundingMode.HALF_UP);
+        return null;
     }
 
     /**

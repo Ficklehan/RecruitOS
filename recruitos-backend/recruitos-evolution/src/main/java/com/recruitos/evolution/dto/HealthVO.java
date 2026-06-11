@@ -31,6 +31,9 @@ public class HealthVO implements Serializable {
     /** Evolution freshness score (0-100) */
     private Integer evolutionFreshnessScore;
 
+    /** Evidence/explanation for weight stability score */
+    private String weightStabilityEvidence;
+
     /** Health status: HEALTHY/WARNING/CRITICAL */
     private String status;
 
@@ -93,6 +96,14 @@ public class HealthVO implements Serializable {
 
     public void setEvolutionFreshnessScore(Integer evolutionFreshnessScore) {
         this.evolutionFreshnessScore = evolutionFreshnessScore;
+    }
+
+    public String getWeightStabilityEvidence() {
+        return weightStabilityEvidence;
+    }
+
+    public void setWeightStabilityEvidence(String weightStabilityEvidence) {
+        this.weightStabilityEvidence = weightStabilityEvidence;
     }
 
     public String getStatus() {

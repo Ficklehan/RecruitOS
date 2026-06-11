@@ -1,46 +1,43 @@
 <template>
-  <div class="page-container page-stack">
-    <div class="page-header">
-      <h2 class="page-title">许可信息</h2>
-    </div>
-
-    <el-card>
-      <div class="license-info">
-        <div class="license-header">
-          <div class="license-icon">
-            <el-icon :size="48" color="#3B82F6"><Stamp /></el-icon>
+  <PageShell title="许可信息">
+<RCard>
+      <CardContent class="pt-6">
+        <div class="license-info">
+          <div class="license-header">
+            <div class="license-icon">
+              <Stamp class="h-12 w-12 text-primary" />
+            </div>
+            <div class="license-title">
+              <h3>{{ licenseInfo.plan }} 版</h3>
+              <RBadge :variant="licenseInfo.status === 'active' ? 'default' : 'destructive'" class="mt-2">
+                {{ licenseInfo.status === 'active' ? '有效' : '已过期' }}
+              </RBadge>
+            </div>
           </div>
-          <div class="license-title">
-            <h3>{{ licenseInfo.plan }} 版</h3>
-            <el-tag :type="licenseInfo.status === 'active' ? 'success' : 'danger'" size="large">
-              {{ licenseInfo.status === 'active' ? '有效' : '已过期' }}
-            </el-tag>
+
+          <dl class="license-details grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
+            <div v-for="item in detailItems" :key="item.label" class="flex flex-col gap-1">
+              <dt class="text-sm text-muted-foreground">{{ item.label }}</dt>
+              <dd class="text-sm font-medium">{{ item.value }}</dd>
+            </div>
+          </dl>
+
+          <div class="license-actions">
+            <RButton>续费</RButton>
+            <RButton variant="outline">升级套餐</RButton>
+            <RButton variant="outline">导出许可</RButton>
           </div>
         </div>
-
-        <el-descriptions :column="2" class="license-details">
-          <el-descriptions-item label="许可证编号">{{ licenseInfo.licenseNo }}</el-descriptions-item>
-          <el-descriptions-item label="企业名称">{{ licenseInfo.companyName }}</el-descriptions-item>
-          <el-descriptions-item label="套餐类型">{{ licenseInfo.plan }}</el-descriptions-item>
-          <el-descriptions-item label="用户上限">{{ licenseInfo.maxUsers }} 人</el-descriptions-item>
-          <el-descriptions-item label="生效日期">{{ licenseInfo.startDate }}</el-descriptions-item>
-          <el-descriptions-item label="到期日期">{{ licenseInfo.endDate }}</el-descriptions-item>
-          <el-descriptions-item label="已用用户数">{{ licenseInfo.usedUsers }} 人</el-descriptions-item>
-          <el-descriptions-item label="剩余天数">{{ licenseInfo.remainingDays }} 天</el-descriptions-item>
-        </el-descriptions>
-
-        <div class="license-actions">
-          <el-button type="primary">续费</el-button>
-          <el-button>升级套餐</el-button>
-          <el-button>导出许可</el-button>
-        </div>
-      </div>
-    </el-card>
-  </div>
+      </CardContent>
+    </RCard>
+</PageShell>
 </template>
 
 <script setup lang="ts">
-import { reactive } from 'vue'
+import PageShell from '@/components/Layout/PageShell.vue'
+import { reactive, computed } from 'vue'
+import { Stamp } from 'lucide-vue-next'
+import { RButton, RBadge, RCard, CardContent } from '@/components/ui'
 
 const licenseInfo = reactive({
   licenseNo: 'RO-2024-XXXX-XXXX-XXXX',
@@ -53,10 +50,22 @@ const licenseInfo = reactive({
   endDate: '2024-12-31',
   remainingDays: 291,
 })
+
+const detailItems = computed(() => [
+  { label: '许可证编号', value: licenseInfo.licenseNo },
+  { label: '企业名称', value: licenseInfo.companyName },
+  { label: '套餐类型', value: licenseInfo.plan },
+  { label: '用户上限', value: `${licenseInfo.maxUsers} 人` },
+  { label: '生效日期', value: licenseInfo.startDate },
+  { label: '到期日期', value: licenseInfo.endDate },
+  { label: '已用用户数', value: `${licenseInfo.usedUsers} 人` },
+  { label: '剩余天数', value: `${licenseInfo.remainingDays} 天` },
+])
 </script>
 
 <style lang="scss" scoped>
 @import '@/assets/styles/variables.scss';
+
 .license-info {
   max-width: 800px;
 }
@@ -82,13 +91,11 @@ const licenseInfo = reactive({
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
 }
 
-.license-title {
-  h3 {
-    font-size: 24px;
-    font-weight: 700;
-    color: $text-primary;
-    margin-bottom: 8px;
-  }
+.license-title h3 {
+  font-size: 24px;
+  font-weight: 700;
+  color: $text-primary;
+  margin: 0;
 }
 
 .license-details {
@@ -98,5 +105,6 @@ const licenseInfo = reactive({
 .license-actions {
   display: flex;
   gap: 12px;
+  flex-wrap: wrap;
 }
 </style>

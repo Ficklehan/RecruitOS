@@ -518,7 +518,7 @@ onMounted(async () => {
   border-radius: 12px;
   padding: 28px 32px;
   margin-bottom: 20px;
-  color: #fff;
+  color: var(--r-bg-card);
 
   .banner-left {
     display: flex;
@@ -718,7 +718,7 @@ onMounted(async () => {
   font-weight: 600;
 }
 .req-row {
-  background: #fafbfc;
+  background: var(--r-bg-page);
 }
 .req-name { font-size: 13px; font-weight: 500; }
 .req-hint { grid-column: 1 / -1; font-size: 12px; color: $text-secondary; }
@@ -744,7 +744,7 @@ onMounted(async () => {
       display: flex;
       align-items: center;
       justify-content: center;
-      color: #fff;
+      color: var(--r-bg-card);
     }
 
     .insight-title {

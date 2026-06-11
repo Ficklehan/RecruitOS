@@ -1,61 +1,59 @@
 <template>
-  <div class="candidate-workspace" :class="{ 'is-drawer': drawerMode }" v-loading="loading">
-    <div v-if="!drawerMode" class="page-header">
-      <el-button text @click="goBack"><el-icon><ArrowLeft /></el-icon>返回</el-button>
-      <div v-if="candidate" class="header-main">
-        <h2 class="page-title">{{ candidate.name }}</h2>
-        <p class="page-subtitle">{{ headerSubtitle }}</p>
-      </div>
-      <el-button v-if="candidate" link type="primary" @click="openFullWorkspace">全屏查看</el-button>
+  <div class="candidate-workspace relative" :class="{ 'is-drawer': drawerMode }">
+    <div v-if="loading" class="absolute inset-0 z-10 flex items-center justify-center bg-background/60">
+      <Loader2 class="h-6 w-6 animate-spin text-primary" />
+    </div>
+
+    <div v-if="!drawerMode" class="ws-breadcrumb">
+      <RButton variant="ghost" @click="goBack">
+        <ArrowLeft class="mr-2 h-4 w-4" />
+        返回候选人列表
+      </RButton>
     </div>
 
     <template v-if="candidate">
-      <header class="identity-bar">
-        <div class="identity-left">
-          <div class="avatar">{{ (candidate.name || '?').charAt(0) }}</div>
-          <div class="identity-text">
-            <div class="identity-top">
-              <span class="identity-name">{{ candidate.name }}</span>
-              <span class="identity-meta">{{ candidate.currentCompany || '—' }} · {{ candidate.currentTitle || '—' }}</span>
-            </div>
-            <div class="identity-sub">
-              <span v-if="candidate.workYears != null" class="meta-pill">{{ candidate.workYears }}年</span>
-              <span v-if="candidate.education" class="meta-pill">{{ educationLabel(candidate.education) }}</span>
-              <span class="meta-pill">{{ sourceLabel(candidate.source) }}</span>
-              <SkillChips
-                v-if="normalizedResume.skills.length"
-                :skills="normalizedResume.skills"
-                :limit="6"
-                compact
-              />
-            </div>
-            <div v-if="contactLine" class="identity-contact">{{ contactLine }}</div>
-          </div>
-        </div>
-        <div v-if="activeJobId && quickMatch" class="identity-verdict">
-          <MatchVerdict
-            :match-score="quickMatch.matchScore"
-            :match-detail="quickMatch.matchDetail"
-            mode="compact"
-            :show-score="false"
-          />
-        </div>
-      </header>
+      <ObjectHeader
+        :name="candidate.name"
+        :avatar-text="candidate.name"
+        :meta="[
+          candidate.currentCompany || '—',
+          candidate.currentTitle || '—',
+          candidate.workYears != null ? `${candidate.workYears}年` : '',
+          candidate.education ? educationLabel(candidate.education) : '',
+        ].filter(Boolean).join(' · ')"
+      >
+        <template #actions>
+          <RButton v-if="drawerMode" variant="link" @click="openFullWorkspace">全屏查看</RButton>
+        </template>
+      </ObjectHeader>
+
+      <div v-if="activeJobId" class="context-strip">
+        <span class="context-strip__label">当前职位：</span>
+        <span>{{ jobTitle(activeJobId) }}</span>
+        <span>·</span>
+        <span>阶段：</span>
+        <RBadge variant="default">{{ pipelineStageLabel(activeJob?.pipelineStage) }}</RBadge>
+        <span v-if="quickMatch?.matchScore != null">· 匹配 {{ quickMatch.matchScore }}%</span>
+      </div>
 
       <div class="workspace-body">
         <main class="workspace-main">
-          <el-tabs v-model="activeTab" class="content-tabs">
-            <el-tab-pane label="简历" name="resume">
+          <RTabs v-model="activeTab" class="content-tabs">
+            <RTabsList>
+              <RTabsTrigger value="resume">简历</RTabsTrigger>
+              <RTabsTrigger value="match">匹配评估</RTabsTrigger>
+            </RTabsList>
+
+            <RTabsContent value="resume">
               <div class="resume-toolbar">
-                <el-radio-group v-model="resumeView" size="small">
-                  <el-radio-button label="parsed">结构化简历</el-radio-button>
-                  <el-radio-button label="original">原始 PDF</el-radio-button>
-                </el-radio-group>
+                <SegmentedControl
+                  v-model="resumeView"
+                  :options="resumeViewOptions"
+                />
               </div>
               <ParsedResumePanel
                 v-if="resumeView === 'parsed' && resumeLoaded"
-                embedded
-                hide-skills
+                embedded hide-skills
                 :resume="normalizedResume"
                 :candidate="candidate"
               />
@@ -68,13 +66,11 @@
                 title="暂无简历"
                 description="候选人尚未关联已解析简历"
                 :image-size="56"
-                :actions="resumeId ? [
-                  { label: '重新加载', type: 'primary', onClick: loadResume },
-                ] : []"
+                :actions="resumeId ? [{ label: '重新加载', type: 'primary', onClick: loadResume }] : []"
               />
-            </el-tab-pane>
+            </RTabsContent>
 
-            <el-tab-pane label="匹配评估" name="match">
+            <RTabsContent value="match">
               <MatchEvalPanel
                 ref="matchPanelRef"
                 :candidate-id="candidateId"
@@ -82,52 +78,51 @@
                 :show-actions="false"
                 :show-full-page-link="true"
               />
-            </el-tab-pane>
-          </el-tabs>
+            </RTabsContent>
+          </RTabs>
         </main>
 
         <aside class="action-rail">
           <div class="rail-section">
             <label class="rail-label">在招职位</label>
-            <el-select
+            <RSelect
               v-model="activeJobId"
+              :options="jobSelectOptions"
               placeholder="选择职位"
-              filterable
-              size="default"
-              class="rail-select"
-              @change="onJobChange"
-            >
-              <el-option v-for="j in jobs" :key="j.jobId" :label="jobTitle(j.jobId)" :value="j.jobId" />
-            </el-select>
+              class="rail-select w-full"
+              @update:model-value="onJobChange"
+            />
           </div>
 
           <template v-if="activeJob">
             <div class="rail-stage">
               <span class="rail-label">当前进展</span>
-              <el-tag size="small" type="primary" effect="light">
-                {{ pipelineStageLabel(activeJob.pipelineStage) }}
-              </el-tag>
+              <RBadge variant="default">{{ pipelineStageLabel(activeJob.pipelineStage) }}</RBadge>
             </div>
 
             <div class="rail-actions">
-              <el-button type="primary" class="rail-btn" @click="handlePass">进入下一轮</el-button>
-              <el-button class="rail-btn" @click="advanceActiveJob('INTERVIEWING')">安排面试</el-button>
-              <el-button type="danger" plain class="rail-btn" @click="handleReject">标记不合适</el-button>
-              <el-dropdown trigger="click" @command="handleRailCommand" class="rail-more">
-                <el-button class="rail-btn">更多操作</el-button>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item v-if="pendingFeedbackInterview" command="feedback">提交面试反馈</el-dropdown-item>
-                    <el-dropdown-item v-if="canPrepareOffer" command="offer">准备录用通知</el-dropdown-item>
-                    <el-dropdown-item command="reserve">储备至人才库</el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
+              <RButton class="rail-btn" @click="handlePass">进入下一轮</RButton>
+              <RButton variant="outline" class="rail-btn" @click="advanceActiveJob('INTERVIEWING')">安排面试</RButton>
+              <RButton variant="destructive" class="rail-btn" @click="handleReject">标记不合适</RButton>
+              <RDropdown>
+                <DropdownMenuTrigger>
+                  <RButton variant="outline" class="rail-btn w-full">更多操作</RButton>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem v-if="pendingFeedbackInterview" @click="feedbackDrawerVisible = true">
+                    提交面试反馈
+                  </DropdownMenuItem>
+                  <DropdownMenuItem v-if="canPrepareOffer" @click="openOfferDialog">
+                    准备录用通知
+                  </DropdownMenuItem>
+                  <DropdownMenuItem @click="handleReserve">储备至人才库</DropdownMenuItem>
+                </DropdownMenuContent>
+              </RDropdown>
             </div>
 
-            <el-button link type="primary" class="rail-link" @click="activeTab = 'match'">
+            <RButton variant="link" class="rail-link" @click="activeTab = 'match'">
               查看匹配评估
-            </el-button>
+            </RButton>
 
             <div v-if="jobTimeline.length" class="rail-timeline">
               <div class="rail-label">最近进展</div>
@@ -143,63 +138,65 @@
             title="未关联职位"
             description="请先在候选人列表关联在招职位"
             :image-size="48"
-            :actions="[
-              { label: '去候选人列表', type: 'primary', onClick: () => router.push('/pipeline/candidates') },
-            ]"
+            :actions="[{ label: '去候选人列表', type: 'primary', onClick: () => router.push('/pipeline/candidates') }]"
           />
         </aside>
       </div>
     </template>
 
-    <el-dialog v-model="offerDialogVisible" title="准备录用通知" width="480px" destroy-on-close>
-      <el-form label-width="88px">
-        <el-form-item label="候选人">
+    <RDialog v-model:open="offerDialogVisible">
+      <DialogContent class="max-w-md">
+        <DialogHeader>
+          <DialogTitle>准备录用通知</DialogTitle>
+        </DialogHeader>
+        <FormField label="候选人">
           <span>{{ candidate?.name }}</span>
-        </el-form-item>
-        <el-form-item label="在招职位">
+        </FormField>
+        <FormField label="在招职位" class="mt-4">
           <span>{{ activeJobId ? jobTitle(activeJobId) : '—' }}</span>
-        </el-form-item>
-        <el-form-item label="部门">
-          <el-input v-model="offerForm.department" placeholder="如：技术部" />
-        </el-form-item>
-        <el-form-item label="薪资">
-          <el-input v-model="offerForm.salary" placeholder="如：35K · 15薪" />
-        </el-form-item>
-        <el-form-item label="备注">
-          <el-input v-model="offerForm.remark" type="textarea" :rows="2" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="offerDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="offerSubmitting" @click="submitOffer">创建并提交审批</el-button>
-      </template>
-    </el-dialog>
+        </FormField>
+        <FormField label="部门" class="mt-4">
+          <RInput v-model="offerForm.department" placeholder="如：技术部" />
+        </FormField>
+        <FormField label="薪资" class="mt-4">
+          <RInput v-model="offerForm.salary" placeholder="如：35K · 15薪" />
+        </FormField>
+        <FormField label="备注" class="mt-4">
+          <RTextarea v-model="offerForm.remark" :rows="2" />
+        </FormField>
+        <DialogFooter>
+          <RButton variant="outline" @click="offerDialogVisible = false">取消</RButton>
+          <RButton :disabled="offerSubmitting" @click="submitOffer">创建并提交审批</RButton>
+        </DialogFooter>
+      </DialogContent>
+    </RDialog>
 
-    <InterviewEvalDrawer
-      v-model="feedbackDrawerVisible"
-      :interview="pendingFeedbackInterview"
-      @submitted="onFeedbackSubmitted"
-    />
+    <InterviewEvalDrawer v-model="feedbackDrawerVisible" :interview="pendingFeedbackInterview" @submitted="onFeedbackSubmitted" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowLeft } from '@element-plus/icons-vue'
-import MatchVerdict from '@/components/match/MatchVerdict.vue'
-import SkillChips from '@/components/candidate/SkillChips.vue'
+import { ArrowLeft, Loader2 } from 'lucide-vue-next'
+import { toast } from '@/lib/notify'
+import { confirm } from '@/lib/confirm'
+import { prompt } from '@/lib/prompt'
+import ObjectHeader from '@/components/Layout/ObjectHeader.vue'
+import FormField from '@/components/app/FormField.vue'
+import SegmentedControl from '@/components/app/SegmentedControl.vue'
 import ParsedResumePanel from '@/components/candidate/ParsedResumePanel.vue'
 import ResumeOriginalPanel from '@/components/candidate/ResumeOriginalPanel.vue'
 import MatchEvalPanel from '@/components/candidate/MatchEvalPanel.vue'
 import EmptyStateCta from '@/components/common/EmptyStateCta.vue'
 import InterviewEvalDrawer from '@/components/interview/InterviewEvalDrawer.vue'
 import {
-  pipelineStageLabel,
-  sourceLabel,
-  educationLabel,
-} from '@/constants/businessLabels'
+  RButton, RBadge, RSelect, RTabs, RTabsList, RTabsTrigger, RTabsContent,
+  RDialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  RInput, RTextarea,
+  RDropdown, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
+} from '@/components/ui'
+import { pipelineStageLabel, educationLabel } from '@/constants/businessLabels'
 import { normalizeResumeData, type NormalizedResume } from '@/utils/resumeParser'
 import { getDecisionPanel, screening } from '@/api/modules/candidate'
 import { getCandidate360, advancePipelineStage } from '@/api/modules/pipeline'
@@ -212,21 +209,20 @@ const props = withDefaults(defineProps<{
   candidateIdProp?: number
   jobIdProp?: number | null
   drawerMode?: boolean
-}>(), {
-  drawerMode: false,
-  jobIdProp: null,
-})
+}>(), { drawerMode: false, jobIdProp: null })
 
-const emit = defineEmits<{
-  loaded: [payload: { name: string; candidateId: number }]
-}>()
+const emit = defineEmits<{ loaded: [payload: { name: string; candidateId: number }] }>()
 
 const route = useRoute()
 const router = useRouter()
 
 const loading = ref(false)
 const activeTab = ref('resume')
-const resumeView = ref<'parsed' | 'original'>('parsed')
+const resumeView = ref('parsed')
+const resumeViewOptions = [
+  { label: '结构化简历', value: 'parsed' },
+  { label: '原始 PDF', value: 'original' },
+]
 const candidate = ref<any>(null)
 const jobs = ref<any[]>([])
 const timeline = ref<any[]>([])
@@ -241,11 +237,11 @@ const offerDialogVisible = ref(false)
 const offerSubmitting = ref(false)
 const feedbackDrawerVisible = ref(false)
 const pendingFeedbackInterview = ref<any | null>(null)
-const offerForm = reactive({
-  department: '',
-  salary: '',
-  remark: '',
-})
+const offerForm = reactive({ department: '', salary: '', remark: '' })
+
+const jobSelectOptions = computed(() =>
+  jobs.value.map(j => ({ label: jobTitle(j.jobId), value: j.jobId }))
+)
 
 const canPrepareOffer = computed(() => {
   const stage = activeJob.value?.pipelineStage
@@ -257,34 +253,11 @@ const candidateId = computed(() => {
   return Number(route.params.id || route.params.candidateId) || 0
 })
 
-const normalizedResume = computed<NormalizedResume>(() =>
-  normalizeResumeData(resumeRaw.value, candidate.value),
-)
-
-const activeJob = computed(() =>
-  jobs.value.find(j => j.jobId === activeJobId.value) || null,
-)
-
+const normalizedResume = computed<NormalizedResume>(() => normalizeResumeData(resumeRaw.value, candidate.value))
+const activeJob = computed(() => jobs.value.find(j => j.jobId === activeJobId.value) || null)
 const jobTimeline = computed(() => {
   if (!activeJob.value) return timeline.value.slice(0, 5)
-  return timeline.value
-    .filter((log: any) => log.candidateJobId === activeJob.value?.id)
-    .slice(0, 5)
-})
-
-const headerSubtitle = computed(() => {
-  if (!candidate.value) return ''
-  return [candidate.value.currentCompany, candidate.value.currentTitle].filter(Boolean).join(' · ')
-})
-
-const contactLine = computed(() => {
-  if (!candidate.value) return ''
-  const parts = [
-    candidate.value.phone,
-    candidate.value.email,
-    candidate.value.workLocation ? `期望 ${candidate.value.workLocation}` : '',
-  ].filter(Boolean)
-  return parts.join(' · ')
+  return timeline.value.filter((log: any) => log.candidateJobId === activeJob.value?.id).slice(0, 5)
 })
 
 function formatTime(val?: string) {
@@ -292,9 +265,7 @@ function formatTime(val?: string) {
   return val.replace('T', ' ').slice(0, 16)
 }
 
-function jobTitle(jobId: number) {
-  return jobTitleMap.value[jobId] || `职位 #${jobId}`
-}
+function jobTitle(jobId: number) { return jobTitleMap.value[jobId] || `职位 #${jobId}` }
 
 function nextStage(stage?: string) {
   const flow = ['SOURCED', 'SCREENING', 'CONTACTED', 'INTERVIEWING', 'EVALUATED', 'OFFER', 'HIRED']
@@ -302,81 +273,31 @@ function nextStage(stage?: string) {
   return idx < 0 || idx >= flow.length - 1 ? 'SCREENING' : flow[idx + 1]
 }
 
-function goBack() {
-  if (props.drawerMode) return
-  router.back()
-}
-
-function openFullWorkspace() {
-  router.push({
-    path: `/pipeline/candidates/${candidateId.value}`,
-    query: activeJobId.value ? { jobId: String(activeJobId.value) } : {},
-  })
-}
+function goBack() { if (!props.drawerMode) router.back() }
+function openFullWorkspace() { router.push({ path: `/pipeline/candidates/${candidateId.value}`, query: activeJobId.value ? { jobId: String(activeJobId.value) } : {} }) }
 
 async function loadQuickMatch() {
-  if (!activeJobId.value || !candidateId.value) {
-    quickMatch.value = null
-    return
-  }
-  try {
-    const res: any = await getDecisionPanel(candidateId.value, activeJobId.value)
-    quickMatch.value = res.data || {}
-  } catch {
-    quickMatch.value = activeJob.value
-  }
+  if (!activeJobId.value || !candidateId.value) { quickMatch.value = null; return }
+  try { const res: any = await getDecisionPanel(candidateId.value, activeJobId.value); quickMatch.value = res.data || {} } catch { quickMatch.value = activeJob.value }
 }
 
-function onJobChange() {
-  loadQuickMatch()
-  loadPendingFeedback()
-  matchPanelRef.value?.reload()
-}
+function onJobChange() { loadQuickMatch(); loadPendingFeedback(); matchPanelRef.value?.reload() }
 
 async function loadPendingFeedback() {
-  if (!candidateId.value || !activeJobId.value) {
-    pendingFeedbackInterview.value = null
-    return
-  }
+  if (!candidateId.value || !activeJobId.value) { pendingFeedbackInterview.value = null; return }
   try {
-    const res: any = await getInterviewList({
-      candidateId: candidateId.value,
-      jobId: activeJobId.value,
-      status: 'COMPLETED',
-      pageNum: 1,
-      pageSize: 10,
-    })
+    const res: any = await getInterviewList({ candidateId: candidateId.value, jobId: activeJobId.value, status: 'COMPLETED', pageNum: 1, pageSize: 10 })
     const list = res.data?.list || []
     pendingFeedbackInterview.value = list.find((i: any) => !i.evaluation) || null
-  } catch {
-    pendingFeedbackInterview.value = null
-  }
+  } catch { pendingFeedbackInterview.value = null }
 }
 
-function openFeedbackDrawer() {
-  if (!pendingFeedbackInterview.value) return
-  feedbackDrawerVisible.value = true
-}
-
-async function onFeedbackSubmitted() {
-  await loadPendingFeedback()
-  load()
-}
+async function onFeedbackSubmitted() { await loadPendingFeedback(); load() }
 
 async function loadResume() {
   resumeLoaded.value = false
-  if (!resumeId.value) {
-    resumeRaw.value = null
-    return
-  }
-  try {
-    const res: any = await getResumeDetail(resumeId.value)
-    resumeRaw.value = res.data || res
-    resumeLoaded.value = true
-  } catch {
-    resumeRaw.value = null
-    resumeLoaded.value = false
-  }
+  if (!resumeId.value) { resumeRaw.value = null; return }
+  try { const res: any = await getResumeDetail(resumeId.value); resumeRaw.value = res.data || res; resumeLoaded.value = true } catch { resumeRaw.value = null; resumeLoaded.value = false }
 }
 
 async function load() {
@@ -390,28 +311,20 @@ async function load() {
     resumeId.value = data.candidate?.resumeId || null
 
     const queryJob = props.jobIdProp || Number(route.query.jobId) || null
-    if (queryJob && jobs.value.some(j => j.jobId === queryJob)) {
-      activeJobId.value = queryJob
-    } else if (jobs.value.length) {
-      activeJobId.value = jobs.value[0].jobId
-    }
+    if (queryJob && jobs.value.some(j => j.jobId === queryJob)) activeJobId.value = queryJob
+    else if (jobs.value.length) activeJobId.value = jobs.value[0].jobId
 
-    if (route.query.tab && typeof route.query.tab === 'string') {
-      const tab = route.query.tab
-      activeTab.value = tab === 'overview' ? 'resume' : tab
-    }
+    if (route.query.tab && typeof route.query.tab === 'string') activeTab.value = route.query.tab === 'overview' ? 'resume' : route.query.tab
 
     await Promise.all([loadResume(), loadQuickMatch(), loadPendingFeedback()])
     emit('loaded', { name: candidate.value?.name || '候选人', candidateId: candidateId.value })
-  } finally {
-    loading.value = false
-  }
+  } finally { loading.value = false }
 }
 
 async function advanceActiveJob(stage: string) {
   if (!activeJob.value) return
   await advancePipelineStage(activeJob.value.id, { toStage: stage })
-  ElMessage.success('进展已更新')
+  toast.success('进展已更新')
   load()
 }
 
@@ -419,108 +332,64 @@ async function handlePass() {
   if (!activeJob.value) return
   await advancePipelineStage(activeJob.value.id, { toStage: nextStage(activeJob.value.pipelineStage) })
   await screening(activeJob.value.candidateId, activeJob.value.jobId, { screeningStatus: 'PASSED' })
-  ElMessage.success('已进入下一轮')
+  toast.success('已进入下一轮')
   load()
   matchPanelRef.value?.reload()
 }
 
 async function handleReject() {
   if (!activeJob.value) return
-  const { value, action } = await ElMessageBox.prompt(
-    '该候选人将结束在本职位的招聘流程。',
-    '标记不合适',
-    { inputPlaceholder: '不合适原因（选填）', distinguishCancelAndClose: true },
-  ).catch((e) => e)
-  if (action === 'cancel' || action === 'close') return
-  await advancePipelineStage(activeJob.value.id, {
-    toStage: 'ARCHIVED',
-    reasonCode: 'NOT_FIT',
-    comment: value || '本职位不合适',
-    archivedToPool: false,
+  const value = await prompt({
+    title: '标记不合适',
+    message: '该候选人将结束在本职位的招聘流程。',
+    placeholder: '不合适原因（选填）',
   })
-  await screening(activeJob.value.candidateId, activeJob.value.jobId, {
-    screeningStatus: 'REJECTED',
-    screenerComment: value || '',
-  })
-  ElMessage.success('已标记不合适')
+  if (value === null) return
+  await advancePipelineStage(activeJob.value.id, { toStage: 'ARCHIVED', reasonCode: 'NOT_FIT', comment: value || '本职位不合适', archivedToPool: false })
+  await screening(activeJob.value.candidateId, activeJob.value.jobId, { screeningStatus: 'REJECTED', screenerComment: value || '' })
+  toast.success('已标记不合适')
   load()
 }
 
 async function handleReserve() {
   if (!activeJob.value) return
-  try {
-    await ElMessageBox.confirm('储备至人才库不会结束本职位流程，确定储备吗？', '储备至人才库', {
-      confirmButtonText: '确认储备',
-      cancelButtonText: '取消',
-    })
-    await screening(activeJob.value.candidateId, activeJob.value.jobId, { screeningStatus: 'RESERVE' })
-    ElMessage.success('已储备至人才库')
-  } catch { /* cancel */ }
+  const ok = await confirm({
+    title: '储备至人才库',
+    message: '储备至人才库不会结束本职位流程，确定储备吗？',
+    confirmText: '确认储备',
+  })
+  if (!ok) return
+  await screening(activeJob.value.candidateId, activeJob.value.jobId, { screeningStatus: 'RESERVE' })
+  toast.success('已储备至人才库')
 }
 
-function openOfferDialog() {
-  offerForm.department = ''
-  offerForm.salary = ''
-  offerForm.remark = ''
-  offerDialogVisible.value = true
-}
+function openOfferDialog() { offerForm.department = ''; offerForm.salary = ''; offerForm.remark = ''; offerDialogVisible.value = true }
 
 async function submitOffer() {
   if (!candidate.value || !activeJobId.value) return
-  if (!offerForm.salary.trim()) {
-    ElMessage.warning('请填写薪资')
-    return
-  }
+  if (!offerForm.salary.trim()) { toast.error('请填写薪资'); return }
   offerSubmitting.value = true
   try {
-    const res: any = await createOffer({
-      candidateId: candidateId.value,
-      candidateName: candidate.value.name,
-      jobId: activeJobId.value,
-      jobTitle: jobTitle(activeJobId.value),
-      department: offerForm.department,
-      salary: offerForm.salary,
-      remark: offerForm.remark,
-    })
+    const res: any = await createOffer({ candidateId: candidateId.value, candidateName: candidate.value.name, jobId: activeJobId.value, jobTitle: jobTitle(activeJobId.value), department: offerForm.department, salary: offerForm.salary, remark: offerForm.remark })
     const offerId = res.data?.id || res?.id
-    if (offerId) {
-      await submitOfferApproval(offerId).catch(() => null)
-    }
-    if (activeJob.value && activeJob.value.pipelineStage !== 'OFFER') {
-      await advancePipelineStage(activeJob.value.id, { toStage: 'OFFER' })
-    }
-    ElMessage.success('录用通知已创建，可在「录用相关」待办中跟进')
+    if (offerId) await submitOfferApproval(offerId).catch(() => null)
+    if (activeJob.value && activeJob.value.pipelineStage !== 'OFFER') await advancePipelineStage(activeJob.value.id, { toStage: 'OFFER' })
+    toast.success('录用通知已创建')
     offerDialogVisible.value = false
     load()
     router.push('/pipeline/offers')
-  } catch (e: any) {
-    ElMessage.error(e?.message || '创建失败')
-  } finally {
-    offerSubmitting.value = false
-  }
+  } catch (e: any) { toast.error(e?.message || '创建失败') } finally { offerSubmitting.value = false }
 }
 
 watch(() => candidateId.value, load)
-watch(() => props.jobIdProp, (id) => {
-  if (id) {
-    activeJobId.value = id
-    loadQuickMatch()
-    matchPanelRef.value?.reload()
-  }
-})
-
-function handleRailCommand(cmd: string) {
-  if (cmd === 'feedback') openFeedbackDrawer()
-  else if (cmd === 'offer') openOfferDialog()
-  else if (cmd === 'reserve') handleReserve()
-}
+watch(() => props.jobIdProp, (id) => { if (id) { activeJobId.value = id; loadQuickMatch(); matchPanelRef.value?.reload() } })
 
 onMounted(async () => {
   try {
     const res: any = await getJobList({ pageNum: 1, pageSize: 200 })
     const list = res.data?.list || res.data?.records || []
     jobTitleMap.value = Object.fromEntries(list.map((j: any) => [j.id, j.title]))
-  } catch { /* ignore */ }
+  } catch {}
   load()
 })
 </script>
@@ -528,105 +397,17 @@ onMounted(async () => {
 <style scoped lang="scss">
 @import '@/assets/styles/variables.scss';
 
-.candidate-workspace {
-  &.is-drawer {
-    padding: 0;
-  }
-}
-
-.header-main {
-  flex: 1;
-  min-width: 0;
-}
-
-.identity-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: $spacing-md;
-  padding: $spacing-md $spacing-lg;
-  margin-bottom: $spacing-md;
-  background: $bg-card;
-  border: 1px solid $border-color;
-  border-radius: $border-radius;
-}
-
-.identity-left {
-  display: flex;
-  align-items: center;
-  gap: $spacing-md;
-  min-width: 0;
-  flex: 1;
-}
-
-.avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: $border-radius-sm;
-  background: $primary-color;
-  color: #fff;
-  font-size: 16px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.identity-text {
-  min-width: 0;
-  flex: 1;
-}
-
-.identity-top {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.identity-name {
-  font-size: 16px;
-  font-weight: 600;
-  color: $text-primary;
-}
-
-.identity-meta {
-  font-size: 13px;
-  color: $text-secondary;
-}
-
-.identity-sub {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 4px;
-  flex-wrap: wrap;
-  min-height: 20px;
-}
-
-.meta-pill {
-  font-size: 11px;
-  line-height: 18px;
-  padding: 0 6px;
-  border-radius: 4px;
-  background: $bg-muted;
-  color: $text-secondary;
-  flex-shrink: 0;
-}
-
-.identity-verdict {
-  flex-shrink: 0;
-  max-width: 220px;
+.ws-breadcrumb {
+  margin-bottom: $spacing-sm;
 }
 
 .workspace-body {
   display: grid;
-  grid-template-columns: 1fr 248px;
+  grid-template-columns: 1fr #{$action-rail-width};
   gap: $spacing-section;
   align-items: start;
 
-  @media (max-width: 860px) {
+  @media (max-width: #{$bp-desktop}) {
     grid-template-columns: 1fr;
   }
 }
@@ -634,47 +415,27 @@ onMounted(async () => {
 .workspace-main {
   min-width: 0;
   background: $bg-card;
-  border: 1px solid $border-color;
   border-radius: $border-radius;
   padding: 0 $spacing-lg $spacing-lg;
+  box-shadow: $shadow-soft;
 }
 
 .content-tabs {
-  :deep(.el-tabs__header) {
-    margin-bottom: 12px;
-  }
-
-  :deep(.el-tabs__item) {
-    font-size: 13px;
-    height: 40px;
-  }
+  margin-top: 8px;
 }
 
-.identity-contact {
-  margin-top: 4px;
-  font-size: 12px;
-  color: $text-placeholder;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.resume-toolbar {
-  margin-bottom: 10px;
-}
+.resume-toolbar { margin-bottom: 10px; }
 
 .action-rail {
   position: sticky;
   top: 0;
   background: $bg-card;
-  border: 1px solid $border-color;
   border-radius: $border-radius;
   padding: $spacing-lg;
+  box-shadow: $shadow-soft;
 }
 
-.rail-section {
-  margin-bottom: $spacing-md;
-}
+.rail-section { margin-bottom: $spacing-md; }
 
 .rail-label {
   display: block;
@@ -683,9 +444,7 @@ onMounted(async () => {
   margin-bottom: $spacing-sm;
 }
 
-.rail-select {
-  width: 100%;
-}
+.rail-select { width: 100%; }
 
 .rail-stage {
   display: flex;
@@ -693,7 +452,7 @@ onMounted(async () => {
   justify-content: space-between;
   margin-bottom: 14px;
   padding-bottom: 12px;
-  border-bottom: 1px solid $bg-muted;
+  border-bottom: $divider;
 }
 
 .rail-actions {
@@ -702,21 +461,14 @@ onMounted(async () => {
   gap: $spacing-sm;
 }
 
-.rail-btn {
-  width: 100%;
-  margin: 0;
-}
+.rail-btn { width: 100%; margin: 0; }
 
-.rail-link {
-  margin-top: $spacing-sm;
-  padding: 0;
-  font-size: 12px;
-}
+.rail-link { margin-top: $spacing-sm; padding: 0; font-size: 12px; }
 
 .rail-timeline {
   margin-top: $spacing-lg;
   padding-top: $spacing-md;
-  border-top: 1px solid $border-color-light;
+  border-top: $divider;
 }
 
 .rail-timeline-item {
@@ -726,15 +478,9 @@ onMounted(async () => {
   font-size: 11px;
   color: $text-regular;
   padding: $spacing-xs 0;
-  border-bottom: 1px solid $border-color-light;
-
-  &:last-child {
-    border-bottom: none;
-  }
+  border-bottom: $divider;
+  &:last-child { border-bottom: none; }
 }
 
-.rail-timeline-time {
-  color: $text-placeholder;
-  font-size: 10px;
-}
+.rail-timeline-time { color: $text-placeholder; font-size: 11px; }
 </style>

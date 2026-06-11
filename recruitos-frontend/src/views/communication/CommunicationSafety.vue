@@ -1,174 +1,159 @@
 <template>
-  <div class="page-container page-stack">
-    <div class="page-header">
-      <div>
-        <h2 class="page-title">安全审查</h2>
-        <p class="page-subtitle">监控沟通内容合规与风险拦截记录</p>
-      </div>
-    </div>
-
-    <div class="stat-row">
-      <div class="stat-card">
-        <div class="stat-icon" style="background: #EFF6FF; color: #3B82F6">
-          <el-icon :size="24"><Document /></el-icon>
+  <PageShell variant="list" title="安全审查" subtitle="监控沟通内容合规与风险拦截记录">
+    <template #toolbar>
+      <div class="stat-row">
+        <div class="stat-card">
+          <div class="stat-icon stat-icon--primary"><FileText class="h-6 w-6" /></div>
+          <div class="stat-info">
+            <div class="stat-value">{{ safetyStats.todayTotal }}</div>
+            <div class="stat-label">今日审查数</div>
+          </div>
         </div>
-        <div class="stat-info">
-          <div class="stat-value">{{ safetyStats.todayTotal }}</div>
-          <div class="stat-label">今日审查数</div>
+        <div class="stat-card">
+          <div class="stat-icon stat-icon--danger"><CircleX class="h-6 w-6" /></div>
+          <div class="stat-info">
+            <div class="stat-value">{{ safetyStats.blocked }}</div>
+            <div class="stat-label">拦截数</div>
+          </div>
         </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon" style="background: #FEE2E2; color: #DC2626">
-          <el-icon :size="24"><CircleClose /></el-icon>
+        <div class="stat-card">
+          <div class="stat-icon stat-icon--warning"><AlertTriangle class="h-6 w-6" /></div>
+          <div class="stat-info">
+            <div class="stat-value">{{ safetyStats.warned }}</div>
+            <div class="stat-label">告警数</div>
+          </div>
         </div>
-        <div class="stat-info">
-          <div class="stat-value">{{ safetyStats.blocked }}</div>
-          <div class="stat-label">拦截数</div>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon" style="background: #FEF3C7; color: #D97706">
-          <el-icon :size="24"><Warning /></el-icon>
-        </div>
-        <div class="stat-info">
-          <div class="stat-value">{{ safetyStats.warned }}</div>
-          <div class="stat-label">告警数</div>
+        <div class="stat-card">
+          <div class="stat-icon stat-icon--success"><CircleCheck class="h-6 w-6" /></div>
+          <div class="stat-info">
+            <div class="stat-value">{{ safetyStats.passRate }}%</div>
+            <div class="stat-label">通过率</div>
+          </div>
         </div>
       </div>
-      <div class="stat-card">
-        <div class="stat-icon" style="background: #D1FAE5; color: #059669">
-          <el-icon :size="24"><CircleCheck /></el-icon>
-        </div>
-        <div class="stat-info">
-          <div class="stat-value">{{ safetyStats.passRate }}%</div>
-          <div class="stat-label">通过率</div>
-        </div>
-      </div>
-    </div>
+    </template>
 
-    <!-- Filter Bar -->
-    <div class="filter-bar">
-      <el-date-picker
-        v-model="filters.dateRange"
-        type="daterange"
-        range-separator="至"
-        start-placeholder="开始日期"
-        end-placeholder="结束日期"
-        style="width: 280px"
-        value-format="YYYY-MM-DD"
-      />
-      <el-select v-model="filters.checkType" placeholder="检查类型" clearable style="width: 140px">
-        <el-option label="全部" value="" />
-        <el-option label="关键词" value="KEYWORD" />
-        <el-option label="AI" value="AI" />
-        <el-option label="敏感词" value="SENSITIVE" />
-      </el-select>
-      <el-select v-model="filters.result" placeholder="检查结果" clearable style="width: 140px">
-        <el-option label="全部" value="" />
-        <el-option label="通过" value="PASS" />
-        <el-option label="拦截" value="BLOCK" />
-        <el-option label="告警" value="WARN" />
-      </el-select>
-      <el-select v-model="filters.riskLevel" placeholder="风险等级" clearable style="width: 140px">
-        <el-option label="全部" value="" />
-        <el-option label="低" value="LOW" />
-        <el-option label="中" value="MEDIUM" />
-        <el-option label="高" value="HIGH" />
-      </el-select>
-    </div>
+    <template #filters>
+      <DateRangePicker v-model="filters.dateRange" />
+      <RSelect v-model="filters.checkType" :options="checkTypeOptions" placeholder="检查类型" clearable class="w-full sm:w-36" />
+      <RSelect v-model="filters.result" :options="resultOptions" placeholder="检查结果" clearable class="w-full sm:w-36" />
+      <RSelect v-model="filters.riskLevel" :options="riskLevelOptions" placeholder="风险等级" clearable class="w-full sm:w-36" />
+    </template>
 
-    <div class="data-card">
-    <el-table :data="filteredRecords" style="width: 100%">
-      <el-table-column prop="conversationId" label="会话ID" width="120" />
-      <el-table-column prop="checkType" label="检查类型" width="100">
-        <template #default="{ row }">
-          <el-tag :type="checkTypeTagMap[row.checkType]" size="small">
-            {{ checkTypeLabelMap[row.checkType] }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column prop="result" label="检查结果" width="100">
-        <template #default="{ row }">
-          <el-tag :type="resultTagMap[row.result]" size="small">
-            {{ resultLabelMap[row.result] }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column prop="matchedContent" label="匹配内容" min-width="220">
-        <template #default="{ row }">
-          <span v-if="row.matchedContent" v-html="highlightKeywords(row.matchedContent, row.matchedKeywords)" />
-          <span v-else class="text-muted">-</span>
-        </template>
-      </el-table-column>
-      <el-table-column prop="riskLevel" label="风险等级" width="100">
-        <template #default="{ row }">
-          <el-tag v-if="row.riskLevel" :type="riskTagMap[row.riskLevel]" size="small" effect="dark">
-            {{ riskLabelMap[row.riskLevel] }}
-          </el-tag>
-          <span v-else class="text-muted">-</span>
-        </template>
-      </el-table-column>
-      <el-table-column prop="action" label="处理动作" width="120" />
-      <el-table-column prop="checkTime" label="检查时间" width="170" />
-      <el-table-column label="操作" width="140" align="center" fixed="right">
-        <template #default="{ row }">
-          <el-button type="primary" link :icon="View" @click="openDrawer(row)">查看</el-button>
-          <el-button type="warning" link :icon="RefreshRight" @click="handleReview(row)">复审</el-button>
-        </template>
-      </el-table-column>
-    </el-table>
+    <RTable v-if="paginatedRecords.length">
+      <RTableHead>
+        <RTableRow>
+          <RTableTh class="w-[120px]">会话ID</RTableTh>
+          <RTableTh class="w-[100px]">检查类型</RTableTh>
+          <RTableTh class="w-[100px]">检查结果</RTableTh>
+          <RTableTh class="min-w-[220px]">匹配内容</RTableTh>
+          <RTableTh class="w-[100px]">风险等级</RTableTh>
+          <RTableTh class="w-[120px]">处理动作</RTableTh>
+          <RTableTh class="w-[170px]">检查时间</RTableTh>
+          <RTableTh class="w-[100px] text-center">操作</RTableTh>
+        </RTableRow>
+      </RTableHead>
+      <RTableBody>
+        <RTableRow v-for="row in paginatedRecords" :key="row.id">
+          <RTableCell>{{ row.conversationId }}</RTableCell>
+          <RTableCell>
+            <RBadge :variant="elTagTypeToBadge(checkTypeTagMap[row.checkType])">{{ checkTypeLabelMap[row.checkType] }}</RBadge>
+          </RTableCell>
+          <RTableCell>
+            <RBadge :variant="elTagTypeToBadge(resultTagMap[row.result])">{{ resultLabelMap[row.result] }}</RBadge>
+          </RTableCell>
+          <RTableCell>
+            <span v-if="row.matchedContent" v-html="highlightKeywords(row.matchedContent, row.matchedKeywords)" />
+            <span v-else class="text-muted-foreground">-</span>
+          </RTableCell>
+          <RTableCell>
+            <RBadge v-if="row.riskLevel" :variant="elTagTypeToBadge(riskTagMap[row.riskLevel])">{{ riskLabelMap[row.riskLevel] }}</RBadge>
+            <span v-else class="text-muted-foreground">-</span>
+          </RTableCell>
+          <RTableCell>{{ row.action }}</RTableCell>
+          <RTableCell class="text-muted-foreground">{{ row.checkTime }}</RTableCell>
+          <RTableCell class="text-center">
+            <RowActions :actions="getRowActions(row)" @action="(cmd) => handleRowCommand(cmd, row)" />
+          </RTableCell>
+        </RTableRow>
+      </RTableBody>
+    </RTable>
 
-      <el-pagination
-        v-model:current-page="pagination.page"
-        v-model:page-size="pagination.pageSize"
-        :total="pagination.total"
-        :page-sizes="[10, 20, 50]"
-        layout="total, sizes, prev, pager, next, jumper"
-        background
-      />
-    </div>
+    <EmptyStateCta v-else title="暂无审查记录" description="沟通内容审查后将在此显示" />
 
-    <!-- Detail Drawer -->
-    <el-drawer v-model="drawerVisible" title="审查详情" size="520px">
-      <template v-if="selectedRecord">
-        <el-descriptions :column="1">
-          <el-descriptions-item label="会话ID">{{ selectedRecord.conversationId }}</el-descriptions-item>
-          <el-descriptions-item label="检查类型">
-            <el-tag :type="checkTypeTagMap[selectedRecord.checkType]" size="small">
-              {{ checkTypeLabelMap[selectedRecord.checkType] }}
-            </el-tag>
-          </el-descriptions-item>
-          <el-descriptions-item label="检查结果">
-            <el-tag :type="resultTagMap[selectedRecord.result]" size="small">
-              {{ resultLabelMap[selectedRecord.result] }}
-            </el-tag>
-          </el-descriptions-item>
-          <el-descriptions-item label="风险等级">
-            <el-tag v-if="selectedRecord.riskLevel" :type="riskTagMap[selectedRecord.riskLevel]" size="small" effect="dark">
-              {{ riskLabelMap[selectedRecord.riskLevel] }}
-            </el-tag>
-            <span v-else>-</span>
-          </el-descriptions-item>
-          <el-descriptions-item label="匹配内容">
-            <div v-if="selectedRecord.matchedContent" class="detail-matched" v-html="highlightKeywords(selectedRecord.matchedContent, selectedRecord.matchedKeywords)" />
-            <span v-else>-</span>
-          </el-descriptions-item>
-          <el-descriptions-item label="匹配规则">{{ selectedRecord.rule || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="发送人">{{ selectedRecord.sender }}</el-descriptions-item>
-          <el-descriptions-item label="接收人">{{ selectedRecord.receiver }}</el-descriptions-item>
-          <el-descriptions-item label="处理动作">{{ selectedRecord.action }}</el-descriptions-item>
-          <el-descriptions-item label="检查时间">{{ selectedRecord.checkTime }}</el-descriptions-item>
-          <el-descriptions-item label="备注">{{ selectedRecord.remark || '-' }}</el-descriptions-item>
-        </el-descriptions>
-      </template>
-    </el-drawer>
-  </div>
+    <ListPagination
+      v-if="filteredRecords.length > 0"
+      v-model:page-num="pagination.page"
+      v-model:page-size="pagination.pageSize"
+      :total="filteredRecords.length"
+    />
+
+    <template #below>
+      <RSheet v-model:open="drawerVisible">
+        <RSheetContent class="overflow-y-auto">
+          <h3 class="text-lg font-semibold mb-4">审查详情</h3>
+          <template v-if="selectedRecord">
+            <dl class="detail-dl">
+              <div><dt>会话ID</dt><dd>{{ selectedRecord.conversationId }}</dd></div>
+              <div>
+                <dt>检查类型</dt>
+                <dd>
+                  <RBadge :variant="elTagTypeToBadge(checkTypeTagMap[selectedRecord.checkType])">
+                    {{ checkTypeLabelMap[selectedRecord.checkType] }}
+                  </RBadge>
+                </dd>
+              </div>
+              <div>
+                <dt>检查结果</dt>
+                <dd>
+                  <RBadge :variant="elTagTypeToBadge(resultTagMap[selectedRecord.result])">
+                    {{ resultLabelMap[selectedRecord.result] }}
+                  </RBadge>
+                </dd>
+              </div>
+              <div>
+                <dt>风险等级</dt>
+                <dd>
+                  <RBadge v-if="selectedRecord.riskLevel" :variant="elTagTypeToBadge(riskTagMap[selectedRecord.riskLevel])">
+                    {{ riskLabelMap[selectedRecord.riskLevel] }}
+                  </RBadge>
+                  <span v-else>-</span>
+                </dd>
+              </div>
+              <div>
+                <dt>匹配内容</dt>
+                <dd>
+                  <div v-if="selectedRecord.matchedContent" class="detail-matched" v-html="highlightKeywords(selectedRecord.matchedContent, selectedRecord.matchedKeywords)" />
+                  <span v-else>-</span>
+                </dd>
+              </div>
+              <div><dt>匹配规则</dt><dd>{{ selectedRecord.rule || '-' }}</dd></div>
+              <div><dt>发送人</dt><dd>{{ selectedRecord.sender }}</dd></div>
+              <div><dt>接收人</dt><dd>{{ selectedRecord.receiver }}</dd></div>
+              <div><dt>处理动作</dt><dd>{{ selectedRecord.action }}</dd></div>
+              <div><dt>检查时间</dt><dd>{{ selectedRecord.checkTime }}</dd></div>
+              <div><dt>备注</dt><dd>{{ selectedRecord.remark || '-' }}</dd></div>
+            </dl>
+          </template>
+        </RSheetContent>
+      </RSheet>
+    </template>
+  </PageShell>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
-import { Document, CircleClose, Warning, CircleCheck, View, RefreshRight } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+import { FileText, CircleX, AlertTriangle, CircleCheck } from 'lucide-vue-next'
+import { toast } from '@/lib/notify'
+import { elTagTypeToBadge } from '@/lib/badgeVariants'
+import RowActions from '@/components/common/RowActions.vue'
+import PageShell from '@/components/Layout/PageShell.vue'
+import EmptyStateCta from '@/components/common/EmptyStateCta.vue'
+import ListPagination from '@/components/common/ListPagination.vue'
+import DateRangePicker from '@/components/app/DateRangePicker.vue'
+import {
+  RSelect, RBadge, RTable, RTableHead, RTableBody, RTableRow, RTableTh, RTableCell, RSheet, RSheetContent,
+} from '@/components/ui'
 import { getSafetyLogList, getSafetyStats, reviewSafetyLog } from '@/api/modules/communication'
 
 type CheckType = 'KEYWORD' | 'AI' | 'SENSITIVE'
@@ -191,49 +176,33 @@ interface SafetyRecord {
   remark: string
 }
 
-const checkTypeTagMap: Record<CheckType, string> = {
-  KEYWORD: '',
-  AI: 'primary',
-  SENSITIVE: 'warning',
-}
+const checkTypeTagMap: Record<CheckType, string> = { KEYWORD: '', AI: 'primary', SENSITIVE: 'warning' }
+const checkTypeLabelMap: Record<CheckType, string> = { KEYWORD: '关键词', AI: 'AI', SENSITIVE: '敏感词' }
+const resultTagMap: Record<Result, string> = { PASS: 'success', BLOCK: 'danger', WARN: 'warning' }
+const resultLabelMap: Record<Result, string> = { PASS: '通过', BLOCK: '拦截', WARN: '告警' }
+const riskTagMap: Record<RiskLevel, string> = { LOW: 'success', MEDIUM: 'warning', HIGH: 'danger' }
+const riskLabelMap: Record<RiskLevel, string> = { LOW: '低', MEDIUM: '中', HIGH: '高' }
 
-const checkTypeLabelMap: Record<CheckType, string> = {
-  KEYWORD: '关键词',
-  AI: 'AI',
-  SENSITIVE: '敏感词',
-}
+const checkTypeOptions = [
+  { label: '关键词', value: 'KEYWORD' },
+  { label: 'AI', value: 'AI' },
+  { label: '敏感词', value: 'SENSITIVE' },
+]
 
-const resultTagMap: Record<Result, string> = {
-  PASS: 'success',
-  BLOCK: 'danger',
-  WARN: 'warning',
-}
+const resultOptions = [
+  { label: '通过', value: 'PASS' },
+  { label: '拦截', value: 'BLOCK' },
+  { label: '告警', value: 'WARN' },
+]
 
-const resultLabelMap: Record<Result, string> = {
-  PASS: '通过',
-  BLOCK: '拦截',
-  WARN: '告警',
-}
-
-const riskTagMap: Record<RiskLevel, string> = {
-  LOW: 'success',
-  MEDIUM: 'warning',
-  HIGH: 'danger',
-}
-
-const riskLabelMap: Record<RiskLevel, string> = {
-  LOW: '低',
-  MEDIUM: '中',
-  HIGH: '高',
-}
+const riskLevelOptions = [
+  { label: '低', value: 'LOW' },
+  { label: '中', value: 'MEDIUM' },
+  { label: '高', value: 'HIGH' },
+]
 
 const records = ref<SafetyRecord[]>([])
-const safetyStats = reactive({
-  todayTotal: 0,
-  blocked: 0,
-  warned: 0,
-  passRate: '0',
-})
+const safetyStats = reactive({ todayTotal: 0, blocked: 0, warned: 0, passRate: '0' })
 
 function mapSafetyRow(row: any): SafetyRecord {
   return {
@@ -273,31 +242,29 @@ async function loadSafetyData() {
 
 onMounted(loadSafetyData)
 
-// Filters
 const filters = reactive({
   dateRange: null as [string, string] | null,
-  checkType: '',
-  result: '',
-  riskLevel: '',
+  checkType: '' as string | undefined,
+  result: '' as string | undefined,
+  riskLevel: '' as string | undefined,
 })
 
-const filteredRecords = computed(() => {
-  return records.value.filter((r) => {
+const filteredRecords = computed(() =>
+  records.value.filter((r) => {
     if (filters.checkType && r.checkType !== filters.checkType) return false
     if (filters.result && r.result !== filters.result) return false
     if (filters.riskLevel && r.riskLevel !== filters.riskLevel) return false
     return true
   })
+)
+
+const pagination = reactive({ page: 1, pageSize: 10 })
+
+const paginatedRecords = computed(() => {
+  const start = (pagination.page - 1) * pagination.pageSize
+  return filteredRecords.value.slice(start, start + pagination.pageSize)
 })
 
-// Pagination
-const pagination = reactive({
-  page: 1,
-  pageSize: 10,
-  total: computed(() => filteredRecords.value.length),
-})
-
-// Drawer
 const drawerVisible = ref(false)
 const selectedRecord = ref<SafetyRecord | null>(null)
 
@@ -309,10 +276,10 @@ function openDrawer(row: SafetyRecord) {
 async function handleReview(row: SafetyRecord) {
   try {
     await reviewSafetyLog(row.id, 'APPROVE')
-    ElMessage.success('复审完成')
+    toast.success('复审完成')
     loadSafetyData()
   } catch {
-    ElMessage.error('复审失败')
+    toast.error('复审失败')
   }
 }
 
@@ -325,10 +292,30 @@ function highlightKeywords(content: string, keywords: string[]): string {
   }
   return result
 }
+
+function getRowActions(_row: SafetyRecord) {
+  return [
+    { command: 'view', label: '查看详情', icon: 'View', type: 'primary', primary: true },
+    { command: 'edit', label: '复审', icon: 'Edit' },
+  ]
+}
+
+function handleRowCommand(cmd: string, row: SafetyRecord) {
+  if (cmd === 'view') openDrawer(row)
+  else if (cmd === 'edit') handleReview(row)
+}
 </script>
 
 <style scoped lang="scss">
 @import '@/assets/styles/variables.scss';
+
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+
+  @media (max-width: 768px) { grid-template-columns: repeat(2, 1fr); }
+}
 
 .stat-card {
   display: flex;
@@ -336,7 +323,7 @@ function highlightKeywords(content: string, keywords: string[]): string {
   gap: 14px;
   padding: 18px 20px;
   background: $bg-card;
-  border: 1px solid $border-color;
+  border: none;
   border-radius: $border-radius;
 }
 
@@ -348,12 +335,13 @@ function highlightKeywords(content: string, keywords: string[]): string {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  color: #fff;
 }
 
-.stat-info {
-  display: flex;
-  flex-direction: column;
-}
+.stat-icon--primary { background: $primary-color; }
+.stat-icon--danger { background: $danger-color; }
+.stat-icon--warning { background: $warning-color; }
+.stat-icon--success { background: $success-color; }
 
 .stat-value {
   font-size: 22px;
@@ -369,13 +357,17 @@ function highlightKeywords(content: string, keywords: string[]): string {
   margin-top: 4px;
 }
 
-.text-muted {
-  color: $text-placeholder;
+.detail-dl {
+  display: grid;
+  gap: 10px;
+  font-size: 14px;
+
+  div { display: grid; grid-template-columns: 90px 1fr; gap: 8px; }
+  dt { color: $text-secondary; }
+  dd { margin: 0; }
 }
 
-.detail-matched {
-  line-height: 1.6;
-}
+.detail-matched { line-height: 1.6; }
 
 :deep(.highlight-keyword) {
   background: $danger-lighter;

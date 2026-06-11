@@ -194,6 +194,18 @@ public class SourcingCampaignService {
         return count;
     }
 
+    /** 暂停所有租户的运行中寻源（平台 IP 锁定场景） */
+    public int pauseAllRunningGlobal() {
+        LambdaQueryWrapper<JobSourcingCampaign> cw = new LambdaQueryWrapper<>();
+        cw.eq(JobSourcingCampaign::getStatus, "RUNNING");
+        int count = 0;
+        for (JobSourcingCampaign c : campaignMapper.selectList(cw)) {
+            pause(c.getId());
+            count++;
+        }
+        return count;
+    }
+
     public List<CampaignCandidateTraceVO> listTraces(Long campaignId, String status) {
         JobSourcingCampaign campaign = requireCampaign(campaignId);
         LambdaQueryWrapper<CampaignCandidateTrace> w = new LambdaQueryWrapper<>();
@@ -352,6 +364,8 @@ public class SourcingCampaignService {
         vo.setId(c.getId());
         vo.setName(c.getName());
         vo.setJobId(c.getJobId());
+        vo.setOpsPackId(c.getOpsPackId());
+        vo.setOpsPackVersion(c.getOpsPackVersion());
         vo.setJobTitle(jobReadMapper.selectJobTitle(c.getJobId(), c.getTenantId()));
         vo.setMode(c.getMode());
         vo.setStatus(c.getStatus());

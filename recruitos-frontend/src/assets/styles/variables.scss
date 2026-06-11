@@ -1,109 +1,208 @@
-// 设计系统 — RecruitOS
-// 暖蓝主色调，轻盈扁平，呼吸感
+// ═══════════════════════════════════════════════════════
+// RecruitOS Design System v3
+// 简约扁平 · 有呼吸感 · 温暖专业
+// ═══════════════════════════════════════════════════════
 
-// ── 色彩 ──────────────────────────────────
-// 主色：偏暖的蓝，不像纯电蓝那么"科技味"
-$primary-color: #3B82F6;
-$primary-light: #93C5FD;    // 浅蓝，用于 hover 背景、tag 底色
-$primary-lighter: #EFF6FF;  // 极淡蓝，用于选中行、激活态底色
-$primary-dark: #1D4ED8;     // 深蓝，用于 pressed 态、渐变终点
+// ── 主色：沉稳的靛蓝 ────────────────────────────────
+$primary-color: #4F6BED;
+$primary-light: #8B9FF5;
+$primary-lighter: #EEF0FE;
+$primary-dark: #3A51C7;
+$primary-50: #F0F2FE;
+$primary-100: #E0E4FD;
+$primary-200: #C7CEFA;
+$primary-500: #4F6BED;
+$primary-600: #3A51C7;
+$primary-700: #2D3FA0;
 
-$success-color: #059669;    // 偏深的翠绿，不刺眼
-$success-lighter: #D1FAE5;  // 成功态淡底色
-$warning-color: #D97706;    // 暖琥珀，不是廉价的亮橙
-$warning-lighter: #FEF3C7;  // 警告态淡底色
-$danger-color: #DC2626;     // 沉稳的红，不荧光
-$danger-lighter: #FEE2E2;   // 危险态淡底色
-$info-color: #6B7280;       // 中性灰，带一点蓝调
+// ── 强调色：温暖的琥珀金 ────────────────────────────
+$accent-color: #E5A030;
+$accent-light: #FDF3E0;
+$accent-dark: #C08520;
 
-// ── 背景层级 ──────────────────────────────
-$bg-page: #F8FAFC;          // 页面底色，极淡蓝灰
-$bg-card: #FFFFFF;          // 卡片
-$bg-elevated: #FFFFFF;      // 弹层、下拉
-$bg-muted: #F1F5F9;         // 表头、侧栏 hover 等次要背景
-$bg-sidebar: #FFFFFF;       // 白色侧栏
+// ── 语义色 ──────────────────────────────────────────
+$success-color: #16A34A;
+$success-light: #DCFCE7;
+$success-lighter: #F0FDF4;
+$success-dark: #15803D;
+$success-bg: #F0FDF4;
 
-// ── 侧栏 ─────────────────────────────────
+$warning-color: #D97706;
+$warning-light: #FEF3C7;
+$warning-lighter: #FFFBEB;
+$warning-dark: #B45309;
+$warning-bg: #FFFBEB;
+
+$danger-color: #DC2626;
+$danger-light: #FEE2E2;
+$danger-lighter: #FEF2F2;
+$danger-dark: #B91C1C;
+$danger-bg: #FEF2F2;
+
+$info-color: #6B7280;
+$info-light: #F3F4F6;
+$info-bg: #F9FAFB;
+
+// ── 状态色（看板卡片顶部色条、表格行左侧色条）──────
+$status-new: #6366F1;
+$status-screening: #F59E0B;
+$status-contacted: #3B82F6;
+$status-interviewing: #8B5CF6;
+$status-evaluated: #0EA5E9;
+$status-offer: #10B981;
+$status-hired: #22C55E;
+$status-archived: #9CA3AF;
+$status-blacklist: #EF4444;
+
+// ── 优先级色 ────────────────────────────────────────
+$priority-urgent: #DC2626;
+$priority-high: #F59E0B;
+$priority-normal: #6B7280;
+$priority-low: #9CA3AF;
+
+// ── 背景层级 ────────────────────────────────────────
+$bg-page: #F8F9FB;
+$bg-card: #FFFFFF;
+$bg-elevated: #FFFFFF;
+$bg-muted: #FAFBFC;
+$bg-warm: #FCFCFD;
+$bg-sidebar: #FFFFFF;
+$bg-accent: $primary-50;
+
+// ── 侧栏 ────────────────────────────────────────────
 $sidebar-bg: #FFFFFF;
-$sidebar-active-bg: $primary-lighter;  // 淡蓝底
-$sidebar-active-bar: $primary-color;   // 左侧蓝色指示条
-$sidebar-hover-bg: #F8FAFC;
-$sidebar-text: #475569;     // 菜单文字，不是纯黑
+$sidebar-active-bg: $primary-lighter;
+$sidebar-active-bar: $primary-color;
+$sidebar-hover-bg: #F5F7FA;
+$sidebar-text: #64748B;
 $sidebar-text-active: $primary-color;
-$sidebar-border: #F1F5F9;   // 右侧分隔线
+$sidebar-border: #E5E7EB;
+$sidebar-group-color: #9CA3AF;
 
-// ── 头部 ─────────────────────────────────
+// ── 头部 ────────────────────────────────────────────
 $header-bg: #FFFFFF;
-$header-border: #E2E8F0;
+$header-border: #E5E7EB;
 $header-height: 56px;
 $topnav-height: 56px;
-$sub-sidebar-width: 216px;
+$sub-sidebar-width: 240px;
+$action-rail-width: 260px;
 
-// ── 文字层级 ──────────────────────────────
-$text-primary: #0F172A;     // 标题，近黑但有蓝调
-$text-regular: #334155;     // 正文
-$text-secondary: #64748B;   // 辅助信息
-$text-placeholder: #94A3B8; // 占位符
-$text-disabled: #CBD5E1;    // 禁用态
+// ── 文字层级 ────────────────────────────────────────
+$text-primary: #111827;
+$text-regular: #374151;
+$text-secondary: #6B7280;
+$text-placeholder: #9CA3AF;
+$text-disabled: #D1D5DB;
+$text-inverse: #FFFFFF;
 
-// ── 边框 ─────────────────────────────────
-$border-color: #E2E8F0;
-$border-color-light: #F1F5F9;
+// ── 边框 ────────────────────────────────────────────
+$border-color: #E8ECF1;
+$border-color-light: #F0F2F5;
+$border-color-dark: #D8DCE2;
 
-// ── 圆角 — 专业扁平，克制不圆润 ─────────────
-$border-radius: 8px;         // 卡片、面板
-$border-radius-sm: 6px;      // 按钮、输入框、tag
-$border-radius-lg: 10px;     // 弹窗、大容器
-$border-radius-full: 9999px; // 胶囊形（仅小标签）
+// ── 分割线系统 ──────────────────────────────────────
+$divider: 1px solid $border-color-light;
+$divider-subtle: 1px solid transparent;
+$divider-accent: 2px solid $primary-color;
+$divider-color: #F0F2F5;
 
-// ── 阴影 — 不要那种"一看就是 AI 写的"的均匀大阴影 ──
-// 自然的阴影应该偏上、偏小、带一点颜色
+// ── 布局分割线 ──────────────────────────────────────
+$sidebar-divider: 1px solid $border-color-light;
+$nav-divider: 1px solid $border-color-light;
+$card-divider: 1px solid $border-color-light;
+
+// ── 圆角 ────────────────────────────────────────────
+$border-radius: 10px;
+$border-radius-sm: 8px;
+$border-radius-xs: 6px;
+$border-radius-lg: 14px;
+$border-radius-xl: 20px;
+$border-radius-full: 9999px;
+
+// ── 阴影 ────────────────────────────────────────────
 $shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
-$shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
-$shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
-$shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.06), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+$shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.03);
+$shadow-md: 0 4px 8px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.03);
+$shadow-lg: 0 10px 20px -3px rgba(0, 0, 0, 0.06), 0 4px 8px -4px rgba(0, 0, 0, 0.03);
+$shadow-xl: 0 20px 30px -5px rgba(0, 0, 0, 0.08), 0 8px 12px -6px rgba(0, 0, 0, 0.03);
+$shadow-inner: inset 0 2px 4px rgba(0, 0, 0, 0.03);
+$shadow-primary: 0 4px 14px -2px rgba(79, 107, 237, 0.15);
+$shadow-card: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+$shadow-card-hover: 0 4px 12px rgba(0, 0, 0, 0.06), 0 2px 4px rgba(0, 0, 0, 0.03);
+$shadow-soft: 0 2px 8px rgba(0, 0, 0, 0.04);
 
-// 带主色的阴影，用于 hover 强调（这个细节让设计有"手工感"）
-$shadow-primary: 0 4px 14px -2px rgba(59, 130, 246, 0.15);
-
-// ── 间距 ─────────────────────────────────
+// ── 间距 ────────────────────────────────────────────
 $spacing-xs: 4px;
 $spacing-sm: 8px;
 $spacing-md: 12px;
-$spacing-lg: 16px;
+$spacing-base: 16px;
+$spacing-lg: 20px;
 $spacing-xl: 24px;
 $spacing-2xl: 32px;
-$spacing-section: 24px;       // 区块之间的标准节拍
-$spacing-page-block: 32px;    // 页面主区块之间的更大节拍
+$spacing-3xl: 40px;
+$spacing-4xl: 48px;
+$spacing-section: 32px;
+$spacing-page-block: 40px;
 
-// ── 侧栏尺寸 ─────────────────────────────
+// ── 侧栏尺寸 ───────────────────────────────────────
 $sidebar-width: 240px;
 $sidebar-collapsed-width: 68px;
 
-// ── 动效 ─────────────────────────────────
-$transition-fast: 0.15s ease;
-$transition-base: 0.2s ease;
-$transition-slow: 0.3s ease;
+// ── 断点（供 @media 查询参考）──────────────────────
+$bp-mobile: 480px;
+$bp-tablet: 768px;
+$bp-desktop: 1024px;
+$bp-wide: 1440px;
 
-// ── 聚焦 / 语义辅助 ─────────────────────
-$focus-ring: 0 0 0 2px rgba(59, 130, 246, 0.24);
+// ── Z-index 层级 ───────────────────────────────────
+$z-base: 1;
+$z-dropdown: 100;
+$z-sticky: 200;
+$z-sidebar: 300;
+$z-topnav: 400;
+$z-drawer: 500;
+$z-modal: 600;
+$z-popover: 700;
+$z-tooltip: 800;
+$z-toast: 900;
 
-// ── 排版层级 ─────────────────────────────
-$text-heading-lg: 20px;
-$text-heading-md: 15px;
+// ── 表格 ────────────────────────────────────────────
+$table-row-height: 56px;
+$table-header-height: 44px;
+$table-status-bar-width: 3px;
+
+// ── 动效 ────────────────────────────────────────────
+$transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+$transition-base: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+$transition-slow: 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+$transition-bounce: 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+// ── 聚焦 ────────────────────────────────────────────
+$focus-ring: 0 0 0 3px rgba(79, 107, 237, 0.2);
+
+// ── 排版层级 ────────────────────────────────────────
+$text-display: 28px;
+$text-heading-lg: 22px;
+$text-heading-md: 16px;
 $text-heading-sm: 14px;
+$text-body: 14px;
 $text-caption: 12px;
-$line-height-heading: 1.35;
+$text-micro: 11px;
+$line-height-heading: 1.3;
 $line-height-body: 1.6;
+$font-weight-normal: 400;
+$font-weight-medium: 500;
+$font-weight-semibold: 600;
+$font-weight-bold: 700;
 
-// ── 中性色阶补充 ─────────────────────────
-$neutral-50: #F8FAFC;
-$neutral-100: #F1F5F9;
-$neutral-200: #E2E8F0;
-$neutral-300: #CBD5E1;
-$neutral-400: #94A3B8;
-$neutral-500: #64748B;
-$neutral-600: #475569;
-$neutral-700: #334155;
-$neutral-800: #1E293B;
-$neutral-900: #0F172A;
+// ── 中性色阶 ───────────────────────────────────────
+$neutral-50: #F9FAFB;
+$neutral-100: #F3F4F6;
+$neutral-200: #E5E7EB;
+$neutral-300: #D1D5DB;
+$neutral-400: #9CA3AF;
+$neutral-500: #6B7280;
+$neutral-600: #4B5563;
+$neutral-700: #374151;
+$neutral-800: #1F2937;
+$neutral-900: #111827;

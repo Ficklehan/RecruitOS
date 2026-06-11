@@ -11,6 +11,9 @@ public interface HeadcountWriteMapper {
     @Select("SELECT demand_id FROM job_position WHERE id = #{jobId} AND tenant_id = #{tenantId}")
     Long selectDemandId(@Param("jobId") Long jobId, @Param("tenantId") Long tenantId);
 
+    @Select("SELECT job_id FROM offer WHERE id = #{offerId} AND tenant_id = #{tenantId} LIMIT 1")
+    Long selectJobIdByOffer(@Param("offerId") Long offerId, @Param("tenantId") Long tenantId);
+
     @Update("UPDATE job_position SET filled_count = IFNULL(filled_count, 0) + 1, updated_at = NOW() " +
             "WHERE id = #{jobId} AND tenant_id = #{tenantId}")
     int incrementJobFilled(@Param("jobId") Long jobId, @Param("tenantId") Long tenantId);

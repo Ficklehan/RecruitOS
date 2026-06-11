@@ -1,135 +1,146 @@
 <template>
-  <ListPageLayout
+  <PageShell variant="list"
     title="录用通知"
     subtitle="管理候选人录用通知（Offer）的发送与审批状态"
   >
     <template #actions>
-      <el-button type="primary" @click="handleCreate">
-        <el-icon><Plus /></el-icon>
+      <RButton @click="handleCreate">
+        <Plus class="mr-2 h-4 w-4" />
         创建录用通知
-      </el-button>
+      </RButton>
     </template>
 
     <template #filters>
-      <el-input
+      <RInput
         v-model="queryParams.keyword"
         placeholder="搜索候选人 / 在招职位"
-        :prefix-icon="Search"
-        clearable
-        class="filter-field filter-field--lg"
+        class="w-full sm:w-64"
         @keyup.enter="handleSearch"
       />
-      <el-select v-model="queryParams.status" placeholder="通知状态" clearable class="filter-field filter-field--sm">
-        <el-option label="全部" value="" />
-        <el-option label="待审批" value="PENDING" />
-        <el-option label="已通过" value="APPROVED" />
-        <el-option label="已发送" value="SENT" />
-        <el-option label="已接受" value="ACCEPTED" />
-        <el-option label="已拒绝" value="REJECTED" />
-      </el-select>
-      <el-date-picker
-        v-model="queryParams.dateRange"
-        type="daterange"
-        range-separator="至"
-        start-placeholder="开始日期"
-        end-placeholder="结束日期"
-        class="filter-field filter-field--date"
-        value-format="YYYY-MM-DD"
+      <RSelect
+        v-model="queryParams.status"
+        :options="statusFilterOptions"
+        placeholder="通知状态"
+        clearable
+        class="w-full sm:w-40"
       />
+      <DateRangePicker v-model="queryParams.dateRange" />
     </template>
+
     <template #filterActions>
-      <el-button type="primary" @click="handleSearch">
-        <el-icon><Search /></el-icon>
+      <RButton @click="handleSearch">
+        <Search class="mr-2 h-4 w-4" />
         搜索
-      </el-button>
-      <el-button @click="handleReset">
-        <el-icon><RefreshRight /></el-icon>
+      </RButton>
+      <RButton variant="outline" @click="handleReset">
+        <RefreshCw class="mr-2 h-4 w-4" />
         重置
-      </el-button>
+      </RButton>
     </template>
 
-    <el-table :data="offerList" highlight-current-row style="width: 100%">
-      <el-table-column prop="candidateName" label="候选人" width="100">
-        <template #default="{ row }">
-          <span class="title-link">{{ row.candidateName }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column prop="jobTitle" label="在招职位" min-width="160" show-overflow-tooltip />
-      <el-table-column prop="department" label="部门" width="120" />
-      <el-table-column prop="salary" label="薪资" width="120" align="center" />
-      <el-table-column prop="status" label="状态" width="100" align="center">
-        <template #default="{ row }">
-          <el-tag :type="getStatusType(row.status)" size="small" disable-transitions>
-            {{ getStatusLabel(row.status) }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column prop="createdAt" label="创建时间" width="180" />
-      <el-table-column label="操作" width="180" fixed="right">
-        <template #default="{ row }">
-          <el-button type="primary" link size="small" @click="handleView(row)">查看</el-button>
-          <el-button type="primary" link size="small" @click="handleEdit(row)">编辑</el-button>
-        </template>
-      </el-table-column>
-    </el-table>
+    <RTable v-if="offerList.length">
+      <RTableHead>
+        <RTableRow>
+          <RTableTh class="w-[100px]">候选人</RTableTh>
+          <RTableTh class="min-w-[160px]">在招职位</RTableTh>
+          <RTableTh class="w-[120px]">部门</RTableTh>
+          <RTableTh class="w-[120px] text-center">薪资</RTableTh>
+          <RTableTh class="w-[100px] text-center">状态</RTableTh>
+          <RTableTh class="w-[180px]">创建时间</RTableTh>
+          <RTableTh class="w-[100px] text-center">操作</RTableTh>
+        </RTableRow>
+      </RTableHead>
+      <RTableBody>
+        <RTableRow v-for="row in offerList" :key="row.id">
+          <RTableCell>
+            <button type="button" class="font-medium text-primary hover:underline" @click="handleView(row)">
+              {{ row.candidateName }}
+            </button>
+          </RTableCell>
+          <RTableCell>{{ row.jobTitle }}</RTableCell>
+          <RTableCell>{{ row.department }}</RTableCell>
+          <RTableCell class="text-center">{{ row.salary }}</RTableCell>
+          <RTableCell class="text-center">
+            <RBadge :variant="offerStatusBadge(row.status)">{{ getStatusLabel(row.status) }}</RBadge>
+          </RTableCell>
+          <RTableCell class="text-muted-foreground">{{ row.createdAt }}</RTableCell>
+          <RTableCell class="text-center">
+            <RowActions :actions="getRowActions(row)" @action="(cmd) => handleRowCommand(cmd, row)" />
+          </RTableCell>
+        </RTableRow>
+      </RTableBody>
+    </RTable>
 
-    <div v-if="total > 0" class="data-card-footer">
-      <el-pagination
-        v-model:current-page="queryParams.pageNum"
-        v-model:page-size="queryParams.pageSize"
-        :page-sizes="[10, 20, 50, 100]"
-        :total="total"
-        layout="total, sizes, prev, pager, next, jumper"
-        @size-change="handleSearch"
-        @current-change="handleSearch"
-      />
-    </div>
+    <ListPagination
+      v-if="total > 0"
+      v-model:page-num="queryParams.pageNum"
+      v-model:page-size="queryParams.pageSize"
+      :total="total"
+      @change="loadData"
+    />
 
     <template #below>
-      <el-dialog
-        v-model="dialogVisible"
-        :title="dialogTitle"
-        width="520px"
-        destroy-on-close
-      >
-        <el-form ref="formRef" :model="formData" :rules="formRules" label-width="80px">
-          <el-form-item label="候选人" prop="candidateName">
-            <el-input v-model="formData.candidateName" placeholder="请输入候选人姓名" />
-          </el-form-item>
-          <el-form-item label="在招职位" prop="jobTitle">
-            <el-input v-model="formData.jobTitle" placeholder="请输入职位名称" />
-          </el-form-item>
-          <el-form-item label="部门" prop="department">
-            <el-input v-model="formData.department" placeholder="请输入所属部门" />
-          </el-form-item>
-          <el-form-item label="薪资" prop="salary">
-            <el-input v-model="formData.salary" placeholder="例如: 30K/月" />
-          </el-form-item>
-          <el-form-item label="备注" prop="remark">
-            <el-input
-              v-model="formData.remark"
-              type="textarea"
-              :rows="3"
-              placeholder="请输入备注信息"
-            />
-          </el-form-item>
-        </el-form>
-        <template #footer>
-          <el-button @click="dialogVisible = false">取消</el-button>
-          <el-button type="primary" :loading="submitLoading" @click="handleSubmit">确定</el-button>
-        </template>
-      </el-dialog>
+      <RDialog v-model:open="dialogVisible">
+        <DialogContent class="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{{ dialogTitle }}</DialogTitle>
+          </DialogHeader>
+          <div class="grid gap-4 py-2">
+            <FormField label="候选人" required :error="formErrors.candidateName">
+              <RInput v-model="formData.candidateName" placeholder="请输入候选人姓名" />
+            </FormField>
+            <FormField label="在招职位" required :error="formErrors.jobTitle">
+              <RInput v-model="formData.jobTitle" placeholder="请输入职位名称" />
+            </FormField>
+            <FormField label="部门" required :error="formErrors.department">
+              <RInput v-model="formData.department" placeholder="请输入所属部门" />
+            </FormField>
+            <FormField label="薪资" required :error="formErrors.salary">
+              <RInput v-model="formData.salary" placeholder="例如: 30K/月" />
+            </FormField>
+            <FormField label="备注">
+              <RTextarea v-model="formData.remark" placeholder="请输入备注信息" :rows="3" />
+            </FormField>
+          </div>
+          <DialogFooter>
+            <RButton variant="outline" @click="dialogVisible = false">取消</RButton>
+            <RButton :disabled="submitLoading" @click="handleSubmit">确定</RButton>
+          </DialogFooter>
+        </DialogContent>
+      </RDialog>
     </template>
-  </ListPageLayout>
+  </PageShell>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import type { FormInstance, FormRules } from 'element-plus'
-import { Search, Plus, RefreshRight } from '@element-plus/icons-vue'
-import ListPageLayout from '@/components/Layout/ListPageLayout.vue'
+import { Plus, Search, RefreshCw } from 'lucide-vue-next'
+import { toast } from '@/lib/notify'
+import { offerStatusBadge } from '@/lib/badgeVariants'
+import RowActions from '@/components/common/RowActions.vue'
+import PageShell from '@/components/Layout/PageShell.vue'
+import ListPagination from '@/components/common/ListPagination.vue'
+import FormField from '@/components/app/FormField.vue'
+import DateRangePicker from '@/components/app/DateRangePicker.vue'
+import {
+  RButton,
+  RInput,
+  RSelect,
+  RBadge,
+  RTable,
+  RTableHead,
+  RTableBody,
+  RTableRow,
+  RTableTh,
+  RTableCell,
+  RDialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  RTextarea,
+} from '@/components/ui'
 import { offerStatusLabel } from '@/constants/businessLabels'
 import { getOfferList, createOffer } from '@/api/modules/offer'
 
@@ -137,22 +148,28 @@ const router = useRouter()
 
 const queryParams = reactive({
   keyword: '',
-  status: '',
-  dateRange: null as string[] | null,
+  status: '' as string | undefined,
+  dateRange: null as [string, string] | null,
   pageNum: 1,
   pageSize: 20,
 })
 
+const statusFilterOptions = [
+  { label: '待审批', value: 'PENDING' },
+  { label: '已通过', value: 'APPROVED' },
+  { label: '已发送', value: 'SENT' },
+  { label: '已接受', value: 'ACCEPTED' },
+  { label: '已拒绝', value: 'REJECTED' },
+]
+
 const total = ref(0)
 const offerList = ref<any[]>([])
-
 const dialogVisible = ref(false)
 const dialogType = ref<'create' | 'edit'>('create')
 const submitLoading = ref(false)
-const formRef = ref<FormInstance>()
 const currentEditId = ref<number | null>(null)
 
-const dialogTitle = computed(() => dialogType.value === 'create' ? '创建录用通知' : '编辑录用通知')
+const dialogTitle = computed(() => (dialogType.value === 'create' ? '创建录用通知' : '编辑录用通知'))
 
 const formData = reactive({
   candidateName: '',
@@ -162,28 +179,35 @@ const formData = reactive({
   remark: '',
 })
 
-const formRules: FormRules = {
-  candidateName: [{ required: true, message: '请输入候选人姓名', trigger: 'blur' }],
-  jobTitle: [{ required: true, message: '请输入职位名称', trigger: 'blur' }],
-  department: [{ required: true, message: '请输入所属部门', trigger: 'blur' }],
-  salary: [{ required: true, message: '请输入薪资', trigger: 'blur' }],
-}
-
-function getStatusType(status: string): string {
-  const map: Record<string, string> = {
-    DRAFT: 'info',
-    PENDING: 'warning',
-    APPROVED: 'success',
-    SENT: 'info',
-    ACCEPTED: 'success',
-    REJECTED: 'danger',
-    EXPIRED: 'info',
-  }
-  return map[status] || 'info'
-}
+const formErrors = reactive({
+  candidateName: '',
+  jobTitle: '',
+  department: '',
+  salary: '',
+})
 
 function getStatusLabel(status: string): string {
   return offerStatusLabel(status)
+}
+
+function getRowActions(_row: any) {
+  return [
+    { command: 'view', label: '查看', icon: 'View', primary: true },
+    { command: 'edit', label: '编辑', icon: 'Edit' },
+  ]
+}
+
+function handleRowCommand(cmd: string, row: any) {
+  if (cmd === 'view') handleView(row)
+  else if (cmd === 'edit') handleEdit(row)
+}
+
+function validateForm(): boolean {
+  formErrors.candidateName = formData.candidateName ? '' : '请输入候选人姓名'
+  formErrors.jobTitle = formData.jobTitle ? '' : '请输入职位名称'
+  formErrors.department = formData.department ? '' : '请输入所属部门'
+  formErrors.salary = formData.salary ? '' : '请输入薪资'
+  return !Object.values(formErrors).some(Boolean)
 }
 
 async function loadData() {
@@ -199,7 +223,7 @@ function handleSearch() {
 
 function handleReset() {
   queryParams.keyword = ''
-  queryParams.status = ''
+  queryParams.status = undefined
   queryParams.dateRange = null
   handleSearch()
 }
@@ -210,6 +234,7 @@ function resetForm() {
   formData.department = ''
   formData.salary = ''
   formData.remark = ''
+  Object.keys(formErrors).forEach((k) => ((formErrors as any)[k] = ''))
   currentEditId.value = null
 }
 
@@ -235,46 +260,21 @@ function handleEdit(row: any) {
 }
 
 async function handleSubmit() {
-  if (!formRef.value) return
-  await formRef.value.validate(async (valid) => {
-    if (valid) {
-      submitLoading.value = true
-      try {
-        if (dialogType.value === 'create') {
-          await createOffer({
-            candidateName: formData.candidateName,
-            jobTitle: formData.jobTitle,
-            department: formData.department,
-            salary: formData.salary,
-            remark: formData.remark,
-          })
-          ElMessage.success('创建成功')
-        }
-        dialogVisible.value = false
-        loadData()
-      } catch {
-        // API error already displayed by interceptor
-      } finally {
-        submitLoading.value = false
-      }
+  if (!validateForm()) return
+  submitLoading.value = true
+  try {
+    if (dialogType.value === 'create') {
+      await createOffer({ ...formData })
+      toast.success('创建成功')
     }
-  })
-}
-
-onMounted(() => {
-  loadData()
-})
-</script>
-
-<style lang="scss" scoped>
-@import '@/assets/styles/variables.scss';
-.title-link {
-  color: $primary-color;
-  cursor: pointer;
-  font-weight: 500;
-
-  &:hover {
-    text-decoration: underline;
+    dialogVisible.value = false
+    loadData()
+  } catch {
+    /* interceptor */
+  } finally {
+    submitLoading.value = false
   }
 }
-</style>
+
+onMounted(() => loadData())
+</script>

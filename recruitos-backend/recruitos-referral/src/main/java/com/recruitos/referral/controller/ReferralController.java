@@ -3,9 +3,12 @@ package com.recruitos.referral.controller;
 import com.recruitos.common.result.PageResult;
 import com.recruitos.common.result.R;
 import com.recruitos.referral.dto.ReferralCreateDTO;
+import com.recruitos.referral.dto.ReferralLinkCreateDTO;
+import com.recruitos.referral.dto.ReferralLinkVO;
 import com.recruitos.referral.dto.ReferralQueryDTO;
 import com.recruitos.referral.dto.ReferralVO;
 import com.recruitos.referral.service.ReferralService;
+import com.recruitos.referral.service.ReferralShareService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import org.springframework.web.bind.annotation.*;
@@ -24,6 +27,15 @@ public class ReferralController {
 
     @Resource
     private ReferralService referralService;
+
+    @Resource
+    private ReferralShareService shareService;
+
+    @ApiOperation("Create share link for employee referral")
+    @PostMapping("/link")
+    public R<ReferralLinkVO> createShareLink(@Valid @RequestBody ReferralLinkCreateDTO dto) {
+        return R.ok(shareService.createShareLink(dto));
+    }
 
     @ApiOperation("Create a new referral")
     @PostMapping

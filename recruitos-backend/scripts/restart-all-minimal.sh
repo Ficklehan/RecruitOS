@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
 # 用 screen 串行启动全部 RecruitOS 微服务（脱离 IDE 终端，避免会话结束连带杀 JVM）
 set -uo pipefail
-JAVA="${JAVA_HOME:-/Users/apple/tools/jdk8-payload-extract/Contents/Home}/bin/java"
+export JAVA_HOME="${JAVA_HOME:-/Users/apple/tools/jdk8-payload-extract/Contents/Home}"
+JAVA="$JAVA_HOME/bin/java"
+if [ ! -x "$JAVA" ]; then
+  echo "ERROR: Java not found at $JAVA" >&2
+  exit 1
+fi
 JAVA_MEM=(-Xms128m -Xmx384m)
 AGENT_JAVA_MEM=(-Xms256m -Xmx768m)
 BASE="$(cd "$(dirname "$0")/.." && pwd)"

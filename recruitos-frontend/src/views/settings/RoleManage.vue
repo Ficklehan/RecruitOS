@@ -1,110 +1,182 @@
 <template>
-  <div class="page-container page-stack">
-    <div class="page-header">
-      <h2 class="page-title">角色管理</h2>
-      <el-button type="primary" @click="handleAdd">
-        <el-icon><Plus /></el-icon>
+  <PageShell variant="list" title="角色管理" subtitle="配置系统角色与权限">
+    <template #actions>
+      <RButton @click="handleAdd">
+        <Plus class="mr-2 h-4 w-4" />
         新增角色
-      </el-button>
-    </div>
+      </RButton>
+    </template>
 
-    <el-card>
-      <el-table :data="roleList" stripe v-loading="loading">
-        <el-table-column prop="name" label="角色名称" width="180" />
-        <el-table-column prop="code" label="角色编码" width="180" />
-        <el-table-column prop="description" label="描述" min-width="200" />
-        <el-table-column prop="userCount" label="用户数" width="100" align="center" />
-        <el-table-column prop="status" label="状态" width="100" align="center">
-          <template #default="{ row }">
-            <el-tag :type="row.status === 'active' ? 'success' : 'danger'" size="small">
+    <div v-if="loading" class="py-12 text-center text-[13px] text-text-secondary">加载中...</div>
+
+    <RTable v-else-if="roleList.length">
+      <RTableHead>
+        <RTableRow>
+          <RTableTh class="w-[180px]">角色名称</RTableTh>
+          <RTableTh class="w-[180px]">角色编码</RTableTh>
+          <RTableTh class="min-w-[200px]">描述</RTableTh>
+          <RTableTh class="w-[100px] text-center">用户数</RTableTh>
+          <RTableTh class="w-[100px] text-center">状态</RTableTh>
+          <RTableTh class="w-[180px]">创建时间</RTableTh>
+          <RTableTh class="w-[100px] text-center">操作</RTableTh>
+        </RTableRow>
+      </RTableHead>
+      <RTableBody>
+        <RTableRow v-for="row in roleList" :key="row.id">
+          <RTableCell class="font-medium">{{ row.name }}</RTableCell>
+          <RTableCell class="font-mono text-[12px]">{{ row.code }}</RTableCell>
+          <RTableCell>{{ row.description || '—' }}</RTableCell>
+          <RTableCell class="text-center">{{ row.userCount }}</RTableCell>
+          <RTableCell class="text-center">
+            <RBadge :variant="row.status === 'active' ? 'success' : 'danger'">
               {{ row.status === 'active' ? '启用' : '禁用' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="createdAt" label="创建时间" width="180" />
-        <el-table-column label="操作" width="240" fixed="right">
-          <template #default="{ row }">
-            <el-button type="primary" link size="small" @click="handlePermission(row)">
-              权限
-            </el-button>
-            <el-button type="primary" link size="small" @click="handleEdit(row)">
-              编辑
-            </el-button>
-            <el-button type="danger" link size="small" @click="handleDelete(row)">
-              删除
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-    </el-card>
+            </RBadge>
+          </RTableCell>
+          <RTableCell class="text-text-secondary">{{ row.createdAt }}</RTableCell>
+          <RTableCell class="text-center">
+            <RowActions :actions="getRowActions(row)" @action="(cmd: string) => handleRowCommand(cmd, row)" />
+          </RTableCell>
+        </RTableRow>
+      </RTableBody>
+    </RTable>
 
-    <!-- 新增/编辑角色弹窗 -->
-    <el-dialog
-      v-model="dialogVisible"
-      :title="isEdit ? '编辑角色' : '新增角色'"
-      width="500px"
-    >
-      <el-form ref="formRef" :model="formData" :rules="rules" label-width="80px">
-        <el-form-item label="角色名称" prop="name">
-          <el-input v-model="formData.name" placeholder="请输入角色名称" />
-        </el-form-item>
-        <el-form-item label="角色编码" prop="code">
-          <el-input v-model="formData.code" placeholder="请输入角色编码" :disabled="isEdit" />
-        </el-form-item>
-        <el-form-item label="描述" prop="description">
-          <el-input v-model="formData.description" type="textarea" :rows="3" placeholder="请输入角色描述" />
-        </el-form-item>
-        <el-form-item label="状态" prop="status">
-          <el-radio-group v-model="formData.status">
-            <el-radio label="active">启用</el-radio>
-            <el-radio label="inactive">禁用</el-radio>
-          </el-radio-group>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleSubmit">确定</el-button>
-      </template>
-    </el-dialog>
+    <template #below>
+      <RDialog :model-value="dialogVisible" :title="isEdit ? '编辑角色' : '新增角色'" @update:model-value="dialogVisible = $event">
+        <div class="grid gap-4 py-2">
+          <FormField label="角色名称" required :error="formErrors.name">
+            <RInput v-model="formData.name" placeholder="请输入角色名称" />
+          </FormField>
+          <FormField label="角色编码" required :error="formErrors.code">
+            <RInput v-model="formData.code" placeholder="请输入角色编码" :disabled="isEdit" />
+          </FormField>
+          <FormField label="描述">
+            <RTextarea v-model="formData.description" placeholder="请输入角色描述" :rows="3" />
+          </FormField>
+          <FormField label="状态">
+            <div class="flex gap-6">
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input type="radio" v-model="formData.status" value="active" class="accent-primary" />
+                <span class="text-[13px] text-text-primary">启用</span>
+              </label>
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input type="radio" v-model="formData.status" value="inactive" class="accent-primary" />
+                <span class="text-[13px] text-text-primary">禁用</span>
+              </label>
+            </div>
+          </FormField>
+        </div>
+        <template #footer>
+          <RButton variant="outline" @click="dialogVisible = false">取消</RButton>
+          <RButton @click="handleSubmit">确定</RButton>
+        </template>
+      </RDialog>
 
-    <!-- 权限分配弹窗 -->
-    <el-dialog
-      v-model="permissionDialogVisible"
-      title="权限分配"
-      width="600px"
-    >
-      <div class="permission-header">
-        <span>当前角色：{{ currentRole?.name }}</span>
-      </div>
-      <el-tree
-        ref="permTreeRef"
-        :data="permissionTree"
-        :props="{ children: 'children', label: 'name' }"
-        show-checkbox
-        node-key="id"
-        default-expand-all
-        :default-checked-keys="checkedKeys"
-      />
-      <template #footer>
-        <el-button @click="permissionDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleSavePermission">保存</el-button>
-      </template>
-    </el-dialog>
-  </div>
+      <RDialog :model-value="permissionDialogVisible" title="权限分配" width="560px" @update:model-value="permissionDialogVisible = $event">
+        <p class="text-[13px] text-text-secondary mb-3">当前角色：{{ currentRole?.name }}</p>
+        <div class="max-h-[50vh] overflow-auto pr-2">
+          <div class="space-y-1">
+            <PermTreeNode
+              v-for="node in permissionTree"
+              :key="node.id"
+              :node="node"
+              :checked-ids="checkedKeys"
+              @toggle="togglePerm"
+            />
+          </div>
+        </div>
+        <template #footer>
+          <RButton variant="outline" @click="permissionDialogVisible = false">取消</RButton>
+          <RButton @click="handleSavePermission">保存</RButton>
+        </template>
+      </RDialog>
+    </template>
+  </PageShell>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, reactive, nextTick } from 'vue'
-import type { FormInstance, FormRules } from 'element-plus'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { onMounted, ref, reactive, defineComponent, h } from 'vue'
+import { Plus, ChevronRight, ChevronDown } from 'lucide-vue-next'
+import { toast } from '@/lib/notify'
+import { confirm } from '@/lib/confirm'
+import RowActions from '@/components/common/RowActions.vue'
+import PageShell from '@/components/Layout/PageShell.vue'
+import FormField from '@/components/app/FormField.vue'
+import {
+  Button,
+  Input,
+  Badge,
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  Label,
+  Textarea,
+  Checkbox,
+  RadioGroup,
+  RadioGroupItem,
+  ScrollArea,
+} from '@/components/ui'
 import {
   getRoleList, createRole, updateRole, deleteRole,
   getRolePermissions, assignRolePermissions,
 } from '@/api/modules/role'
 import { getPermissionTree } from '@/api/modules/permission'
 
-const formRef = ref<FormInstance>()
-const permTreeRef = ref()
+const PermTreeNode = defineComponent({
+  name: 'PermTreeNode',
+  props: {
+    node: { type: Object, required: true },
+    checkedIds: { type: Array as () => number[], required: true },
+    depth: { type: Number, default: 0 },
+  },
+  emits: ['toggle'],
+  setup(props, { emit }) {
+    const expanded = ref(true)
+    const hasChildren = () => (props.node.children?.length ?? 0) > 0
+    const isChecked = () => props.checkedIds.includes(props.node.id)
+    return () => h('div', { class: 'perm-node' }, [
+      h('div', {
+        class: 'flex items-center gap-2 py-1.5 rounded hover:bg-muted/50',
+        style: { paddingLeft: `${props.depth * 16}px` },
+      }, [
+        hasChildren()
+          ? h(Button, {
+              variant: 'ghost',
+              size: 'icon',
+              class: 'h-6 w-6 shrink-0',
+              onClick: () => { expanded.value = !expanded.value },
+            }, () => expanded.value
+              ? h(ChevronDown, { class: 'h-4 w-4' })
+              : h(ChevronRight, { class: 'h-4 w-4' }))
+          : h('span', { class: 'w-6 shrink-0' }),
+        h(Checkbox, {
+          modelValue: isChecked(),
+          'onUpdate:modelValue': () => emit('toggle', props.node),
+        }),
+        h('span', { class: 'text-sm' }, props.node.name),
+      ]),
+      expanded.value && hasChildren()
+        ? props.node.children.map((child: any) =>
+            h(PermTreeNode, {
+              key: child.id,
+              node: child,
+              checkedIds: props.checkedIds,
+              depth: props.depth + 1,
+              onToggle: (n: any) => emit('toggle', n),
+            })
+          )
+        : null,
+    ])
+  },
+})
+
 const dialogVisible = ref(false)
 const permissionDialogVisible = ref(false)
 const isEdit = ref(false)
@@ -123,13 +195,13 @@ const formData = reactive({
   status: 'active',
 })
 
-const rules: FormRules = {
-  name: [{ required: true, message: '请输入角色名称', trigger: 'blur' }],
-  code: [{ required: true, message: '请输入角色编码', trigger: 'blur' }],
-}
+const formErrors = reactive({
+  name: '',
+  code: '',
+})
 
 function mapPermTree(nodes: any[]): any[] {
-  return (nodes || []).map(n => ({
+  return (nodes || []).map((n) => ({
     id: n.id,
     name: n.permName,
     children: mapPermTree(n.children),
@@ -145,6 +217,43 @@ function mapRole(r: any) {
     userCount: r.userCount ?? '-',
     createdAt: r.createdAt || '-',
   }
+}
+
+function collectDescendantIds(node: any): number[] {
+  const ids = [node.id]
+  for (const child of node.children || []) {
+    ids.push(...collectDescendantIds(child))
+  }
+  return ids
+}
+
+function togglePerm(node: any) {
+  const set = new Set(checkedKeys.value)
+  const ids = collectDescendantIds(node)
+  if (set.has(node.id)) {
+    ids.forEach((id) => set.delete(id))
+  } else {
+    ids.forEach((id) => set.add(id))
+  }
+  checkedKeys.value = [...set]
+}
+
+function collectKeysForSave(nodes: any[], checked: Set<number>): number[] {
+  const result = new Set<number>()
+  function walk(node: any): boolean {
+    let childChecked = false
+    for (const child of node.children || []) {
+      if (walk(child)) childChecked = true
+    }
+    const selfChecked = checked.has(node.id)
+    if (selfChecked || childChecked) {
+      result.add(node.id)
+      return true
+    }
+    return false
+  }
+  nodes.forEach(walk)
+  return [...result]
 }
 
 async function loadRoles() {
@@ -170,6 +279,8 @@ function handleAdd() {
   formData.code = ''
   formData.description = ''
   formData.status = 'active'
+  formErrors.name = ''
+  formErrors.code = ''
 }
 
 function handleEdit(row: any) {
@@ -187,52 +298,50 @@ async function handlePermission(row: any) {
   const res = await getRolePermissions(row.id)
   checkedKeys.value = res.data || []
   permissionDialogVisible.value = true
-  await nextTick()
-  permTreeRef.value?.setCheckedKeys(checkedKeys.value)
 }
 
 async function handleDelete(row: any) {
-  try {
-    await ElMessageBox.confirm(`确定要删除角色「${row.name}」吗？`, '警告', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning',
-    })
-    await deleteRole(row.id)
-    ElMessage.success('删除成功')
-    loadRoles()
-  } catch {
-    // cancelled
-  }
+  const ok = await confirm({
+    title: '警告',
+    message: `确定要删除角色「${row.name}」吗？`,
+    destructive: true,
+  })
+  if (!ok) return
+  await deleteRole(row.id)
+  toast.success('删除成功')
+  loadRoles()
+}
+
+function validateForm(): boolean {
+  formErrors.name = formData.name ? '' : '请输入角色名称'
+  formErrors.code = formData.code ? '' : '请输入角色编码'
+  return !Object.values(formErrors).some(Boolean)
 }
 
 async function handleSubmit() {
-  if (!formRef.value) return
-  await formRef.value.validate(async (valid) => {
-    if (!valid) return
-    const payload = {
-      roleName: formData.name,
-      roleCode: formData.code,
-      description: formData.description,
-      status: formData.status === 'active' ? 1 : 0,
-    }
-    if (isEdit.value && currentRoleId.value) {
-      await updateRole(currentRoleId.value, payload)
-    } else {
-      await createRole(payload)
-    }
-    ElMessage.success(isEdit.value ? '编辑成功' : '新增成功')
-    dialogVisible.value = false
-    loadRoles()
-  })
+  if (!validateForm()) return
+  const payload = {
+    roleName: formData.name,
+    roleCode: formData.code,
+    description: formData.description,
+    status: formData.status === 'active' ? 1 : 0,
+  }
+  if (isEdit.value && currentRoleId.value) {
+    await updateRole(currentRoleId.value, payload)
+  } else {
+    await createRole(payload)
+  }
+  toast.success(isEdit.value ? '编辑成功' : '新增成功')
+  dialogVisible.value = false
+  loadRoles()
 }
 
 async function handleSavePermission() {
   if (!currentRole.value) return
-  const checked = permTreeRef.value?.getCheckedKeys(false) || []
-  const half = permTreeRef.value?.getHalfCheckedKeys() || []
-  await assignRolePermissions(currentRole.value.id, [...checked, ...half])
-  ElMessage.success('权限保存成功')
+  const checked = new Set(checkedKeys.value)
+  const keys = collectKeysForSave(permissionTree.value, checked)
+  await assignRolePermissions(currentRole.value.id, keys)
+  toast.success('权限保存成功')
   permissionDialogVisible.value = false
 }
 
@@ -240,13 +349,18 @@ onMounted(async () => {
   await loadPermTree()
   await loadRoles()
 })
-</script>
 
-<style lang="scss" scoped>
-@import '@/assets/styles/variables.scss';
-.permission-header {
-  margin-bottom: 16px;
-  font-size: 14px;
-  color: $text-regular;
+function getRowActions(_row: any) {
+  return [
+    { command: 'permission', label: '权限配置', icon: 'Lock', type: 'primary', primary: true },
+    { command: 'edit', label: '编辑', icon: 'Edit' },
+    { command: 'delete', label: '删除', icon: 'Delete', divided: true },
+  ]
 }
-</style>
+
+function handleRowCommand(cmd: string, row: any) {
+  if (cmd === 'permission') handlePermission(row)
+  else if (cmd === 'edit') handleEdit(row)
+  else if (cmd === 'delete') handleDelete(row)
+}
+</script>

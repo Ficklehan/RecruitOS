@@ -24,6 +24,8 @@ public abstract class AbstractPlaywrightRpaExecutor {
     protected RpaSessionStorage sessionStorage;
     @Resource
     protected RpaCredentialParser credentialParser;
+    @Resource
+    protected PlatformAccessGuard platformAccessGuard;
 
     protected abstract String platform();
 
@@ -34,6 +36,7 @@ public abstract class AbstractPlaywrightRpaExecutor {
     protected abstract void performCredentialLogin(Page page, AgentAccount account, RpaCredential cred);
 
     public void login(AgentAccount account) {
+        platformAccessGuard.assertLiveAccessAllowed();
         BrowserContext ctx = openContext(account, true);
         Page page = ctx.pages().isEmpty() ? ctx.newPage() : ctx.pages().get(0);
         page.setDefaultTimeout(properties.getActionTimeoutMs());
@@ -54,6 +57,7 @@ public abstract class AbstractPlaywrightRpaExecutor {
     }
 
     public void ensureLoggedIn(AgentAccount account) {
+        platformAccessGuard.assertLiveAccessAllowed();
         BrowserContext ctx = openContext(account, false);
         Page page = ctx.pages().isEmpty() ? ctx.newPage() : ctx.pages().get(0);
         page.setDefaultTimeout(properties.getActionTimeoutMs());

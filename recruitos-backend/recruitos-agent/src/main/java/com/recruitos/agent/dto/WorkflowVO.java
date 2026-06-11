@@ -11,6 +11,8 @@ public class WorkflowVO implements Serializable {
     private Long id;
     private String name;
     private Long jobId;
+    private Long opsPackId;
+    private Integer opsPackVersion;
     private String jobTitle;
     private String mode;
     private String status;
@@ -28,6 +30,10 @@ public class WorkflowVO implements Serializable {
     public void setName(String name) { this.name = name; }
     public Long getJobId() { return jobId; }
     public void setJobId(Long jobId) { this.jobId = jobId; }
+    public Long getOpsPackId() { return opsPackId; }
+    public void setOpsPackId(Long opsPackId) { this.opsPackId = opsPackId; }
+    public Integer getOpsPackVersion() { return opsPackVersion; }
+    public void setOpsPackVersion(Integer opsPackVersion) { this.opsPackVersion = opsPackVersion; }
     public String getJobTitle() { return jobTitle; }
     public void setJobTitle(String jobTitle) { this.jobTitle = jobTitle; }
     public String getMode() { return mode; }

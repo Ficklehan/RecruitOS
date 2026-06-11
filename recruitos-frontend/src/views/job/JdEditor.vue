@@ -1,70 +1,78 @@
 <template>
-  <div class="page-container jd-editor">
-    <div class="page-header">
-      <h2 class="page-title">任职要求</h2>
-      <div class="header-actions">
-        <el-button @click="goBack">
-          <el-icon><ArrowLeft /></el-icon>
-          返回在招职位
-        </el-button>
-      </div>
-    </div>
-
+  <PageShell title="任职要求">
     <div class="editor-layout">
       <div class="editor-left">
         <div class="editor-panel">
           <div class="panel-header">
             <h3 class="panel-title">{{ OBJECTS.jobDescription }}</h3>
-            <el-tag v-if="jobForm.status" :type="getStatusType(jobForm.status)" size="small">
+            <Badge v-if="jobForm.status" :variant="elTagTypeToBadge(getStatusType(jobForm.status))">
               {{ jobStatusLabel(jobForm.status) }}
-            </el-tag>
+            </Badge>
           </div>
 
           <div class="panel-body">
-            <div class="form-section">
-              <label class="form-label">职位名称</label>
-              <el-input
-                v-model="jobForm.title"
-                placeholder="如：高级前端工程师"
-                size="large"
-              />
-            </div>
+            <FormField label="职位名称" class="form-section">
+              <Input v-model="jobForm.title" placeholder="如：高级前端工程师" class="text-base" />
+            </FormField>
 
-            <div class="form-section">
-              <label class="form-label">关联招聘需求编号</label>
-              <el-input v-model="jobForm.demandNo" placeholder="选填" />
-            </div>
+            <FormField label="关联招聘需求编号" class="form-section">
+              <Input v-model="jobForm.demandNo" placeholder="选填" />
+            </FormField>
 
-            <div class="form-row">
-              <div class="form-section flex-1">
-                <label class="form-label">招聘人数</label>
-                <el-input-number v-model="jobForm.headcount" :min="1" :max="999" style="width: 100%" />
+            <FormField label="招聘人数" class="form-section">
+              <NumberInput v-model="jobForm.headcount" :min="1" :max="999" class="w-full" />
+            </FormField>
+
+            <!-- AI 生成JD -->
+            <div class="form-section">
+              <div class="flex items-center gap-2 mb-2">
+                <Sparkles class="h-4 w-4 text-primary" />
+                <span class="text-sm font-medium text-foreground">AI 一句话生成 JD</span>
+                <Badge variant="outline" class="text-[10px] px-1.5 py-0 h-4">实验性</Badge>
               </div>
+              <div class="flex gap-2">
+                <Textarea
+                  v-model="aiPrompt"
+                  :rows="2"
+                  placeholder="例如：支付团队Q4要扛10倍交易量，现在4个人都没做过大规模分布式系统，需要找个能做分布式事务的"
+                  class="flex-1"
+                  :disabled="aiGenerating"
+                />
+                <Button
+                  size="sm"
+                  class="shrink-0 h-auto"
+                  :disabled="!aiPrompt.trim() || aiGenerating"
+                  @click="handleAiDraft"
+                >
+                  <Wand2 v-if="!aiGenerating" class="mr-1 h-3.5 w-3.5" />
+                  <Loader2 v-else class="mr-1 h-3.5 w-3.5 animate-spin" />
+                  {{ aiGenerating ? '生成中' : '生成' }}
+                </Button>
+              </div>
+              <p v-if="aiResult" class="text-xs text-success mt-2">
+                AI 已生成 JD 草稿，已填入下方编辑区，请审阅修改后保存
+              </p>
             </div>
 
-            <div class="form-section">
-              <label class="form-label">
-                {{ OBJECTS.jobDescription }}全文
-                <span class="label-hint">粘贴完整 JD，系统将自动提取技能要求</span>
-              </label>
-              <el-input
+            <FormField label="职位描述全文" class="form-section">
+              <p class="label-hint mb-2">粘贴完整 JD，系统将自动提取技能要求</p>
+              <Textarea
                 v-model="jobForm.jdText"
-                type="textarea"
                 :rows="20"
                 placeholder="请粘贴或输入职位描述与任职要求…"
                 class="jd-textarea"
               />
-            </div>
+            </FormField>
 
             <div class="form-actions">
-              <el-button type="primary" size="large" @click="handleSave" :loading="saving">
-                <el-icon><Check /></el-icon>
+              <Button size="lg" :disabled="saving" @click="handleSave">
+                <Check class="mr-2 h-4 w-4" />
                 保存职位
-              </el-button>
-              <el-button size="large" @click="handleParseJd" :loading="parsing">
-                <el-icon><MagicStick /></el-icon>
+              </Button>
+              <Button size="lg" variant="outline" :disabled="parsing" @click="handleParseJd">
+                <Wand2 class="mr-2 h-4 w-4" />
                 提取任职要求
-              </el-button>
+              </Button>
             </div>
           </div>
         </div>
@@ -74,9 +82,9 @@
         <div class="tag-panel">
           <div class="panel-header">
             <h3 class="panel-title">{{ OBJECTS.jobRequirements }}</h3>
-            <el-button v-if="requirements.length" type="primary" link size="small" @click="handleSaveTags" :loading="savingTags">
+            <Button v-if="requirements.length" variant="link" size="sm" :disabled="savingTags" @click="handleSaveTags">
               保存
-            </el-button>
+            </Button>
           </div>
 
           <EmptyStateCta
@@ -92,67 +100,65 @@
           <div v-else class="req-panel-body">
             <p class="req-hint">标记「必备」或「加分」，并设置重要程度。系统据此评估候选人匹配度。</p>
 
-            <el-table :data="requirements" size="small" class="req-table">
-              <el-table-column prop="name" label="要求项" min-width="120">
-                <template #default="{ row }">
-                  <el-input v-if="row._editing" v-model="row.name" size="small" />
-                  <span v-else>{{ row.name }}</span>
-                </template>
-              </el-table-column>
-              <el-table-column label="类型" width="100">
-                <template #default="{ row }">
-                  <el-select
-                    v-model="row.requirementType"
-                    size="small"
-                    :disabled="row.locked"
-                    @change="onRequirementChange(row)"
-                  >
-                    <el-option label="必备" value="REQUIRED" />
-                    <el-option label="加分" value="PREFERRED" />
-                  </el-select>
-                </template>
-              </el-table-column>
-              <el-table-column label="重要程度" width="100">
-                <template #default="{ row }">
-                  <el-select
-                    v-model="row.importance"
-                    size="small"
-                    :disabled="row.locked"
-                    @change="onRequirementChange(row)"
-                  >
-                    <el-option label="高" value="HIGH" />
-                    <el-option label="中" value="MEDIUM" />
-                    <el-option label="低" value="LOW" />
-                  </el-select>
-                </template>
-              </el-table-column>
-              <el-table-column label="锁定" width="70" align="center">
-                <template #default="{ row }">
-                  <el-switch v-model="row.locked" size="small" />
-                </template>
-              </el-table-column>
-              <el-table-column label="" width="56" align="center">
-                <template #default="{ $index }">
-                  <el-button link type="danger" size="small" @click="removeRequirement($index)">删除</el-button>
-                </template>
-              </el-table-column>
-            </el-table>
+            <Table class="req-table">
+              <TableHeader>
+                <TableRow>
+                  <TableHead class="min-w-[120px]">要求项</TableHead>
+                  <TableHead class="w-[100px]">类型</TableHead>
+                  <TableHead class="w-[100px]">重要程度</TableHead>
+                  <TableHead class="w-[70px] text-center">锁定</TableHead>
+                  <TableHead class="w-[56px]" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="(row, $index) in requirements" :key="$index">
+                  <TableCell>
+                    <Input v-if="row._editing" v-model="row.name" class="h-8" />
+                    <span v-else>{{ row.name }}</span>
+                  </TableCell>
+                  <TableCell>
+                    <Select
+                      :model-value="row.requirementType"
+                      :options="requirementTypeOptions"
+                      :disabled="row.locked"
+                      class="h-8"
+                      @update:model-value="(v) => { row.requirementType = String(v); onRequirementChange(row) }"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Select
+                      :model-value="row.importance"
+                      :options="importanceOptions"
+                      :disabled="row.locked"
+                      class="h-8"
+                      @update:model-value="(v) => { row.importance = String(v); onRequirementChange(row) }"
+                    />
+                  </TableCell>
+                  <TableCell class="text-center">
+                    <Switch v-model="row.locked" />
+                  </TableCell>
+                  <TableCell class="text-center">
+                    <Button variant="link" size="sm" class="text-destructive" @click="removeRequirement($index)">删除</Button>
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
 
-            <el-button class="add-req-btn" @click="addRequirement">
-              <el-icon><Plus /></el-icon>
+            <Button variant="outline" class="add-req-btn w-full" @click="addRequirement">
+              <Plus class="mr-2 h-4 w-4" />
               手动添加要求
-            </el-button>
+            </Button>
           </div>
 
           <div v-if="requirements.length > 0" class="tag-footer">
-            <el-button @click="handleResetTags" :disabled="savingTags">
-              <el-icon><RefreshLeft /></el-icon>
+            <Button variant="outline" :disabled="savingTags" @click="handleResetTags">
+              <RefreshCw class="mr-2 h-4 w-4" />
               恢复
-            </el-button>
-            <el-button type="primary" @click="handleSaveTags" :loading="savingTags">
-              <el-icon><Check /></el-icon>
+            </Button>
+            <Button :disabled="savingTags" @click="handleSaveTags">
+              <Check class="mr-2 h-4 w-4" />
               保存任职要求
-            </el-button>
+            </Button>
           </div>
         </div>
 
@@ -162,21 +168,26 @@
           </div>
           <div class="ops-pack-body">
             <p class="req-hint">招人方式已迁移至在招职位工作台。请在工作台「规则 → 招人方式」中设置。</p>
-            <el-button v-if="jobId" type="primary" @click="goSourcingMethod">
+            <Button v-if="jobId" @click="goSourcingMethod">
               前往设置招人方式
-            </el-button>
+            </Button>
           </div>
         </div>
       </div>
     </div>
-  </div>
+</PageShell>
 </template>
 
 <script setup lang="ts">
+import PageShell from '@/components/Layout/PageShell.vue'
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { ArrowLeft, Check, MagicStick, RefreshLeft, Plus } from '@element-plus/icons-vue'
+import { ArrowLeft, Check, Wand2, RefreshCw, Plus } from 'lucide-vue-next'
+import request from '@/api/request'
+import { toast } from '@/lib/notify'
+import { elTagTypeToBadge } from '@/lib/badgeVariants'
+import FormField from '@/components/app/FormField.vue'
+import NumberInput from '@/components/app/NumberInput.vue'
 import EmptyStateCta from '@/components/common/EmptyStateCta.vue'
 import { OBJECTS, jobStatusLabel } from '@/constants/businessLabels'
 import {
@@ -185,6 +196,10 @@ import {
   toApiTag,
   applyRequirementChange,
 } from '@/utils/jdRequirements'
+import {
+  Button, Badge, Input, Textarea, Switch,
+  Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Select,
+} from '@/components/ui'
 import {
   getJobDetail,
   createJob,
@@ -209,6 +224,16 @@ const confirmingOps = ref(false)
 const activeOpsPack = ref<any>(null)
 const draftOpsPack = ref<any>(null)
 const opsPackPreview = ref('')
+
+const requirementTypeOptions = [
+  { label: '必备', value: 'REQUIRED' },
+  { label: '加分', value: 'PREFERRED' },
+]
+const importanceOptions = [
+  { label: '高', value: 'HIGH' },
+  { label: '中', value: 'MEDIUM' },
+  { label: '低', value: 'LOW' },
+]
 
 const jobForm = reactive({
   title: '',
@@ -278,7 +303,7 @@ async function loadTags() {
 
 async function handleSave() {
   if (!jobForm.title.trim()) {
-    ElMessage.warning('请输入职位名称')
+    toast.error('请输入职位名称')
     return
   }
   saving.value = true
@@ -291,7 +316,7 @@ async function handleSave() {
     }
     if (jobId.value) {
       await updateJob(jobId.value, data)
-      ElMessage.success('职位已更新')
+      toast.success('职位已更新')
     } else {
       const res: any = await createJob(data)
       const newId = res.data?.id || res?.id
@@ -299,10 +324,10 @@ async function handleSave() {
         jobId.value = newId
         router.replace({ query: { id: String(newId) } })
       }
-      ElMessage.success('职位已创建')
+      toast.success('职位已创建')
     }
   } catch {
-    ElMessage.error('保存失败，请重试')
+    toast.error('保存失败，请重试')
   } finally {
     saving.value = false
   }
@@ -310,7 +335,7 @@ async function handleSave() {
 
 async function handleParseJd() {
   if (!jobForm.jdText.trim()) {
-    ElMessage.warning('请先输入职位描述')
+    toast.error('请先输入职位描述')
     return
   }
   if (!jobId.value) {
@@ -323,7 +348,7 @@ async function handleParseJd() {
   parsing.value = true
   try {
     await parseJdApi(jobId.value!)
-    ElMessage.success('任职要求已提取')
+    toast.success('任职要求已提取')
     await loadTags()
   } finally {
     parsing.value = false
@@ -334,7 +359,7 @@ async function handleSaveTags() {
   if (!jobId.value) return
   const invalid = requirements.value.find(r => !r.name.trim())
   if (invalid) {
-    ElMessage.warning('请填写所有要求项名称')
+    toast.error('请填写所有要求项名称')
     return
   }
   savingTags.value = true
@@ -342,9 +367,9 @@ async function handleSaveTags() {
     const payload = requirements.value.map(r => toApiTag(r))
     await updateTags(jobId.value, payload)
     originalRequirementsJson.value = JSON.stringify(requirements.value)
-    ElMessage.success('任职要求已保存')
+    toast.success('任职要求已保存')
   } catch {
-    ElMessage.error('保存失败')
+    toast.error('保存失败')
   } finally {
     savingTags.value = false
   }
@@ -353,7 +378,7 @@ async function handleSaveTags() {
 function handleResetTags() {
   if (originalRequirementsJson.value) {
     requirements.value = JSON.parse(originalRequirementsJson.value)
-    ElMessage.info('已恢复上次保存的内容')
+    toast.info('已恢复上次保存的内容')
   }
 }
 
@@ -387,9 +412,9 @@ async function handleGenerateOpsPack() {
     const res: any = await generateOpsPack(jobId.value)
     draftOpsPack.value = res.data
     opsPackPreview.value = JSON.stringify(res.data?.pack, null, 2)
-    ElMessage.success('运营包草案已生成')
+    toast.success('运营包草案已生成')
   } catch (e: any) {
-    ElMessage.error(e?.message || '生成失败，请先保存任职要求')
+    toast.error(e?.message || '生成失败，请先保存任职要求')
   } finally {
     generatingOps.value = false
   }
@@ -403,9 +428,9 @@ async function handleConfirmOpsPack() {
     activeOpsPack.value = res.data
     draftOpsPack.value = null
     opsPackPreview.value = JSON.stringify(res.data?.pack, null, 2)
-    ElMessage.success('运营包已确认生效')
+    toast.success('运营包已确认生效')
   } catch {
-    ElMessage.error('确认失败')
+    toast.error('确认失败')
   } finally {
     confirmingOps.value = false
   }
@@ -422,6 +447,29 @@ function goSourcing() {
     path: `/planning/jobs/${jobId.value}/sourcing`,
     query: { opsPackId: String(activeOpsPack.value.id), opsPackVersion: String(activeOpsPack.value.version) },
   })
+}
+
+// AI draft
+const aiPrompt = ref('')
+const aiGenerating = ref(false)
+const aiResult = ref('')
+
+async function handleAiDraft() {
+  if (!aiPrompt.value.trim() || aiGenerating.value) return
+  aiGenerating.value = true
+  aiResult.value = ''
+  try {
+    const res = await request.post('/api/job/ai-draft', { description: aiPrompt.value })
+    const data = res?.data || res
+    if (data?.llmGenerated) {
+      jobForm.jdText = data.llmGenerated
+      aiResult.value = data.llmGenerated
+    }
+  } catch {
+    // silent
+  } finally {
+    aiGenerating.value = false
+  }
 }
 
 onMounted(() => {
@@ -455,30 +503,17 @@ onMounted(() => {
 .panel-title { font-size: 16px; font-weight: 600; color: $text-primary; }
 .panel-body { padding: 24px; }
 .form-section { margin-bottom: 20px; }
-.form-label {
-  display: block; font-size: 14px; font-weight: 500; color: $text-primary; margin-bottom: 8px;
-  .label-hint { font-weight: 400; font-size: 12px; color: $text-secondary; margin-left: 8px; }
-}
-.form-row { display: flex; gap: 16px; }
-.flex-1 { flex: 1; }
-.jd-textarea :deep(.el-textarea__inner) {
-  font-size: 13px; line-height: 1.8; padding: 16px; resize: vertical;
-}
+.label-hint { font-weight: 400; font-size: 12px; color: $text-secondary; }
 .form-actions { display: flex; gap: 12px; padding-top: 8px; }
 .req-panel-body { padding: 16px; flex: 1; overflow-y: auto; }
 .req-hint { margin: 0 0 12px; font-size: 12px; color: $text-secondary; line-height: 1.5; }
 .req-table { margin-bottom: 12px; }
-.add-req-btn { width: 100%; }
+.add-req-btn { margin-top: 8px; }
 .tag-footer {
   display: flex; justify-content: flex-end; gap: 12px;
   padding: 16px; border-top: 1px solid $border-color-light;
 }
 .ops-pack-body { padding: 16px; display: flex; flex-wrap: wrap; gap: 8px; }
-.ops-preview { width: 100%; margin-top: 8px; }
-.ops-json {
-  font-size: 11px; line-height: 1.5; max-height: 240px; overflow: auto;
-  background: #f8fafc; padding: 8px; border-radius: 6px;
-}
 @media (max-width: 1200px) {
   .editor-layout { flex-direction: column; }
   .editor-left, .editor-right { flex: none; width: 100%; }

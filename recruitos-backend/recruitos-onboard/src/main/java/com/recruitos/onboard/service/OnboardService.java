@@ -2,6 +2,7 @@ package com.recruitos.onboard.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.recruitos.common.evolution.ModuleEvolutionEmitter;
 import com.recruitos.common.exception.BizException;
 import com.recruitos.common.result.PageResult;
 import com.recruitos.common.tenant.TenantContext;
@@ -11,6 +12,7 @@ import com.recruitos.onboard.entity.OnboardTask;
 import com.recruitos.onboard.mapper.HeadcountWriteMapper;
 import com.recruitos.onboard.mapper.OnboardMapper;
 import com.recruitos.onboard.mapper.OnboardTaskMapper;
+import com.recruitos.onboard.mapper.ReferralOnboardSyncMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -37,6 +39,14 @@ public class OnboardService {
 
     @Resource
     private HeadcountWriteMapper headcountWriteMapper;
+
+    @Resource
+    private ModuleEvolutionEmitter moduleEvolutionEmitter;
+
+    @Resource
+    private ReferralOnboardSyncMapper referralOnboardSyncMapper;
+
+    private static final double DEFAULT_REFERRAL_REWARD = 3000.0;
 
     /**
      * Create an onboard record with default tasks
@@ -132,6 +142,50 @@ public class OnboardService {
     }
 
     /**
+     * 试用期考核结果回流（L6 进化信号，模拟 HRone Webhook）
+     */
+    @Transactional
+    public OnboardVO submitProbationFeedback(Long id, ProbationFeedbackDTO dto) {
+        Long tenantId = TenantContext.getTenantId();
+        Onboard onboard = onboardMapper.selectById(id);
+        if (onboard == null || !onboard.getTenantId().equals(tenantId)) {
+            throw new BizException("Onboard record not found");
+        }
+        if (dto == null || dto.getPassed() == null) {
+            throw new BizException("请提供试用期是否通过");
+        }
+        String status = onboard.getOnboardStatus();
+        if ("COMPLETED".equals(status)) {
+            return convertToVO(onboard);
+        }
+        if (!"CONFIRMED".equals(status)) {
+            throw new BizException("仅已确认入职的记录可提交试用期反馈");
+        }
+
+        Long jobId = onboard.getJobId();
+        if (jobId == null && onboard.getOfferId() != null) {
+            jobId = headcountWriteMapper.selectJobIdByOffer(onboard.getOfferId(), tenantId);
+        }
+        if (jobId == null) {
+            throw new BizException("无法解析岗位 ID，请补全入职记录的 jobId");
+        }
+
+        boolean passed = Boolean.TRUE.equals(dto.getPassed());
+        moduleEvolutionEmitter.emitProbationResult(
+                jobId, onboard.getCandidateId(), passed, dto.getOverallScore());
+
+        if (StringUtils.hasText(dto.getComment())) {
+            String remark = onboard.getRemark() != null ? onboard.getRemark() + "\n" : "";
+            onboard.setRemark(remark + "[试用期] " + dto.getComment());
+        }
+        if (passed && "CONFIRMED".equals(status)) {
+            onboard.setOnboardStatus("COMPLETED");
+        }
+        onboardMapper.updateById(onboard);
+        return convertToVO(onboard);
+    }
+
+    /**
      * Update onboard status
      */
     @Transactional
@@ -155,11 +209,27 @@ public class OnboardService {
         onboard.setOnboardStatus(status);
         onboardMapper.updateById(onboard);
 
+        if ("CONFIRMED".equals(status)) {
+            syncReferralOnboard(tenantId, onboard.getCandidateId());
+        }
+
         if ("COMPLETED".equals(status)) {
             completeHeadcountWriteback(tenantId, onboard);
         }
 
         return convertToVO(onboard);
+    }
+
+    private void syncReferralOnboard(Long tenantId, Long candidateId) {
+        if (candidateId == null) {
+            return;
+        }
+        try {
+            referralOnboardSyncMapper.markHired(tenantId, candidateId, DEFAULT_REFERRAL_REWARD);
+            referralOnboardSyncMapper.createPendingReward(tenantId, candidateId, DEFAULT_REFERRAL_REWARD);
+        } catch (Exception ignored) {
+            /* best-effort */
+        }
     }
 
     private void completeHeadcountWriteback(Long tenantId, Onboard onboard) {

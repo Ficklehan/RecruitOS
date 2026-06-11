@@ -1,5 +1,6 @@
 package com.recruitos.communication.entity;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.recruitos.common.mybatis.BaseEntity;
 
@@ -16,6 +17,9 @@ public class ConversationMessage extends BaseEntity {
     /** Conversation ID */
     private Long conversationId;
 
+    /** Message direction: IN (candidate) / OUT (agent) */
+    private String direction;
+
     /** Sender type: SYSTEM / CANDIDATE / AGENT */
     private String senderType;
 
@@ -31,7 +35,8 @@ public class ConversationMessage extends BaseEntity {
     /** Read timestamp */
     private LocalDateTime readAt;
 
-    /** Status: SENT / DELIVERED / READ / FAILED */
+    /** Status for API only — not persisted (see conversation_message.direction) */
+    @TableField(exist = false)
     private String status;
 
     // Getters and Setters
@@ -42,6 +47,14 @@ public class ConversationMessage extends BaseEntity {
 
     public void setConversationId(Long conversationId) {
         this.conversationId = conversationId;
+    }
+
+    public String getDirection() {
+        return direction;
+    }
+
+    public void setDirection(String direction) {
+        this.direction = direction;
     }
 
     public String getSenderType() {

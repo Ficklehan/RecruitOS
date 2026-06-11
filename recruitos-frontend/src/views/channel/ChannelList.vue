@@ -1,13 +1,8 @@
 <template>
-  <div class="page-container page-stack">
-    <div class="page-header">
-      <div>
-        <h2 class="page-title">渠道与账号</h2>
-        <p class="page-subtitle">管理 Boss直聘、猎聘 招聘渠道及平台账号（用于渠道招聘）</p>
-      </div>
-    </div>
+  <PageShell title="渠道与账号" subtitle="管理 Boss直聘、猎聘 招聘渠道及平台账号（用于渠道招聘）">
+    <RpaSafetyBar @change="onRpaStatusChange" />
 
-    <div class="stats-row">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       <div class="stat-card">
         <div class="stat-value">{{ stats.activeChannels ?? 0 }}/{{ stats.totalChannels ?? 0 }}</div>
         <div class="stat-label">启用渠道</div>
@@ -26,191 +21,202 @@
       </div>
     </div>
 
-    <div class="data-card">
-      <el-table
-        :data="channelList"
-        v-loading="loading"
-        row-key="id"
-        :expand-row-keys="expandedKeys"
-        @expand-change="onExpandChange"
-      >
-        <el-table-column type="expand">
-          <template #default="{ row }">
-            <div class="expand-panel">
-              <div class="expand-toolbar">
-                <span class="expand-title">{{ row.channelName }} · 平台账号</span>
-                <el-button
-                  type="primary"
-                  size="small"
-                  :disabled="row.status !== 'ACTIVE'"
-                  @click="openAccountDialog(row)"
-                >
-                  <el-icon><Plus /></el-icon>
-                  添加账号
-                </el-button>
-              </div>
-              <el-table
-                :data="accountsByChannel[row.id] || []"
-                size="small"
-                stripe
-                empty-text="暂无账号，点击上方添加"
-              >
-                <el-table-column prop="accountName" label="账号名称" min-width="140" show-overflow-tooltip />
-                <el-table-column prop="accountId" label="账号ID" width="140" show-overflow-tooltip />
-                <el-table-column prop="status" label="状态" width="88" align="center">
-                  <template #default="{ row: acc }">
-                    <el-switch
-                      v-model="acc.status"
-                      active-value="ACTIVE"
-                      inactive-value="INACTIVE"
-                      inline-prompt
-                      active-text="启"
-                      inactive-text="停"
-                      @change="handleAccountStatusChange(acc)"
-                    />
-                  </template>
-                </el-table-column>
-                <el-table-column label="健康度" width="160">
-                  <template #default="{ row: acc }">
-                    <div class="health-cell">
-                      <span class="health-value" :style="{ color: healthColor(acc.healthScore) }">
-                        {{ acc.healthScore ?? '—' }}
-                      </span>
-                      <el-progress
-                        v-if="acc.healthScore != null"
-                        :percentage="acc.healthScore"
-                        :stroke-width="6"
-                        :show-text="false"
-                        :color="healthColor(acc.healthScore)"
-                        style="flex: 1"
-                      />
-                    </div>
-                  </template>
-                </el-table-column>
-                <el-table-column label="今日用量" width="100" align="center">
-                  <template #default="{ row: acc }">
-                    {{ acc.usedToday ?? 0 }}/{{ acc.dailyLimit ?? 0 }}
-                  </template>
-                </el-table-column>
-                <el-table-column prop="lastActiveAt" label="最近活跃" width="160" />
-                <el-table-column label="操作" width="240" fixed="right">
-                  <template #default="{ row: acc }">
-                    <el-button
-                      type="success" link size="small"
-                      :loading="rpaLoadingId === acc.id"
-                      :disabled="acc.status !== 'ACTIVE'"
-                      @click="handleRpaLogin(acc)"
-                    >登录平台</el-button>
-                    <el-button type="primary" link size="small" @click="openAccountDialog(row, acc)">编辑</el-button>
-                    <el-button type="primary" link size="small" @click="viewLog(acc)">日志</el-button>
-                  </template>
-                </el-table-column>
-              </el-table>
-            </div>
-          </template>
-        </el-table-column>
+    <div class="rounded-xl bg-card text-card-foreground shadow-soft relative">
+      <div v-if="loading" class="absolute inset-0 z-10 flex items-center justify-center bg-background/60 rounded-lg min-h-[120px]">
+        <Loader2 class="h-6 w-6 animate-spin text-primary" />
+      </div>
 
-        <el-table-column prop="channelName" label="渠道" min-width="120">
-          <template #default="{ row }">
-            <el-tag :type="platformTag(row.platformCode)" size="small">{{ row.channelName }}</el-tag>
+      <RTable>
+        <RTableHead>
+          <RTableRow>
+            <RTableTh class="w-10" />
+            <RTableTh>渠道</RTableTh>
+            <RTableTh class="w-[100px]">平台编码</RTableTh>
+            <RTableTh class="w-[90px] text-center">账号</RTableTh>
+            <RTableTh class="w-[100px] text-center">渠道状态</RTableTh>
+            <RTableTh>说明</RTableTh>
+            <RTableTh class="w-[160px] text-right">操作</RTableTh>
+          </RTableRow>
+        </RTableHead>
+        <RTableBody>
+          <template v-for="row in channelList" :key="row.id">
+            <RTableRow>
+              <RTableCell>
+                <RButton variant="ghost" size="sm" class="h-8 w-8 p-0" @click="toggleExpand(row)">
+                  <ChevronRight :class="['h-4 w-4 transition-transform', expandedKeys.includes(String(row.id)) && 'rotate-90']" />
+                </RButton>
+              </RTableCell>
+              <RTableCell>
+                <RBadge :variant="row.platformCode === 'BOSS' ? 'default' : 'secondary'">
+                  {{ row.channelName }}
+                </RBadge>
+              </RTableCell>
+              <RTableCell>{{ row.platformCode }}</RTableCell>
+              <RTableCell class="text-center">{{ row.activeAccountCount }}/{{ row.accountCount }}</RTableCell>
+              <RTableCell class="text-center">
+                <RSwitch
+                  :model-value="row.status === 'ACTIVE'"
+                  @update:model-value="(v) => onChannelStatusToggle(row, v)"
+                />
+              </RTableCell>
+              <RTableCell class="max-w-[200px] truncate">{{ row.description }}</RTableCell>
+              <RTableCell class="text-right">
+                <RButton variant="link" size="sm" @click="toggleExpand(row)">
+                  {{ expandedKeys.includes(String(row.id)) ? '收起账号' : '展开账号' }}
+                </RButton>
+                <RButton variant="link" size="sm" @click="openChannelDialog(row)">编辑说明</RButton>
+              </RTableCell>
+            </RTableRow>
+            <RTableRow v-if="expandedKeys.includes(String(row.id))">
+              <RTableCell :colspan="7" class="p-0">
+                <div class="expand-panel">
+                  <div class="expand-toolbar">
+                    <span class="expand-title">{{ row.channelName }} · 平台账号</span>
+                    <RButton
+                      size="sm"
+                      :disabled="row.status !== 'ACTIVE'"
+                      @click="openAccountDialog(row)"
+                    >
+                      <Plus class="mr-2 h-4 w-4" />
+                      添加账号
+                    </RButton>
+                  </div>
+                  <RTable v-if="(accountsByChannel[row.id] || []).length">
+                    <RTableHead>
+                      <RTableRow>
+                        <RTableTh>账号名称</RTableTh>
+                        <RTableTh class="w-[140px]">账号ID</RTableTh>
+                        <RTableTh class="w-[88px] text-center">状态</RTableTh>
+                        <RTableTh class="w-[160px]">健康度</RTableTh>
+                        <RTableTh class="w-[100px] text-center">今日用量</RTableTh>
+                        <RTableTh class="w-[160px]">最近活跃</RTableTh>
+                        <RTableTh class="w-[100px] text-center">操作</RTableTh>
+                      </RTableRow>
+                    </RTableHead>
+                    <RTableBody>
+                      <RTableRow v-for="acc in accountsByChannel[row.id] || []" :key="acc.id">
+                        <RTableCell>{{ acc.accountName }}</RTableCell>
+                        <RTableCell>{{ acc.accountId }}</RTableCell>
+                        <RTableCell class="text-center">
+                          <RSwitch
+                            :model-value="acc.status === 'ACTIVE'"
+                            @update:model-value="(v) => onAccountStatusToggle(acc, v)"
+                          />
+                        </RTableCell>
+                        <RTableCell>
+                          <div class="health-cell">
+                            <span class="health-value" :style="{ color: healthColor(acc.healthScore) }">
+                              {{ acc.healthScore ?? '—' }}
+                            </span>
+                            <RProgress
+                              v-if="acc.healthScore != null"
+                              :value="acc.healthScore"
+                              class="h-1.5 flex-1"
+                            />
+                          </div>
+                        </RTableCell>
+                        <RTableCell class="text-center">
+                          {{ acc.usedToday ?? 0 }}/{{ acc.dailyLimit ?? 0 }}
+                        </RTableCell>
+                        <RTableCell>{{ acc.lastActiveAt }}</RTableCell>
+                        <RTableCell class="text-center">
+                          <RowActions :actions="getAccountRowActions(acc)" @action="(cmd) => handleAccountCommand(cmd, acc, row)" />
+                        </RTableCell>
+                      </RTableRow>
+                    </RTableBody>
+                  </RTable>
+                  <p v-else class="text-sm text-muted-foreground py-4 text-center">暂无账号，点击上方添加</p>
+                </div>
+              </RTableCell>
+            </RTableRow>
           </template>
-        </el-table-column>
-        <el-table-column prop="platformCode" label="平台编码" width="100" />
-        <el-table-column label="账号" width="90" align="center">
-          <template #default="{ row }">
-            {{ row.activeAccountCount }}/{{ row.accountCount }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="status" label="渠道状态" width="100" align="center">
-          <template #default="{ row }">
-            <el-switch
-              v-model="row.status"
-              active-value="ACTIVE"
-              inactive-value="DISABLED"
-              @change="handleChannelStatusChange(row)"
-            />
-          </template>
-        </el-table-column>
-        <el-table-column prop="description" label="说明" min-width="200" show-overflow-tooltip />
-        <el-table-column label="操作" width="160" fixed="right">
-          <template #default="{ row }">
-            <el-button type="primary" link size="small" @click="toggleExpand(row)">
-              {{ expandedKeys.includes(String(row.id)) ? '收起账号' : '展开账号' }}
-            </el-button>
-            <el-button type="primary" link size="small" @click="openChannelDialog(row)">编辑说明</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+        </RTableBody>
+      </RTable>
     </div>
 
-    <!-- 渠道说明 -->
-    <el-dialog v-model="channelDialogVisible" title="编辑渠道说明" width="480px" destroy-on-close>
-      <el-form label-width="80px">
-        <el-form-item label="渠道">
-          <el-input :model-value="editingChannel?.channelName" disabled />
-        </el-form-item>
-        <el-form-item label="说明">
-          <el-input v-model="channelForm.description" type="textarea" :rows="3" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="channelDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="saveChannelDescription">保存</el-button>
-      </template>
-    </el-dialog>
+    <RDialog v-model:open="channelDialogVisible">
+      <RDialogContent class="max-w-md">
+        <RDialogHeader>
+          <RDialogTitle>编辑渠道说明</RDialogTitle>
+        </RDialogHeader>
+        <FormField label="渠道">
+          <RInput :model-value="editingChannel?.channelName" disabled />
+        </FormField>
+        <FormField label="说明" class="mt-4">
+          <RTextarea v-model="channelForm.description" :rows="3" />
+        </FormField>
+        <RDialogFooter>
+          <RButton variant="outline" @click="channelDialogVisible = false">取消</RButton>
+          <RButton @click="saveChannelDescription">保存</RButton>
+        </RDialogFooter>
+      </RDialogContent>
+    </RDialog>
 
-    <!-- 账号表单 -->
-    <el-dialog
-      v-model="accountDialogVisible"
-      :title="editingAccount ? '编辑账号' : '添加账号'"
-      width="520px"
-      destroy-on-close
-    >
-      <el-form ref="accountFormRef" :model="accountForm" :rules="accountRules" label-width="100px">
-        <el-form-item label="所属渠道">
-          <el-input :model-value="accountChannel?.channelName" disabled />
-        </el-form-item>
-        <el-form-item label="账号名称" prop="accountName">
-          <el-input v-model="accountForm.accountName" placeholder="便于识别的名称" />
-        </el-form-item>
-        <el-form-item label="账号ID" prop="accountId">
-          <el-input v-model="accountForm.accountId" placeholder="平台侧账号标识" />
-        </el-form-item>
-        <el-form-item label="日限额" prop="dailyLimit">
-          <el-input-number v-model="accountForm.dailyLimit" :min="1" :max="9999" style="width: 100%" />
-        </el-form-item>
-        <el-form-item label="登录方式">
-          <el-radio-group v-model="accountForm.authMode">
-            <el-radio value="manual">扫码/手动（推荐）</el-radio>
-            <el-radio value="phone">手机号密码</el-radio>
-          </el-radio-group>
-        </el-form-item>
+    <RDialog v-model:open="accountDialogVisible">
+      <RDialogContent class="max-w-lg">
+        <RDialogHeader>
+          <RDialogTitle>{{ editingAccount ? '编辑账号' : '添加账号' }}</RDialogTitle>
+        </RDialogHeader>
+        <FormField label="所属渠道">
+          <RInput :model-value="accountChannel?.channelName" disabled />
+        </FormField>
+        <FormField label="账号名称" required :error="accountErrors.accountName" class="mt-4">
+          <RInput v-model="accountForm.accountName" placeholder="便于识别的名称" />
+        </FormField>
+        <FormField label="账号ID" required :error="accountErrors.accountId" class="mt-4">
+          <RInput v-model="accountForm.accountId" placeholder="平台侧账号标识" />
+        </FormField>
+        <FormField label="日限额" required :error="accountErrors.dailyLimit" class="mt-4">
+          <NumberInput v-model="accountForm.dailyLimit" :min="1" :max="9999" class="w-full" />
+        </FormField>
+        <FormField label="登录方式" class="mt-4">
+          <RRadioGroup v-model="accountForm.authMode" class="flex flex-col gap-2">
+            <label class="flex items-center gap-2 text-sm">
+              <RRadioGroupItem value="manual" />
+              扫码/手动（推荐）
+            </label>
+            <label class="flex items-center gap-2 text-sm">
+              <RRadioGroupItem value="phone" />
+              手机号密码
+            </label>
+          </RRadioGroup>
+        </FormField>
         <template v-if="accountForm.authMode === 'phone'">
-          <el-form-item label="登录手机">
-            <el-input v-model="accountForm.loginPhone" />
-          </el-form-item>
-          <el-form-item label="登录密码">
-            <el-input v-model="accountForm.loginPassword" type="password" show-password />
-          </el-form-item>
+          <FormField label="登录手机" class="mt-4">
+            <RInput v-model="accountForm.loginPhone" />
+          </FormField>
+          <FormField label="登录密码" class="mt-4">
+            <RInput v-model="accountForm.loginPassword" type="password" />
+          </FormField>
         </template>
-        <el-form-item label="备注">
-          <el-input v-model="accountForm.remark" type="textarea" :rows="2" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="accountDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="submitAccount">确定</el-button>
-      </template>
-    </el-dialog>
-  </div>
+        <FormField label="备注" class="mt-4">
+          <RTextarea v-model="accountForm.remark" :rows="2" />
+        </FormField>
+        <RDialogFooter>
+          <RButton variant="outline" @click="accountDialogVisible = false">取消</RButton>
+          <RButton @click="submitAccount">确定</RButton>
+        </RDialogFooter>
+      </RDialogContent>
+    </RDialog>
+</PageShell>
 </template>
 
 <script setup lang="ts">
+import PageShell from '@/components/Layout/PageShell.vue'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import type { FormInstance, FormRules } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, ChevronRight, Loader2 } from 'lucide-vue-next'
+import RowActions from '@/components/common/RowActions.vue'
+import RpaSafetyBar from '@/components/agent/RpaSafetyBar.vue'
+import FormField from '@/components/app/FormField.vue'
+import NumberInput from '@/components/app/NumberInput.vue'
+import { toast } from '@/lib/notify'
+import { confirm } from '@/lib/confirm'
+import {
+  RButton, RBadge, RSwitch, RTable, RTableHead, RTableBody, RTableRow, RTableTh, RTableCell,
+  RDialog, RDialogContent, RDialogHeader, RDialogTitle, RDialogFooter,
+  RInput, RTextarea, RProgress, RRadioGroup, RRadioGroupItem,
+} from '@/components/ui'
 import {
   getChannelList, getChannelStats, updateChannel, updateChannelStatus,
 } from '@/api/modules/channel'
@@ -222,6 +228,10 @@ const route = useRoute()
 const router = useRouter()
 
 const loading = ref(false)
+const rpaSimulatedMode = ref(true)
+function onRpaStatusChange(s: Record<string, unknown>) {
+  rpaSimulatedMode.value = s.simulatedMode !== false
+}
 const channelList = ref<any[]>([])
 const stats = ref<Record<string, number>>({})
 const accountsByChannel = ref<Record<number, any[]>>({})
@@ -233,24 +243,23 @@ const editingChannel = ref<any>(null)
 const channelForm = reactive({ description: '' })
 
 const accountDialogVisible = ref(false)
-const accountFormRef = ref<FormInstance>()
 const editingAccount = ref<any>(null)
 const accountChannel = ref<any>(null)
 const accountForm = reactive({
   accountName: '',
   accountId: '',
-  dailyLimit: 300,
+  dailyLimit: 300 as number | null,
   remark: '',
   authMode: 'manual',
   loginPhone: '',
   loginPassword: '',
 })
 
-const accountRules: FormRules = {
-  accountName: [{ required: true, message: '请输入账号名称', trigger: 'blur' }],
-  accountId: [{ required: true, message: '请输入账号ID', trigger: 'blur' }],
-  dailyLimit: [{ required: true, message: '请设置日限额', trigger: 'change' }],
-}
+const accountErrors = reactive({
+  accountName: '',
+  accountId: '',
+  dailyLimit: '',
+})
 
 const allAccounts = computed(() =>
   Object.values(accountsByChannel.value).flat(),
@@ -258,24 +267,26 @@ const allAccounts = computed(() =>
 
 const accountStats = computed(() => {
   const all = allAccounts.value
-  const active = all.filter(a => a.status === 'ACTIVE')
   return {
     avgHealth: all.length
       ? Math.round(all.reduce((s, a) => s + (a.healthScore || 0), 0) / all.length)
       : 0,
     todayUsage: all.reduce((s, a) => s + (a.usedToday || 0), 0),
-    active: active.length,
+    active: all.filter(a => a.status === 'ACTIVE').length,
   }
 })
 
-function platformTag(code: string) {
-  return code === 'BOSS' ? '' : 'info'
+function healthColor(score: number) {
+  if (score >= 80) return '#16a34a'
+  if (score >= 60) return '#ca8a04'
+  return '#DC2626'
 }
 
-function healthColor(score: number) {
-  if (score >= 80) return '#059669'
-  if (score >= 60) return '#D97706'
-  return '#DC2626'
+function validateAccountForm(): boolean {
+  accountErrors.accountName = accountForm.accountName.trim() ? '' : '请输入账号名称'
+  accountErrors.accountId = accountForm.accountId.trim() ? '' : '请输入账号ID'
+  accountErrors.dailyLimit = accountForm.dailyLimit != null && accountForm.dailyLimit >= 1 ? '' : '请设置日限额'
+  return !accountErrors.accountName && !accountErrors.accountId && !accountErrors.dailyLimit
 }
 
 async function loadStats() {
@@ -329,10 +340,6 @@ function toggleExpand(row: any) {
   }
 }
 
-function onExpandChange(row: any, expanded: any[]) {
-  expandedKeys.value = expanded.map(r => String(r.id))
-}
-
 function expandChannelById(channelId: number) {
   expandedKeys.value = [String(channelId)]
 }
@@ -346,32 +353,35 @@ function openChannelDialog(row: any) {
 async function saveChannelDescription() {
   try {
     await updateChannel(editingChannel.value.id, { description: channelForm.description })
-    ElMessage.success('说明已更新')
+    toast.success('说明已更新')
     channelDialogVisible.value = false
     loadChannels()
   } catch {
-    ElMessage.error('保存失败')
+    toast.error('保存失败')
   }
 }
 
-async function handleChannelStatusChange(row: any) {
+async function onChannelStatusToggle(row: any, active: boolean) {
+  const newStatus = active ? 'ACTIVE' : 'DISABLED'
+  row.status = newStatus
   try {
-    await updateChannelStatus(row.id, row.status)
-    ElMessage.success('渠道状态已更新')
+    await updateChannelStatus(row.id, newStatus)
+    toast.success('渠道状态已更新')
     loadStats()
   } catch {
-    ElMessage.error('更新失败')
+    toast.error('更新失败')
     loadChannels()
   }
 }
 
 function openAccountDialog(channel: any, account?: any) {
   if (channel.status !== 'ACTIVE') {
-    ElMessage.warning('请先启用该渠道')
+    toast.error('请先启用该渠道')
     return
   }
   accountChannel.value = channel
   editingAccount.value = account || null
+  Object.assign(accountErrors, { accountName: '', accountId: '', dailyLimit: '' })
   if (account) {
     accountForm.accountName = account.accountName
     accountForm.accountId = account.accountId
@@ -390,7 +400,7 @@ function openAccountDialog(channel: any, account?: any) {
 }
 
 async function submitAccount() {
-  await accountFormRef.value?.validate()
+  if (!validateAccountForm()) return
   const ch = accountChannel.value
   try {
     const payload = {
@@ -406,50 +416,67 @@ async function submitAccount() {
     }
     if (editingAccount.value) {
       await updateAgentAccount(editingAccount.value.id, payload)
-      ElMessage.success('账号已更新')
+      toast.success('账号已更新')
     } else {
       await createAgentAccount(payload)
-      ElMessage.success('账号已添加')
+      toast.success('账号已添加')
     }
     accountDialogVisible.value = false
     await refreshAll()
     expandChannelById(ch.id)
   } catch {
-    ElMessage.error('操作失败')
+    toast.error('操作失败')
   }
 }
 
 async function handleRpaLogin(acc: any) {
-  await ElMessageBox.confirm(
-    '将打开浏览器完成 Boss/猎聘 登录，请在 5 分钟内完成扫码或验证。',
-    '平台登录',
-    { confirmButtonText: '开始登录', cancelButtonText: '取消', type: 'info' },
-  ).catch(() => Promise.reject())
+  if (rpaSimulatedMode.value) {
+    toast.error('测试模式未开启平台访问，无法登录 Boss/猎聘')
+    return
+  }
+  const ok = await confirm({
+    title: '平台登录',
+    message: '将打开浏览器完成 Boss/猎聘 登录，请在 5 分钟内完成扫码或验证。',
+    confirmText: '开始登录',
+  })
+  if (!ok) return
   rpaLoadingId.value = acc.id
   try {
     const res: any = await rpaLoginAccount(acc.id)
-    ElMessage.success(res.data?.message || '登录成功')
+    toast.success(res.data?.message || '登录成功')
     await loadAccounts()
   } catch {
-    ElMessage.error('登录失败')
+    toast.error('登录失败')
   } finally {
     rpaLoadingId.value = null
   }
 }
 
-async function handleAccountStatusChange(acc: any) {
+async function onAccountStatusToggle(acc: any, active: boolean) {
+  const newStatus = active ? 'ACTIVE' : 'INACTIVE'
+  acc.status = newStatus
   try {
-    await updateAgentAccount(acc.id, { status: acc.status })
-    ElMessage.success('账号状态已更新')
+    await updateAgentAccount(acc.id, { status: newStatus })
+    toast.success('账号状态已更新')
     loadStats()
   } catch {
-    ElMessage.error('更新失败')
+    toast.error('更新失败')
     loadAccounts()
   }
 }
 
-function viewLog(acc: any) {
-  router.push({ path: '/talent/channels/logs', query: { accountId: String(acc.id) } })
+function getAccountRowActions(acc: any) {
+  return [
+    { command: 'edit', label: '编辑', icon: 'Edit', type: 'primary' },
+    { command: 'login', label: '平台登录', icon: 'Setting' },
+    { command: 'log', label: '查看日志', icon: 'View' },
+  ]
+}
+
+function handleAccountCommand(cmd: string, acc: any, channel: any) {
+  if (cmd === 'edit') openAccountDialog(channel, acc)
+  else if (cmd === 'login') handleRpaLogin(acc)
+  else if (cmd === 'log') router.push({ path: '/talent/channels/logs', query: { accountId: String(acc.id) } })
 }
 
 onMounted(async () => {
@@ -499,7 +526,7 @@ onMounted(async () => {
 
 .expand-panel {
   padding: 8px 48px 16px 56px;
-  background: #fafbfc;
+  background: $bg-warm;
 }
 
 .expand-toolbar {

@@ -1,12 +1,6 @@
 <template>
-  <div class="page-container page-stack">
-    <!-- 页面头部 -->
-    <div class="page-header">
-      <h2 class="page-title">效果对比</h2>
-    </div>
-
-    <!-- 汇总统计 -->
-    <div class="summary-row">
+  <PageShell title="效果对比">
+<div class="summary-row">
       <div class="summary-card">
         <div class="summary-label">最佳供应商</div>
         <div class="summary-value success">{{ bestVendor }}</div>
@@ -17,53 +11,46 @@
       </div>
     </div>
 
-    <!-- 对比表格 -->
-    <div class="data-card">
-      <el-table :data="vendorPerformance" stripe highlight-current-row style="width: 100%">
-        <el-table-column prop="vendorName" label="供应商名称" min-width="160" show-overflow-tooltip />
-        <el-table-column prop="totalRecommendations" label="总推荐数" width="110" align="center" />
-        <el-table-column prop="successfulHires" label="成功入职" width="100" align="center" />
-        <el-table-column label="入职率" width="180" align="center">
-          <template #default="{ row }">
-            <div class="rate-cell">
-              <el-progress
-                :percentage="row.hireRate"
-                :stroke-width="14"
-                :text-inside="true"
-                :color="getProgressColor(row.hireRate)"
-              />
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column prop="avgTimeToHire" label="平均入职天数" width="130" align="center">
-          <template #default="{ row }">
-            {{ row.avgTimeToHire }} 天
-          </template>
-        </el-table-column>
-        <el-table-column prop="totalCost" label="总成本" width="130" align="right">
-          <template #default="{ row }">
-            ¥ {{ row.totalCost.toLocaleString() }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="costPerHire" label="单位成本" width="130" align="right">
-          <template #default="{ row }">
-            <span :class="{ 'cost-highlight': row.costPerHire === minCostPerHire }">
-              ¥ {{ row.costPerHire.toLocaleString() }}
-            </span>
-          </template>
-        </el-table-column>
-      </el-table>
+    <div class="rounded-xl bg-card text-card-foreground shadow-soft">
+      <RTable>
+        <RTableHead>
+          <RTableRow>
+            <RTableTh class="min-w-[160px]">供应商名称</RTableTh>
+            <RTableTh class="w-[110px] text-center">总推荐数</RTableTh>
+            <RTableTh class="w-[100px] text-center">成功入职</RTableTh>
+            <RTableTh class="w-[180px] text-center">入职率</RTableTh>
+            <RTableTh class="w-[130px] text-center">平均入职天数</RTableTh>
+            <RTableTh class="w-[130px] text-right">总成本</RTableTh>
+            <RTableTh class="w-[130px] text-right">单位成本</RTableTh>
+          </RTableRow>
+        </RTableHead>
+        <RTableBody>
+          <RTableRow v-for="row in vendorPerformance" :key="row.vendorName">
+            <RTableCell>{{ row.vendorName }}</RTableCell>
+            <RTableCell class="text-center">{{ row.totalRecommendations }}</RTableCell>
+            <RTableCell class="text-center">{{ row.successfulHires }}</RTableCell>
+            <RTableCell>
+              <div class="rate-cell">
+                <RProgress :value="row.hireRate" :max="100" class="h-3.5" />
+                <span class="rate-text">{{ row.hireRate }}%</span>
+              </div>
+            </RTableCell>
+            <RTableCell class="text-center">{{ row.avgTimeToHire }} 天</RTableCell>
+            <RTableCell class="text-right">¥ {{ row.totalCost.toLocaleString() }}</RTableCell>
+            <RTableCell class="text-right">
+              <span :class="{ 'cost-highlight': row.costPerHire === minCostPerHire }">
+                ¥ {{ row.costPerHire.toLocaleString() }}
+              </span>
+            </RTableCell>
+          </RTableRow>
+        </RTableBody>
+      </RTable>
     </div>
 
-    <!-- 入职率横向对比条形图 -->
-    <div class="data-card">
+    <div class="rounded-xl bg-card text-card-foreground shadow-soft">
       <h3 class="section-title">入职率对比</h3>
       <div class="bar-chart">
-        <div
-          v-for="item in vendorPerformance"
-          :key="item.vendorName"
-          class="bar-row"
-        >
+        <div v-for="item in vendorPerformance" :key="item.vendorName" class="bar-row">
           <div class="bar-label">{{ item.vendorName }}</div>
           <div class="bar-track">
             <div
@@ -76,16 +63,17 @@
         </div>
       </div>
     </div>
-  </div>
+</PageShell>
 </template>
 
 <script setup lang="ts">
+import PageShell from '@/components/Layout/PageShell.vue'
 import { ref, computed, onMounted } from 'vue'
+import { RTable, RTableHead, RTableBody, RTableRow, RTableTh, RTableCell, RProgress } from '@/components/ui'
 import { getHeadhunterPerformance } from '@/api/modules/headhunter'
 
 const vendorPerformance = ref<any[]>([])
 
-// 计算最佳供应商
 const bestVendor = computed(() => {
   if (!vendorPerformance.value.length) return '-'
   const best = vendorPerformance.value.reduce((prev, curr) =>
@@ -94,32 +82,21 @@ const bestVendor = computed(() => {
   return best.vendorName
 })
 
-// 计算最低单位成本
 const minCostPerHire = computed(() => {
   if (!vendorPerformance.value.length) return 0
   return Math.min(...vendorPerformance.value.map(v => v.costPerHire))
 })
 
-// 计算平均单位成本
 const avgCostPerHire = computed(() => {
   if (!vendorPerformance.value.length) return 0
   const total = vendorPerformance.value.reduce((sum, v) => sum + v.costPerHire, 0)
   return Math.round(total / vendorPerformance.value.length)
 })
 
-// 进度条颜色
-function getProgressColor(rate: number): string {
-  if (rate >= 30) return '#059669'
-  if (rate >= 20) return '#3B82F6'
-  if (rate >= 10) return '#D97706'
-  return '#DC2626'
-}
-
-// 条形图颜色
 function getBarColor(rate: number): string {
   if (rate >= 30) return '#059669'
-  if (rate >= 20) return '#3B82F6'
-  if (rate >= 10) return '#D97706'
+  if (rate >= 20) return '#3b82f6'
+  if (rate >= 10) return '#d97706'
   return '#DC2626'
 }
 
@@ -170,14 +147,22 @@ onMounted(() => {
 }
 
 .section-title {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   color: $text-primary;
   margin: 0 0 20px 0;
 }
 
 .rate-cell {
-  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rate-text {
+  font-size: 12px;
+  color: $text-secondary;
+  min-width: 36px;
 }
 
 .cost-highlight {
@@ -208,7 +193,7 @@ onMounted(() => {
 .bar-track {
   flex: 1;
   height: 28px;
-  background: #f0f2f5;
+  background: $bg-page;
   border-radius: 4px;
   overflow: hidden;
 }
@@ -227,6 +212,6 @@ onMounted(() => {
 .bar-value {
   font-size: 12px;
   font-weight: 600;
-  color: #fff;
+  color: var(--r-bg-card);
 }
 </style>

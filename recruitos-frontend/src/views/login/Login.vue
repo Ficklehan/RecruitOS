@@ -1,8 +1,6 @@
 <template>
   <div class="login-container">
-    <!-- 左侧品牌区 -->
     <div class="brand-section">
-      <!-- 装饰元素：不是那种"一看就是 AI 画的圆形"，而是更自然的几何 -->
       <div class="brand-decor">
         <div class="decor-line decor-line-1"></div>
         <div class="decor-line decor-line-2"></div>
@@ -24,29 +22,11 @@
         <p class="brand-tagline">集团级 AI 招聘操作系统</p>
 
         <div class="brand-features">
-          <div class="feature-item">
+          <div v-for="feature in features" :key="feature" class="feature-item">
             <div class="feature-icon">
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M13.3 4.3L6 11.6 2.7 8.3" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </div>
-            <span>AI 驱动的智能简历解析与匹配</span>
-          </div>
-          <div class="feature-item">
-            <div class="feature-icon">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M13.3 4.3L6 11.6 2.7 8.3" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </div>
-            <span>全流程招聘管理，从需求到入职</span>
-          </div>
-          <div class="feature-item">
-            <div class="feature-icon">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M13.3 4.3L6 11.6 2.7 8.3" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </div>
-            <span>数据驱动的招聘决策分析</span>
-          </div>
-          <div class="feature-item">
-            <div class="feature-icon">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M13.3 4.3L6 11.6 2.7 8.3" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </div>
-            <span>Boss、猎聘等渠道一体化招聘</span>
+            <span>{{ feature }}</span>
           </div>
         </div>
       </div>
@@ -56,13 +36,11 @@
       </div>
     </div>
 
-    <!-- 右侧登录表单 -->
     <div class="login-section">
       <div class="login-form-wrapper">
-        <!-- 移动端 logo -->
         <div class="mobile-logo">
           <svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect width="36" height="36" rx="10" fill="#3B82F6"/>
+            <rect width="36" height="36" rx="10" fill="$primary-color"/>
             <path d="M11 13h14M11 18.5h10M11 24h6" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
             <circle cx="27" cy="24" r="3.5" fill="white" opacity="0.9"/>
           </svg>
@@ -71,63 +49,56 @@
         <h2 class="login-title">欢迎回来</h2>
         <p class="login-desc">登录你的 RecruitOS 账号继续工作</p>
 
-        <el-form
-          ref="formRef"
-          :model="loginForm"
-          :rules="rules"
-          size="large"
-          @keyup.enter="handleLogin"
-        >
-          <el-form-item prop="tenantId" v-if="!isPlatformLogin">
-            <el-select
+        <form class="login-form" @submit.prevent="handleLogin" @keyup.enter="handleLogin">
+          <FormField v-if="!isPlatformLogin" label="所属租户" required :error="errors.tenantId">
+            <RSelect
               v-model="loginForm.tenantId"
+              :options="tenantOptions"
               placeholder="选择所属租户"
-              style="width: 100%"
-              filterable
-            >
-              <el-option
-                v-for="tenant in tenantList"
-                :key="tenant.id"
-                :label="tenant.companyName"
-                :value="tenant.id"
+              class="w-full"
+            />
+          </FormField>
+
+          <FormField label="用户名" required :error="errors.username">
+            <div class="relative">
+              <User class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <RInput v-model="loginForm.username" placeholder="用户名" class="pl-9" />
+            </div>
+          </FormField>
+
+          <FormField label="密码" required :error="errors.password">
+            <div class="relative">
+              <Lock class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <RInput
+                v-model="loginForm.password"
+                :type="showPassword ? 'text' : 'password'"
+                placeholder="密码"
+                class="pl-9 pr-9"
               />
-            </el-select>
-          </el-form-item>
-
-          <el-form-item prop="username">
-            <el-input
-              v-model="loginForm.username"
-              placeholder="用户名"
-              :prefix-icon="User"
-            />
-          </el-form-item>
-
-          <el-form-item prop="password">
-            <el-input
-              v-model="loginForm.password"
-              type="password"
-              placeholder="密码"
-              :prefix-icon="Lock"
-              show-password
-            />
-          </el-form-item>
+              <button
+                type="button"
+                class="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                @click="showPassword = !showPassword"
+              >
+                <EyeOff v-if="showPassword" class="h-4 w-4" />
+                <Eye v-else class="h-4 w-4" />
+              </button>
+            </div>
+          </FormField>
 
           <div class="form-options">
-            <el-checkbox v-model="rememberMe">记住我</el-checkbox>
+            <label class="flex items-center gap-2 text-sm cursor-pointer">
+              <RCheckbox v-model="rememberMe" />
+              <span>记住我</span>
+            </label>
             <a href="javascript:;" class="forgot-link">忘记密码？</a>
           </div>
 
-          <el-form-item>
-            <el-button
-              type="primary"
-              :loading="loading"
-              class="login-btn"
-              @click="handleLogin"
-            >
-              {{ loading ? '登录中...' : '登 录' }}
-            </el-button>
-          </el-form-item>
-        </el-form>
+          <RButton type="submit" class="login-btn" :disabled="loading">
+            <Loader2 v-if="loading" class="mr-2 h-4 w-4 animate-spin" />
+            {{ loading ? '登录中...' : '登 录' }}
+          </RButton>
+        </form>
 
         <div class="platform-toggle">
           <a href="javascript:;" @click="isPlatformLogin = !isPlatformLogin">
@@ -140,21 +111,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { User, Lock, Eye, EyeOff, Loader2 } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/user'
-import { User, Lock } from '@element-plus/icons-vue'
-import type { FormInstance, FormRules } from 'element-plus'
-import { ElMessage } from 'element-plus'
+import { toast } from '@/lib/notify'
+import FormField from '@/components/app/FormField.vue'
+import { RButton, RInput, RSelect, RCheckbox } from '@/components/ui'
 import { getSimpleTenantList } from '@/api/modules/tenant'
 import { platformLoginApi } from '@/api/modules/platform'
 
 const router = useRouter()
 const userStore = useUserStore()
-const formRef = ref<FormInstance>()
 const loading = ref(false)
 const rememberMe = ref(false)
-
+const showPassword = ref(false)
 const isPlatformLogin = ref(false)
 
 const loginForm = reactive({
@@ -163,7 +134,23 @@ const loginForm = reactive({
   password: '',
 })
 
+const errors = reactive({
+  tenantId: '',
+  username: '',
+  password: '',
+})
+
 const tenantList = ref<any[]>([])
+const tenantOptions = computed(() =>
+  tenantList.value.map((t) => ({ label: t.companyName, value: t.id }))
+)
+
+const features = [
+  'AI 驱动的智能简历解析与匹配',
+  '全流程招聘管理，从需求到入职',
+  '数据驱动的招聘决策分析',
+  'Boss、猎聘等渠道一体化招聘',
+]
 
 async function loadTenantList() {
   try {
@@ -175,63 +162,61 @@ async function loadTenantList() {
   }
 }
 
-const rules: FormRules = {
-  tenantId: [{
-    required: true,
-    message: '请选择租户',
-    trigger: 'change',
-    validator: (_rule: any, _value: any, callback: any) => {
-      if (isPlatformLogin.value) {
-        callback()
-      } else if (!_value) {
-        callback(new Error('请选择租户'))
-      } else {
-        callback()
-      }
-    }
-  }],
-  username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
-  password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
+function validate(): boolean {
+  errors.tenantId = ''
+  errors.username = ''
+  errors.password = ''
+  let ok = true
+  if (!isPlatformLogin.value && !loginForm.tenantId) {
+    errors.tenantId = '请选择租户'
+    ok = false
+  }
+  if (!loginForm.username.trim()) {
+    errors.username = '请输入用户名'
+    ok = false
+  }
+  if (!loginForm.password) {
+    errors.password = '请输入密码'
+    ok = false
+  }
+  return ok
 }
 
 async function handleLogin() {
-  if (!formRef.value) return
-  await formRef.value.validate(async (valid) => {
-    if (!valid) return
-    loading.value = true
-    try {
-      if (isPlatformLogin.value) {
-        const { data } = await platformLoginApi({
-          username: loginForm.username,
-          password: loginForm.password,
-        })
-        userStore.setToken(data.token)
-        localStorage.setItem('isPlatformAdmin', 'true')
-        localStorage.setItem('platformAdminName', data.realName || data.username)
-        localStorage.removeItem('tenantId')
-        ElMessage.success('登录成功')
-        router.push('/platform/tenants')
-      } else {
-        await userStore.login({
-          username: loginForm.username,
-          password: loginForm.password,
-          tenantId: loginForm.tenantId,
-        })
-        localStorage.setItem('tenantId', String(loginForm.tenantId))
-        localStorage.removeItem('isPlatformAdmin')
-        localStorage.removeItem('platformAdminName')
-        if (rememberMe.value) {
-          localStorage.setItem('rememberedUser', loginForm.username)
-        }
-        ElMessage.success('登录成功')
-        router.push('/')
+  if (!validate()) return
+  loading.value = true
+  try {
+    if (isPlatformLogin.value) {
+      const { data } = await platformLoginApi({
+        username: loginForm.username,
+        password: loginForm.password,
+      })
+      userStore.setToken(data.token)
+      localStorage.setItem('isPlatformAdmin', 'true')
+      localStorage.setItem('platformAdminName', data.realName || data.username)
+      localStorage.removeItem('tenantId')
+      toast.success('登录成功')
+      router.push('/platform/tenants')
+    } else {
+      await userStore.login({
+        username: loginForm.username,
+        password: loginForm.password,
+        tenantId: loginForm.tenantId,
+      })
+      localStorage.setItem('tenantId', String(loginForm.tenantId))
+      localStorage.removeItem('isPlatformAdmin')
+      localStorage.removeItem('platformAdminName')
+      if (rememberMe.value) {
+        localStorage.setItem('rememberedUser', loginForm.username)
       }
-    } catch (error) {
-      // 错误已在 store 中处理
-    } finally {
-      loading.value = false
+      toast.success('登录成功')
+      router.push('/')
     }
-  })
+  } catch {
+    // errors handled in store
+  } finally {
+    loading.value = false
+  }
 }
 
 onMounted(() => {
@@ -248,10 +233,9 @@ onMounted(() => {
   overflow: hidden;
 }
 
-// ── 品牌区 ──────────────────────────────
 .brand-section {
   flex: 1;
-  background: linear-gradient(160deg, #2563EB 0%, #3B82F6 40%, #1D4ED8 100%);
+  background: linear-gradient(160deg, $primary-dark 0%, $primary-color 40%, $primary-700 100%);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -260,7 +244,6 @@ onMounted(() => {
   overflow: hidden;
 }
 
-// 装饰：用线条和点阵代替俗套的圆形光晕
 .brand-decor {
   position: absolute;
   inset: 0;
@@ -336,7 +319,7 @@ onMounted(() => {
 .brand-title {
   font-size: 34px;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--r-bg-card);
   margin-bottom: 6px;
   letter-spacing: -0.02em;
 }
@@ -381,19 +364,24 @@ onMounted(() => {
   z-index: 1;
 }
 
-// ── 登录表单区 ──────────────────────────
 .login-section {
   width: 480px;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 40px;
-  background: #ffffff;
+  background: var(--r-bg-card);
 }
 
 .login-form-wrapper {
   width: 100%;
   max-width: 340px;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .mobile-logo {
@@ -426,7 +414,6 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 24px;
 }
 
 .forgot-link {

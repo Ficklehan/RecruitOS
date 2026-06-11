@@ -41,6 +41,9 @@ public class EvolutionService {
     @Resource
     private ObjectMapper objectMapper;
 
+    @Resource
+    private CovarianceEvolutionService covarianceEvolutionService;
+
     @Transactional
     public SignalVO emitSignal(SignalEmitDTO dto) {
         Long tenantId = TenantContext.getTenantId();
@@ -162,8 +165,11 @@ public class EvolutionService {
             mergeTagAdjustments(mergedAdjustments, signal);
         }
 
+        Map<String, Double> shrunk = covarianceEvolutionService.applyShrinkage(jobId, mergedAdjustments);
+        covarianceEvolutionService.recordSignalBatch(jobId, signals, mergedAdjustments);
+
         JobWeightSnapshot base = latestSnapshot(jobId);
-        String newTagsJson = applyAdjustments(base, mergedAdjustments, signals.size());
+        String newTagsJson = applyAdjustments(base, shrunk, signals.size());
 
         JobWeightSnapshot snapshot = new JobWeightSnapshot();
         snapshot.setTenantId(tenantId);

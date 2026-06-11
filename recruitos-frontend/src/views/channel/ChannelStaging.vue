@@ -1,88 +1,255 @@
 <template>
-  <div :class="embedded ? 'staging-embed' : 'page-container'" v-loading="loading">
-    <div v-if="!embedded" class="page-header">
-      <h2 class="page-title">跨职位待联系池</h2>
-      <p class="page-desc">先收藏、暂不联系的人选缓冲区。可批量发送首次联系或纳入本职位候选人。</p>
+  <PageShell variant="list"
+    v-if="!embedded"
+    title="跨职位待联系池"
+    subtitle="先收藏、暂不联系的人选缓冲区。可批量发送首次联系或纳入本职位候选人。"
+    :loading="loading"
+    plain
+  >
+    <template #filters>
+      <RSelect
+        v-model="filters.jobId"
+        :options="jobSelectOptions"
+        placeholder="全部岗位"
+        clearable
+        class="w-full sm:w-56"
+        @update:model-value="loadList"
+      />
+      <RSelect
+        v-model="filters.platform"
+        :options="platformOptions"
+        placeholder="平台"
+        clearable
+        class="w-full sm:w-32"
+        @update:model-value="loadList"
+      />
+      <RSelect
+        v-model="filters.status"
+        :options="statusOptions"
+        placeholder="状态"
+        clearable
+        class="w-full sm:w-36"
+        @update:model-value="loadList"
+      />
+      <RSelect
+        v-model="filters.sort"
+        :options="sortOptions"
+        class="w-full sm:w-36"
+        @update:model-value="loadList"
+      />
+    </template>
+
+    <template #filterActions>
+      <RButton variant="outline" @click="loadList">
+        <RefreshCw class="mr-2 h-4 w-4" />
+        刷新
+      </RButton>
+    </template>
+
+    <div v-if="selectedIds.length" class="flex items-center gap-3 rounded-lg bg-sky-50 px-3 py-2.5 mb-3">
+      <span class="text-sm">已选 {{ selectedIds.length }} 人</span>
+      <RButton size="sm" @click="doBatchGreet">批量打招呼</RButton>
+      <RButton size="sm" variant="secondary" @click="doBatchImport">纳入本职位候选人</RButton>
+      <RButton size="sm" variant="outline" @click="doBatchReject">标记不合适</RButton>
     </div>
 
-    <div class="toolbar">
-      <el-select v-model="filters.jobId" clearable placeholder="全部岗位" style="width: 220px" @change="loadList">
-        <el-option v-for="j in jobOptions" :key="j.id" :label="j.title" :value="j.id" />
-      </el-select>
-      <el-select v-model="filters.platform" clearable placeholder="平台" style="width: 120px" @change="loadList">
-        <el-option label="Boss直聘" value="BOSS" />
-        <el-option label="猎聘" value="LIEPIN" />
-      </el-select>
-      <el-select v-model="filters.status" clearable placeholder="状态" style="width: 130px" @change="loadList">
-        <el-option label="待处理" value="STAGED" />
-        <el-option label="已打招呼" value="GREETED" />
-        <el-option label="已纳入" value="IMPORTED" />
-        <el-option label="不合适" value="REJECTED" />
-      </el-select>
-      <el-select v-model="filters.sort" style="width: 140px" @change="loadList">
-        <el-option label="按匹配分" value="matchScore" />
-        <el-option label="按采集时间" value="createdAt" />
-      </el-select>
-      <el-button @click="loadList">刷新</el-button>
-    </div>
+    <RTable v-if="rows.length">
+      <RTableHead>
+        <RTableRow>
+          <RTableTh class="w-10" />
+          <RTableTh class="w-[100px]">姓名</RTableTh>
+          <RTableTh class="min-w-[140px]">岗位</RTableTh>
+          <RTableTh class="w-[90px]">平台</RTableTh>
+          <RTableTh class="w-[80px]">匹配分</RTableTh>
+          <RTableTh class="w-[100px]">状态</RTableTh>
+          <RTableTh class="min-w-[180px]">提取字段</RTableTh>
+          <RTableTh class="w-[100px] text-center">操作</RTableTh>
+        </RTableRow>
+      </RTableHead>
+      <RTableBody>
+        <RTableRow v-for="row in rows" :key="row.id">
+          <RTableCell>
+            <RCheckbox
+              :model-value="selectedIds.includes(row.id)"
+              @update:model-value="(v) => toggleSelect(row.id, v)"
+            />
+          </RTableCell>
+          <RTableCell>{{ row.candidateName }}</RTableCell>
+          <RTableCell>{{ row.jobTitle }}</RTableCell>
+          <RTableCell>{{ row.platform }}</RTableCell>
+          <RTableCell>{{ row.matchScore }}</RTableCell>
+          <RTableCell>{{ statusLabel(row.status) }}</RTableCell>
+          <RTableCell>
+            <span v-if="row.extractedFields?._lastAnswer" class="text-xs text-muted-foreground">
+              {{ row.extractedFields._lastAnswer }}
+            </span>
+            <span v-else class="text-muted-foreground">—</span>
+          </RTableCell>
+          <RTableCell class="text-center">
+            <RowActions :actions="getRowActions(row)" @action="(cmd) => handleRowCommand(cmd, row)" />
+          </RTableCell>
+        </RTableRow>
+      </RTableBody>
+    </RTable>
 
-    <div v-if="selectedIds.length" class="batch-bar">
-      <span>已选 {{ selectedIds.length }} 人</span>
-      <el-button size="small" type="primary" @click="doBatchGreet">批量打招呼</el-button>
-      <el-button size="small" type="success" @click="doBatchImport">纳入本职位候选人</el-button>
-      <el-button size="small" @click="doBatchReject">标记不合适</el-button>
-    </div>
-
-    <el-table :data="rows" size="small" @selection-change="onSelect">
-      <el-table-column type="selection" width="48" />
-      <el-table-column prop="candidateName" label="姓名" width="100" />
-      <el-table-column prop="jobTitle" label="岗位" min-width="140" />
-      <el-table-column prop="platform" label="平台" width="90" />
-      <el-table-column prop="matchScore" label="匹配分" width="80" />
-      <el-table-column prop="status" label="状态" width="100">
-        <template #default="{ row }">{{ statusLabel(row.status) }}</template>
-      </el-table-column>
-      <el-table-column label="提取字段" min-width="180">
-        <template #default="{ row }">
-          <span v-if="row.extractedFields?._lastAnswer" class="field-hint">
-            {{ row.extractedFields._lastAnswer }}
-          </span>
-          <span v-else class="muted">—</span>
-        </template>
-      </el-table-column>
-      <el-table-column label="操作" width="200" fixed="right">
-        <template #default="{ row }">
-          <el-button link type="primary" @click="openAsk(row)">AI 问答</el-button>
-          <el-button v-if="row.status === 'STAGED'" link @click="singleGreet(row.id)">打招呼</el-button>
-          <el-button v-if="row.status !== 'IMPORTED'" link type="success" @click="singleImport(row.id)">纳入候选人</el-button>
-        </template>
-      </el-table-column>
-    </el-table>
-
-    <el-pagination
+    <ListPagination
       v-if="total > 0"
-      class="mt-16"
-      layout="total, prev, pager, next"
+      v-model:page-num="pageNum"
+      v-model:page-size="pageSize"
       :total="total"
-      :page-size="pageSize"
-      v-model:current-page="pageNum"
-      @current-change="loadList"
+      @change="loadList"
     />
 
-    <el-dialog v-model="askVisible" title="信息核对" width="520px" destroy-on-close>
-      <el-input v-model="askQuestion" placeholder="例如：上一家公司是？工作年限？" />
-      <div v-if="askAnswer" class="ask-answer">{{ askAnswer }}</div>
-      <template #footer>
-        <el-button @click="askVisible = false">关闭</el-button>
-        <el-button type="primary" :loading="asking" @click="submitAsk">提问</el-button>
-      </template>
-    </el-dialog>
+    <template #below>
+      <RDialog v-model:open="askVisible">
+        <RDialogContent class="max-w-lg">
+          <RDialogHeader>
+            <RDialogTitle>信息核对</RDialogTitle>
+          </RDialogHeader>
+          <RInput v-model="askQuestion" placeholder="例如：上一家公司是？工作年限？" />
+          <div v-if="askAnswer" class="mt-3 rounded-lg bg-muted p-3 text-sm">{{ askAnswer }}</div>
+          <RDialogFooter>
+            <RButton variant="outline" @click="askVisible = false">关闭</RButton>
+            <RButton :disabled="asking" @click="submitAsk">提问</RButton>
+          </RDialogFooter>
+        </RDialogContent>
+      </RDialog>
+    </template>
+  </PageShell>
+
+  <div v-else class="space-y-3" :class="{ 'opacity-60 pointer-events-none': loading }">
+    <div class="flex flex-wrap gap-2">
+      <RSelect
+        v-model="filters.jobId"
+        :options="jobSelectOptions"
+        placeholder="全部岗位"
+        clearable
+        class="w-56"
+        @update:model-value="loadList"
+      />
+      <RSelect
+        v-model="filters.platform"
+        :options="platformOptions"
+        placeholder="平台"
+        clearable
+        class="w-32"
+        @update:model-value="loadList"
+      />
+      <RSelect
+        v-model="filters.status"
+        :options="statusOptions"
+        placeholder="状态"
+        clearable
+        class="w-36"
+        @update:model-value="loadList"
+      />
+      <RSelect
+        v-model="filters.sort"
+        :options="sortOptions"
+        class="w-36"
+        @update:model-value="loadList"
+      />
+      <RButton variant="outline" size="sm" @click="loadList">
+        <RefreshCw class="mr-2 h-4 w-4" />
+        刷新
+      </RButton>
+    </div>
+
+    <div v-if="selectedIds.length" class="flex items-center gap-3 rounded-lg bg-sky-50 px-3 py-2.5">
+      <span class="text-sm">已选 {{ selectedIds.length }} 人</span>
+      <RButton size="sm" @click="doBatchGreet">批量打招呼</RButton>
+      <RButton size="sm" variant="secondary" @click="doBatchImport">纳入本职位候选人</RButton>
+      <RButton size="sm" variant="outline" @click="doBatchReject">标记不合适</RButton>
+    </div>
+
+    <RTable v-if="rows.length">
+      <RTableHead>
+        <RTableRow>
+          <RTableTh class="w-10" />
+          <RTableTh class="w-[100px]">姓名</RTableTh>
+          <RTableTh class="min-w-[140px]">岗位</RTableTh>
+          <RTableTh class="w-[90px]">平台</RTableTh>
+          <RTableTh class="w-[80px]">匹配分</RTableTh>
+          <RTableTh class="w-[100px]">状态</RTableTh>
+          <RTableTh class="min-w-[180px]">提取字段</RTableTh>
+          <RTableTh class="w-[100px] text-center">操作</RTableTh>
+        </RTableRow>
+      </RTableHead>
+      <RTableBody>
+        <RTableRow v-for="row in rows" :key="row.id">
+          <RTableCell>
+            <RCheckbox
+              :model-value="selectedIds.includes(row.id)"
+              @update:model-value="(v) => toggleSelect(row.id, v)"
+            />
+          </RTableCell>
+          <RTableCell>{{ row.candidateName }}</RTableCell>
+          <RTableCell>{{ row.jobTitle }}</RTableCell>
+          <RTableCell>{{ row.platform }}</RTableCell>
+          <RTableCell>{{ row.matchScore }}</RTableCell>
+          <RTableCell>{{ statusLabel(row.status) }}</RTableCell>
+          <RTableCell>
+            <span v-if="row.extractedFields?._lastAnswer" class="text-xs text-muted-foreground">
+              {{ row.extractedFields._lastAnswer }}
+            </span>
+            <span v-else class="text-muted-foreground">—</span>
+          </RTableCell>
+          <RTableCell class="text-center">
+            <RowActions :actions="getRowActions(row)" @action="(cmd) => handleRowCommand(cmd, row)" />
+          </RTableCell>
+        </RTableRow>
+      </RTableBody>
+    </RTable>
+
+    <ListPagination
+      v-if="total > 0"
+      v-model:page-num="pageNum"
+      v-model:page-size="pageSize"
+      :total="total"
+      @change="loadList"
+    />
+
+    <RDialog v-model:open="askVisible">
+      <RDialogContent class="max-w-lg">
+        <RDialogHeader>
+          <RDialogTitle>信息核对</RDialogTitle>
+        </RDialogHeader>
+        <RInput v-model="askQuestion" placeholder="例如：上一家公司是？工作年限？" />
+        <div v-if="askAnswer" class="mt-3 rounded-lg bg-muted p-3 text-sm">{{ askAnswer }}</div>
+        <RDialogFooter>
+          <RButton variant="outline" @click="askVisible = false">关闭</RButton>
+          <RButton :disabled="asking" @click="submitAsk">提问</RButton>
+        </RDialogFooter>
+      </RDialogContent>
+    </RDialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { onMounted, reactive, ref, computed } from 'vue'
+import { RefreshCw } from 'lucide-vue-next'
+import { toast } from '@/lib/notify'
+import { prompt } from '@/lib/prompt'
+import RowActions from '@/components/common/RowActions.vue'
+import PageShell from '@/components/Layout/PageShell.vue'
+import ListPagination from '@/components/common/ListPagination.vue'
+import {
+  RButton,
+  RInput,
+  RSelect,
+  RTable,
+  RTableHead,
+  RTableBody,
+  RTableRow,
+  RTableTh,
+  RTableCell,
+  RCheckbox,
+  RDialog,
+  RDialogContent,
+  RDialogHeader,
+  RDialogTitle,
+  RDialogFooter,
+} from '@/components/ui'
 import { ACTIONS } from '@/constants/businessLabels'
 import {
   getChannelStagingList,
@@ -107,6 +274,24 @@ const pageNum = ref(1)
 const pageSize = ref(20)
 const selectedIds = ref<number[]>([])
 const jobOptions = ref<any[]>([])
+const jobSelectOptions = computed(() => jobOptions.value.map((j) => ({ label: j.title, value: j.id })))
+
+const platformOptions = [
+  { label: 'Boss直聘', value: 'BOSS' },
+  { label: '猎聘', value: 'LIEPIN' },
+]
+
+const statusOptions = [
+  { label: '待处理', value: 'STAGED' },
+  { label: '已打招呼', value: 'GREETED' },
+  { label: '已纳入', value: 'IMPORTED' },
+  { label: '不合适', value: 'REJECTED' },
+]
+
+const sortOptions = [
+  { label: '按匹配分', value: 'matchScore' },
+  { label: '按采集时间', value: 'createdAt' },
+]
 
 const filters = reactive({
   jobId: undefined as number | undefined,
@@ -125,8 +310,12 @@ function statusLabel(s: string) {
   return { STAGED: '待处理', GREETED: '已打招呼', IMPORTED: '已纳入', REJECTED: '不合适' }[s] || s
 }
 
-function onSelect(list: any[]) {
-  selectedIds.value = list.map(r => r.id)
+function toggleSelect(id: number, checked: boolean) {
+  if (checked) {
+    if (!selectedIds.value.includes(id)) selectedIds.value.push(id)
+  } else {
+    selectedIds.value = selectedIds.value.filter((i) => i !== id)
+  }
 }
 
 async function loadJobs() {
@@ -154,33 +343,26 @@ async function loadList() {
 
 async function doBatchGreet() {
   await batchStagingGreet(selectedIds.value)
-  ElMessage.success('已提交打招呼')
+  toast.success('已提交打招呼')
   loadList()
 }
 
 async function doBatchImport() {
   await batchStagingImport(selectedIds.value)
-  ElMessage.success(`已${ACTIONS.importCandidate}`)
+  toast.success(`已${ACTIONS.importCandidate}`)
   loadList()
 }
 
 async function doBatchReject() {
-  const { value } = await ElMessageBox.prompt('可选填写原因', '标记不合适', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-  }).catch(() => ({ value: null }))
+  const value = await prompt({ title: '标记不合适', message: '可选填写原因', placeholder: '原因（选填）' })
   if (value === null) return
   await batchStagingReject(selectedIds.value, value || undefined)
-  ElMessage.success('已标记')
+  toast.success('已标记')
   loadList()
 }
 
-function singleGreet(id: number) {
-  batchStagingGreet([id]).then(() => { ElMessage.success('已打招呼'); loadList() })
-}
-
 function singleImport(id: number) {
-  batchStagingImport([id]).then(() => { ElMessage.success('已纳入候选人'); loadList() })
+  batchStagingImport([id]).then(() => { toast.success('已纳入候选人'); loadList() })
 }
 
 function openAsk(row: any) {
@@ -202,23 +384,21 @@ async function submitAsk() {
   }
 }
 
+function getRowActions(_row: any) {
+  return [
+    { command: 'view', label: '查看详情', icon: 'View', primary: true },
+    { command: 'import', label: '纳入候选人', icon: 'Promotion' },
+  ]
+}
+
+function handleRowCommand(cmd: string, row: any) {
+  if (cmd === 'view') singleImport(row.id)
+  else if (cmd === 'import') singleImport(row.id)
+}
+
 onMounted(async () => {
   if (props.defaultJobId) filters.jobId = props.defaultJobId
   await loadJobs()
   await loadList()
 })
 </script>
-
-<style scoped>
-.staging-embed { padding: 0; }
-.page-desc { color: #64748b; font-size: 13px; margin-top: 4px; }
-.toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
-.batch-bar {
-  display: flex; align-items: center; gap: 12px;
-  background: #f0f9ff; padding: 10px 12px; border-radius: 8px; margin-bottom: 12px;
-}
-.field-hint { font-size: 12px; color: #475569; }
-.muted { color: #94a3b8; }
-.ask-answer { margin-top: 12px; padding: 12px; background: #f8fafc; border-radius: 8px; font-size: 13px; }
-.mt-16 { margin-top: 16px; }
-</style>

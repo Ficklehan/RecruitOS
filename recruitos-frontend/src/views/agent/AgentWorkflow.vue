@@ -1,26 +1,22 @@
 <template>
-  <div class="page-container page-stack">
-    <div class="page-header">
-      <div>
-        <h2 class="page-title">AI 自动化工作流</h2>
-        <p class="page-subtitle">从任职要求发起渠道招聘全链路：搜寻 → 打招呼 → 收简历 → 加入候选人</p>
-      </div>
-      <div class="header-actions">
-        <el-button @click="handleRefresh">
-          <el-icon><Refresh /></el-icon>
-        </el-button>
-        <el-button type="primary" @click="showCreateDialog = true">
-          <el-icon><Plus /></el-icon>
-          新建工作流
-        </el-button>
-      </div>
-    </div>
+  <PageShell title="AI 自动化工作流" subtitle="从任职要求发起渠道招聘全链路：搜寻 → 打招呼 → 收简历 → 加入候选人">
+    <template #toolbar>
+      <RpaSafetyBar />
+    </template>
+    <template #actions>
+      <RButton variant="outline" size="icon" @click="handleRefresh">
+        <RefreshCw class="h-4 w-4" />
+      </RButton>
+      <RButton @click="showCreateDialog = true">
+        <Plus class="mr-2 h-4 w-4" />
+        新建工作流
+      </RButton>
+    </template>
 
-    <!-- 统计卡片 -->
-    <div class="stats-row">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       <div class="stat-card">
-        <div class="stat-icon" style="background: #EFF6FF; color: #3B82F6">
-          <el-icon :size="24"><VideoPlay /></el-icon>
+        <div class="stat-icon stat-icon--primary">
+          <Video class="h-6 w-6" />
         </div>
         <div class="stat-info">
           <div class="stat-value">{{ stats.running }}</div>
@@ -28,8 +24,8 @@
         </div>
       </div>
       <div class="stat-card">
-        <div class="stat-icon" style="background: #D1FAE5; color: #059669">
-          <el-icon :size="24"><CircleCheck /></el-icon>
+        <div class="stat-icon stat-icon--success">
+          <CircleCheck class="h-6 w-6" />
         </div>
         <div class="stat-info">
           <div class="stat-value">{{ stats.totalResumes }}</div>
@@ -37,8 +33,8 @@
         </div>
       </div>
       <div class="stat-card">
-        <div class="stat-icon" style="background: #FEF3C7; color: #D97706">
-          <el-icon :size="24"><ChatDotRound /></el-icon>
+        <div class="stat-icon stat-icon--warning">
+          <MessageCircle class="h-6 w-6" />
         </div>
         <div class="stat-info">
           <div class="stat-value">{{ stats.totalGreeted }}</div>
@@ -46,8 +42,8 @@
         </div>
       </div>
       <div class="stat-card">
-        <div class="stat-icon" style="background: #FEE2E2; color: #DC2626">
-          <el-icon :size="24"><Warning /></el-icon>
+        <div class="stat-icon stat-icon--danger">
+          <AlertTriangle class="h-6 w-6" />
         </div>
         <div class="stat-info">
           <div class="stat-value">{{ stats.alerts }}</div>
@@ -56,7 +52,6 @@
       </div>
     </div>
 
-    <!-- 工作流列表 -->
     <div class="workflow-list">
       <div v-for="wf in workflowList" :key="wf.id" class="workflow-card">
         <div class="wf-header">
@@ -64,67 +59,44 @@
             <h3 class="wf-title">{{ wf.name }}</h3>
             <p class="wf-job">在招职位：{{ wf.jobTitle }}</p>
           </div>
-          <div class="wf-status">
-            <el-tag :type="wf.status === 'RUNNING' ? 'success' : wf.status === 'PAUSED' ? 'warning' : 'info'" size="small">
-              {{ statusLabelMap[wf.status] }}
-            </el-tag>
-          </div>
+          <RBadge :variant="statusBadge(wf.status)">{{ statusLabelMap[wf.status] }}</RBadge>
         </div>
 
-        <!-- 流程进度条 -->
         <div class="wf-pipeline">
           <div class="pipeline-step" :class="{ active: wf.stats.searched > 0 }">
-            <div class="step-icon">
-              <el-icon><Search /></el-icon>
-            </div>
+            <div class="step-icon"><Search class="h-4 w-4" /></div>
             <div class="step-info">
               <div class="step-count">{{ wf.stats.searched }}</div>
               <div class="step-label">已检索</div>
             </div>
           </div>
-          <div class="pipeline-arrow">
-            <el-icon><ArrowRight /></el-icon>
-          </div>
+          <ArrowRight class="pipeline-arrow h-4 w-4" />
           <div class="pipeline-step" :class="{ active: wf.stats.greeted > 0 }">
-            <div class="step-icon">
-              <el-icon><ChatDotRound /></el-icon>
-            </div>
+            <div class="step-icon"><MessageCircle class="h-4 w-4" /></div>
             <div class="step-info">
               <div class="step-count">{{ wf.stats.greeted }}</div>
               <div class="step-label">已打招呼</div>
             </div>
           </div>
-          <div class="pipeline-arrow">
-            <el-icon><ArrowRight /></el-icon>
-          </div>
+          <ArrowRight class="pipeline-arrow h-4 w-4" />
           <div class="pipeline-step" :class="{ active: wf.stats.replied > 0 }">
-            <div class="step-icon">
-              <el-icon><ChatLineRound /></el-icon>
-            </div>
+            <div class="step-icon"><MessagesSquare class="h-4 w-4" /></div>
             <div class="step-info">
               <div class="step-count">{{ wf.stats.replied }}</div>
               <div class="step-label">已回复</div>
             </div>
           </div>
-          <div class="pipeline-arrow">
-            <el-icon><ArrowRight /></el-icon>
-          </div>
+          <ArrowRight class="pipeline-arrow h-4 w-4" />
           <div class="pipeline-step" :class="{ active: wf.stats.resumes > 0 }">
-            <div class="step-icon">
-              <el-icon><Document /></el-icon>
-            </div>
+            <div class="step-icon"><FileText class="h-4 w-4" /></div>
             <div class="step-info">
               <div class="step-count">{{ wf.stats.resumes }}</div>
               <div class="step-label">已收简历</div>
             </div>
           </div>
-          <div class="pipeline-arrow">
-            <el-icon><ArrowRight /></el-icon>
-          </div>
+          <ArrowRight class="pipeline-arrow h-4 w-4" />
           <div class="pipeline-step" :class="{ active: wf.stats.imported > 0 }">
-            <div class="step-icon">
-              <el-icon><FolderAdd /></el-icon>
-            </div>
+            <div class="step-icon"><FolderPlus class="h-4 w-4" /></div>
             <div class="step-info">
               <div class="step-count">{{ wf.stats.imported }}</div>
               <div class="step-label">已加入候选人</div>
@@ -138,81 +110,94 @@
             <span>创建时间：{{ wf.createdAt }}</span>
           </div>
           <div class="wf-actions">
-            <el-button v-if="wf.status === 'RUNNING'" type="warning" link size="small" @click="handlePause(wf)">
-              <el-icon><VideoPause /></el-icon>
+            <RButton v-if="wf.status === 'RUNNING'" variant="link" size="sm" @click="handlePause(wf)">
+              <Pause class="mr-1 h-3.5 w-3.5" />
               暂停
-            </el-button>
-            <el-button v-if="wf.status === 'PAUSED'" type="success" link size="small" @click="handleResume(wf)">
-              <el-icon><VideoPlay /></el-icon>
+            </RButton>
+            <RButton v-if="wf.status === 'PAUSED'" variant="link" size="sm" @click="handleResume(wf)">
+              <Video class="mr-1 h-3.5 w-3.5" />
               恢复
-            </el-button>
-            <el-button type="primary" link size="small" @click="goDetail(wf)">详情</el-button>
+            </RButton>
+            <RButton variant="link" size="sm" @click="goDetail(wf)">详情</RButton>
           </div>
         </div>
       </div>
 
-      <div v-if="!workflowList.length" class="empty-state">
-        <el-icon :size="48" color="#94A3B8"><DataLine /></el-icon>
-        <p>暂无工作流，点击「新建工作流」开始</p>
-      </div>
+      <EmptyStateCta
+        v-if="!workflowList.length"
+        title="暂无工作流"
+        description="点击「新建工作流」开始"
+        :actions="[{ label: '新建工作流', type: 'primary', onClick: () => { showCreateDialog = true } }]"
+      />
     </div>
 
-    <!-- 新建工作流弹窗 -->
-    <el-dialog v-model="showCreateDialog" title="新建 AI 工作流" width="640px" destroy-on-close>
-      <el-form :model="createForm" label-width="100px">
-        <el-form-item label="工作流名称" required>
-          <el-input v-model="createForm.name" placeholder="如：高级前端-BOSS自动招聘" />
-        </el-form-item>
-        <el-form-item label="在招职位" required>
-          <el-select v-model="createForm.jobId" placeholder="选择招聘中的职位" style="width: 100%">
-            <el-option v-for="job in jobOptions" :key="job.id" :label="job.title" :value="job.id" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="检索平台" required>
-          <el-checkbox-group v-model="createForm.platforms">
-            <el-checkbox label="BOSS">Boss直聘</el-checkbox>
-            <el-checkbox label="LIEPIN">猎聘</el-checkbox>
-          </el-checkbox-group>
-        </el-form-item>
-        <el-form-item label="检索关键词">
-          <el-select
-            v-model="createForm.keywords"
-            multiple
-            filterable
-            allow-create
-            default-first-option
-            placeholder="从JD标签自动生成，可手动调整"
-            style="width: 100%"
-          >
-            <el-option v-for="tag in jdTags" :key="tag" :label="tag" :value="tag" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="每日上限">
-          <el-input-number v-model="createForm.dailyLimit" :min="10" :max="500" :step="10" />
-          <span style="margin-left: 8px; color: #94A3B8; font-size: 13px">次/平台/天</span>
-        </el-form-item>
-        <el-form-item label="打招呼话术">
-          <el-select v-model="createForm.templateId" placeholder="选择话术模板" style="width: 100%">
-            <el-option v-for="tpl in templateOptions" :key="tpl.id" :label="tpl.templateName || tpl.name" :value="tpl.id" />
-          </el-select>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="showCreateDialog = false">取消</el-button>
-        <el-button type="primary" @click="handleCreate">创建并启动</el-button>
-      </template>
-    </el-dialog>
-  </div>
+    <RDialog v-model:open="showCreateDialog">
+      <RDialogContent class="max-w-2xl">
+        <RDialogHeader>
+          <RDialogTitle>新建 AI 工作流</RDialogTitle>
+        </RDialogHeader>
+        <div class="grid gap-4 py-2">
+          <FormField label="工作流名称" required>
+            <RInput v-model="createForm.name" placeholder="如：高级前端-BOSS自动招聘" />
+          </FormField>
+          <FormField label="在招职位" required>
+            <RSelect v-model="createForm.jobId" :options="jobSelectOptions" placeholder="选择招聘中的职位" />
+          </FormField>
+          <FormField label="检索平台" required>
+            <div class="flex flex-wrap gap-4">
+              <label class="flex items-center gap-2 text-sm">
+                <RCheckbox :model-value="createForm.platforms.includes('BOSS')" @update:model-value="togglePlatform('BOSS', $event)" />
+                Boss直聘
+              </label>
+              <label class="flex items-center gap-2 text-sm">
+                <RCheckbox :model-value="createForm.platforms.includes('LIEPIN')" @update:model-value="togglePlatform('LIEPIN', $event)" />
+                猎聘
+              </label>
+            </div>
+          </FormField>
+          <FormField label="检索关键词">
+            <RTextarea
+              v-model="keywordsText"
+              placeholder="从JD标签自动生成，可手动调整（每行一个关键词）"
+              :rows="3"
+            />
+          </FormField>
+          <FormField label="每日上限">
+            <div class="flex items-center gap-2">
+              <NumberInput v-model="createForm.dailyLimit" :min="10" :max="500" :step="10" class="w-28" />
+              <span class="text-sm text-muted-foreground">次/平台/天</span>
+            </div>
+          </FormField>
+          <FormField label="打招呼话术">
+            <RSelect v-model="createForm.templateId" :options="templateSelectOptions" placeholder="选择话术模板" clearable />
+          </FormField>
+        </div>
+        <RDialogFooter>
+          <RButton variant="outline" @click="showCreateDialog = false">取消</RButton>
+          <RButton @click="handleCreate">创建并启动</RButton>
+        </RDialogFooter>
+      </RDialogContent>
+    </RDialog>
+</PageShell>
 </template>
 
 <script setup lang="ts">
+import PageShell from '@/components/Layout/PageShell.vue'
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
 import {
-  Refresh, Plus, VideoPlay, VideoPause, CircleCheck, ChatDotRound, Warning,
-  Search, ArrowRight, ChatLineRound, Document, FolderAdd, DataLine,
-} from '@element-plus/icons-vue'
+  RefreshCw, Plus, Video, Pause, CircleCheck, MessageCircle, AlertTriangle,
+  Search, ArrowRight, MessagesSquare, FileText, FolderPlus,
+} from 'lucide-vue-next'
+import { toast } from '@/lib/notify'
+import RpaSafetyBar from '@/components/agent/RpaSafetyBar.vue'
+import EmptyStateCta from '@/components/common/EmptyStateCta.vue'
+import FormField from '@/components/app/FormField.vue'
+import NumberInput from '@/components/app/NumberInput.vue'
+import {
+  RButton, RInput, RSelect, RBadge, RCheckbox, RTextarea,
+  RDialog, RDialogContent, RDialogHeader, RDialogTitle, RDialogFooter,
+} from '@/components/ui'
 import { getWorkflowList, createWorkflow, pauseWorkflow, resumeWorkflow } from '@/api/modules/agent'
 import { getJobList } from '@/api/modules/job'
 import { getTemplateList } from '@/api/modules/communication'
@@ -223,7 +208,6 @@ const showCreateDialog = ref(false)
 const workflowList = ref<any[]>([])
 const jobOptions = ref<any[]>([])
 const templateOptions = ref<any[]>([])
-const jdTags = ref<string[]>(['Vue.js', 'React', 'TypeScript', 'Node.js', 'Python'])
 
 const createForm = reactive({
   name: '',
@@ -235,6 +219,18 @@ const createForm = reactive({
   templateId: null as number | null,
 })
 
+const keywordsText = computed({
+  get: () => createForm.keywords.join('\n'),
+  set: (v: string) => {
+    createForm.keywords = v.split('\n').map((s) => s.trim()).filter(Boolean)
+  },
+})
+
+const jobSelectOptions = computed(() => jobOptions.value.map((j) => ({ label: j.title, value: j.id })))
+const templateSelectOptions = computed(() =>
+  templateOptions.value.map((t) => ({ label: t.templateName || t.name, value: t.id }))
+)
+
 const statusLabelMap: Record<string, string> = {
   RUNNING: '运行中',
   PAUSED: '已暂停',
@@ -242,13 +238,27 @@ const statusLabelMap: Record<string, string> = {
   DRAFT: '草稿',
 }
 
+function statusBadge(status: string) {
+  if (status === 'RUNNING') return 'default'
+  if (status === 'PAUSED') return 'outline'
+  return 'secondary'
+}
+
 const stats = computed(() => {
-  const running = workflowList.value.filter(w => w.status === 'RUNNING').length
+  const running = workflowList.value.filter((w) => w.status === 'RUNNING').length
   const totalResumes = workflowList.value.reduce((s, w) => s + (w.stats?.resumes || 0), 0)
   const totalGreeted = workflowList.value.reduce((s, w) => s + (w.stats?.greeted || 0), 0)
   const alerts = workflowList.value.reduce((s, w) => s + (w.stats?.alerts || 0), 0)
   return { running, totalResumes, totalGreeted, alerts }
 })
+
+function togglePlatform(platform: string, checked: boolean) {
+  if (checked && !createForm.platforms.includes(platform)) {
+    createForm.platforms.push(platform)
+  } else if (!checked) {
+    createForm.platforms = createForm.platforms.filter((p) => p !== platform)
+  }
+}
 
 function goDetail(wf: any) {
   if (wf.jobId) {
@@ -262,9 +272,9 @@ async function handlePause(wf: any) {
   try {
     await pauseWorkflow(wf.id)
     wf.status = 'PAUSED'
-    ElMessage.success('已暂停')
+    toast.success('已暂停')
   } catch {
-    ElMessage.error('操作失败')
+    toast.error('操作失败')
   }
 }
 
@@ -272,15 +282,15 @@ async function handleResume(wf: any) {
   try {
     await resumeWorkflow(wf.id)
     wf.status = 'RUNNING'
-    ElMessage.success('已恢复')
+    toast.success('已恢复')
   } catch {
-    ElMessage.error('操作失败')
+    toast.error('操作失败')
   }
 }
 
 async function handleCreate() {
   if (!createForm.name || !createForm.jobId || !createForm.platforms.length) {
-    ElMessage.warning('请填写必填项')
+    toast.error('请填写必填项')
     return
   }
   try {
@@ -294,16 +304,16 @@ async function handleCreate() {
       templateId: createForm.templateId,
     })
     showCreateDialog.value = false
-    ElMessage.success('工作流已创建并启动')
+    toast.success('工作流已创建并启动')
     loadData()
   } catch {
-    ElMessage.error('创建失败')
+    toast.error('创建失败')
   }
 }
 
 function handleRefresh() {
   loadData()
-  ElMessage.success('刷新成功')
+  toast.success('刷新成功')
 }
 
 async function loadData() {
@@ -320,7 +330,7 @@ async function loadJobOptions() {
   try {
     const res: any = await getJobList({ status: 'ACTIVE' })
     const data = res.data || res
-    jobOptions.value = Array.isArray(data) ? data : data.records || []
+    jobOptions.value = Array.isArray(data) ? data : data.records || data.list || []
   } catch {
     jobOptions.value = []
   }
@@ -330,7 +340,7 @@ async function loadTemplateOptions() {
   try {
     const res: any = await getTemplateList()
     const data = res.data || res
-    templateOptions.value = Array.isArray(data) ? data : data.records || []
+    templateOptions.value = Array.isArray(data) ? data : data.records || data.list || []
   } catch {
     templateOptions.value = []
   }
@@ -378,7 +388,13 @@ onMounted(() => {
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
+    color: #fff;
   }
+
+  .stat-icon--primary { background: $primary-color; }
+  .stat-icon--success { background: $success-color; }
+  .stat-icon--warning { background: $warning-color; }
+  .stat-icon--danger { background: $danger-color; }
 
   .stat-value {
     font-size: 24px;
@@ -434,6 +450,7 @@ onMounted(() => {
   margin-bottom: 16px;
   background: $bg-muted;
   border-radius: $border-radius-sm;
+  flex-wrap: wrap;
 }
 
 .pipeline-step {
@@ -444,9 +461,7 @@ onMounted(() => {
   opacity: 0.4;
   transition: opacity $transition-fast;
 
-  &.active {
-    opacity: 1;
-  }
+  &.active { opacity: 1; }
 }
 
 .step-icon {
@@ -457,13 +472,10 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
   color: $primary-color;
 }
 
-.step-info {
-  text-align: center;
-}
+.step-info { text-align: center; }
 
 .step-count {
   font-size: 18px;
@@ -479,7 +491,6 @@ onMounted(() => {
 
 .pipeline-arrow {
   color: $text-placeholder;
-  font-size: 16px;
   margin: 0 4px;
 }
 
@@ -487,6 +498,8 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .wf-meta {
@@ -499,16 +512,5 @@ onMounted(() => {
 .wf-actions {
   display: flex;
   gap: 4px;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 48px 0;
-  color: $text-secondary;
-
-  p {
-    margin-top: 12px;
-    font-size: 14px;
-  }
 }
 </style>

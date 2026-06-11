@@ -99,4 +99,30 @@ public interface AnalyticsQueryMapper {
     Double getAvgOfferToOnboardDays(@Param("tenantId") Long tenantId,
                                      @Param("dateFrom") String dateFrom,
                                      @Param("dateTo") String dateTo);
+
+    @Select("SELECT " +
+            "COALESCE(SUM(CAST(JSON_UNQUOTE(JSON_EXTRACT(stats_json, '$.searched')) AS UNSIGNED)), 0) AS searched, " +
+            "COALESCE(SUM(CAST(JSON_UNQUOTE(JSON_EXTRACT(stats_json, '$.greeted')) AS UNSIGNED)), 0) AS greeted, " +
+            "COALESCE(SUM(CAST(JSON_UNQUOTE(JSON_EXTRACT(stats_json, '$.resumes')) AS UNSIGNED)), 0) AS resumes, " +
+            "COALESCE(SUM(CAST(JSON_UNQUOTE(JSON_EXTRACT(stats_json, '$.imported')) AS UNSIGNED)), 0) AS imported " +
+            "FROM job_sourcing_campaign WHERE tenant_id = #{tenantId} " +
+            "AND stats_json IS NOT NULL " +
+            "AND (#{dateFrom} IS NULL OR started_at >= #{dateFrom}) " +
+            "AND (#{dateTo} IS NULL OR started_at <= #{dateTo})")
+    Map<String, Object> sumCampaignStats(@Param("tenantId") Long tenantId,
+                                         @Param("dateFrom") String dateFrom,
+                                         @Param("dateTo") String dateTo);
+
+    @Select("SELECT c.source AS source, COUNT(DISTINCT ob.id) AS hires " +
+            "FROM onboard ob " +
+            "JOIN offer o ON o.id = ob.offer_id AND o.tenant_id = ob.tenant_id " +
+            "JOIN candidate c ON c.id = o.candidate_id AND c.tenant_id = ob.tenant_id " +
+            "WHERE ob.tenant_id = #{tenantId} " +
+            "AND ob.status IN ('CONFIRMED', 'COMPLETED') " +
+            "AND (#{dateFrom} IS NULL OR ob.created_at >= #{dateFrom}) " +
+            "AND (#{dateTo} IS NULL OR ob.created_at <= #{dateTo}) " +
+            "GROUP BY c.source")
+    List<Map<String, Object>> countHiresBySource(@Param("tenantId") Long tenantId,
+                                                 @Param("dateFrom") String dateFrom,
+                                                 @Param("dateTo") String dateTo);
 }

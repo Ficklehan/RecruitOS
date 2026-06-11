@@ -8,6 +8,7 @@ import com.recruitos.agent.entity.*;
 import com.recruitos.agent.mapper.*;
 import com.recruitos.agent.platform.*;
 import com.recruitos.agent.rpa.RpaProperties;
+import com.recruitos.common.match.TagMatchScoreCalculator;
 import com.recruitos.common.tenant.TenantContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -256,11 +257,14 @@ public class CampaignOrchestratorService {
             return;
         }
 
+        applyPlatformMatchScore(campaign, pc);
+
         Object screeningProfile = readScreeningProfile(campaign);
         String greetStrategy = readGreetStrategy(campaign);
         boolean cardGreet = "CARD_GREET".equals(greetStrategy);
 
-        ScreeningEngine.ScreeningResult stage1 = screeningEngine.evaluateStage1(screeningProfile, pc);
+        String jobTagsJson = jobReadMapper.selectJobTags(campaign.getJobId(), campaign.getTenantId());
+        ScreeningEngine.ScreeningResult stage1 = screeningEngine.evaluateStage1(screeningProfile, pc, jobTagsJson, objectMapper);
         if (!stage1.isPassed()) {
             createScreenSkippedTrace(campaign, run, account, pc, dedupKey, stage1);
             emitScreenSignal(campaign, null, pc, stage1, false);
@@ -271,7 +275,7 @@ public class CampaignOrchestratorService {
 
         ScreeningEngine.ScreeningResult stage2 = stage1;
         if (!cardGreet) {
-            stage2 = screeningEngine.evaluateStage2(screeningProfile, pc);
+            stage2 = screeningEngine.evaluateStage2(screeningProfile, pc, jobTagsJson, objectMapper);
             if (!stage2.isPassed()) {
                 createScreenSkippedTrace(campaign, run, account, pc, dedupKey, stage2);
                 emitScreenSignal(campaign, null, pc, stage2, false);
@@ -418,7 +422,7 @@ public class CampaignOrchestratorService {
                            CampaignCandidateTrace trace, PlatformCandidate pc, String jobTitle) {
         PlatformAdapter adapter = adapterRegistry.get(run.getPlatform());
         quotaGuard.assertGreetAllowed(campaign.getId(), run.getPlatform(), readPlatformQuotas(campaign));
-        String message = greetingComposer.composeGreeting(campaign.getJobId(), jobTitle, pc.getName(), "GREET");
+        String message = greetingComposer.composeGreeting(campaign.getJobId(), jobTitle, pc.getName(), "GREET", pc);
         adapter.sendGreeting(account, pc.getPlatformUserId(), pc.getName(), jobTitle, message);
         trace.setTraceStatus("GREETED");
         trace.setAccountId(account.getId());
@@ -628,6 +632,28 @@ public class CampaignOrchestratorService {
             trace.setTimelineJson(objectMapper.writeValueAsString(timeline));
         } catch (Exception ignored) {
         }
+    }
+
+    private void applyPlatformMatchScore(JobSourcingCampaign campaign, PlatformCandidate pc) {
+        if (campaign.getJobId() == null || pc == null) {
+            return;
+        }
+        Long tenantId = TenantContext.getTenantId();
+        String jobTags = jobReadMapper.selectJobTags(campaign.getJobId(), tenantId);
+        TagMatchScoreCalculator.CandidateSkillProfile profile = new TagMatchScoreCalculator.CandidateSkillProfile();
+        StringBuilder skillBlob = new StringBuilder();
+        if (StringUtils.hasText(pc.getTitle())) {
+            skillBlob.append(pc.getTitle()).append(',');
+        }
+        if (StringUtils.hasText(pc.getCompany())) {
+            skillBlob.append(pc.getCompany());
+        }
+        profile.setTags(skillBlob.length() > 0 ? skillBlob.toString() : null);
+        profile.setCurrentTitle(pc.getTitle());
+        profile.setCurrentCompany(pc.getCompany());
+        profile.setWorkYears(pc.getWorkYears());
+        profile.setHasParsedResume(false);
+        pc.setMatchScore(TagMatchScoreCalculator.calculate(jobTags, profile, objectMapper));
     }
 
     private Object readScreeningProfile(JobSourcingCampaign campaign) {

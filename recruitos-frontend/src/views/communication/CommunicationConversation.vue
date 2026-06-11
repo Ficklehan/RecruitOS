@@ -1,23 +1,14 @@
 <template>
-  <div class="page-container page-stack page-viewport-fill conversation-page">
-    <div class="page-header">
-      <div>
-        <h2 class="page-title">对话记录</h2>
-        <p class="page-subtitle">查看与候选人的沟通历史并发送消息</p>
-      </div>
-    </div>
-
-    <div class="conversation-layout page-viewport-fill__body">
-      <!-- Left Sidebar -->
+  <PageShell
+    title="对话记录"
+    subtitle="查看与候选人的沟通历史并发送消息"
+    class="min-h-[calc(100vh-var(--layout-chrome-height))]"
+    body-class="flex-1 min-h-0 flex flex-col"
+  >
+    <div class="conversation-layout flex-1 min-h-0">
       <div class="sidebar">
         <div class="sidebar-search">
-          <el-input
-            v-model="searchKeyword"
-            placeholder="搜索候选人"
-            :prefix-icon="Search"
-            clearable
-            size="small"
-          />
+          <RInput v-model="searchKeyword" placeholder="搜索候选人" class="h-9" />
         </div>
         <div class="conversation-list">
           <div
@@ -37,55 +28,54 @@
               </div>
               <div class="conv-bottom">
                 <span class="conv-preview">{{ conv.lastMessage }}</span>
-                <el-badge v-if="conv.unread > 0" :value="conv.unread" :max="99" class="conv-badge" />
+                <RBadge v-if="conv.unread > 0" variant="destructive" class="conv-badge">{{ conv.unread > 99 ? '99+' : conv.unread }}</RBadge>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Right Panel -->
       <div class="chat-panel">
         <template v-if="activeConversation">
-          <!-- Chat Header -->
           <div class="chat-header">
             <div class="chat-header-info">
               <span class="chat-candidate-name">{{ activeConversation.candidateName }}</span>
-              <el-tag :type="channelTagMap[activeConversation.channel]" size="small">
+              <RBadge :variant="elTagTypeToBadge(channelTagMap[activeConversation.channel])">
                 {{ channelLabelMap[activeConversation.channel] }}
-              </el-tag>
-              <el-tag :type="activeConversation.status === '进行中' ? 'success' : 'info'" size="small" effect="plain">
+              </RBadge>
+              <RBadge variant="outline">
                 {{ activeConversation.status }}
-              </el-tag>
+              </RBadge>
             </div>
             <div class="chat-header-actions">
-              <el-button :icon="User" size="small" text>查看简历</el-button>
-              <el-button :icon="MoreFilled" size="small" text />
+              <RButton variant="ghost" size="sm">
+                <User class="mr-1 h-4 w-4" />
+                查看简历
+              </RButton>
+              <RButton variant="ghost" size="icon">
+                <MoreHorizontal class="h-4 w-4" />
+              </RButton>
             </div>
           </div>
 
-          <!-- Message Timeline -->
           <div ref="messageListRef" class="message-list">
             <div v-for="msg in messages" :key="msg.id" class="message-wrapper" :class="msg.type">
-              <!-- System message -->
               <div v-if="msg.type === 'system'" class="system-message">
                 <span>{{ msg.content }}</span>
               </div>
 
-              <!-- Agent / Outgoing message -->
               <div v-else-if="msg.type === 'outgoing'" class="message-bubble outgoing">
                 <div class="bubble-content">
                   <p>{{ msg.content }}</p>
                 </div>
                 <div class="bubble-meta">
                   <span class="msg-time">{{ msg.time }}</span>
-                  <el-icon v-if="msg.status === 'read'" class="status-icon read"><Check /></el-icon>
-                  <el-icon v-else-if="msg.status === 'delivered'" class="status-icon delivered"><Check /></el-icon>
-                  <el-icon v-else class="status-icon sent"><Loading /></el-icon>
+                  <Check v-if="msg.status === 'read'" class="status-icon read h-3.5 w-3.5" />
+                  <Check v-else-if="msg.status === 'delivered'" class="status-icon delivered h-3.5 w-3.5" />
+                  <Loader2 v-else class="status-icon sent h-3.5 w-3.5 animate-spin" />
                 </div>
               </div>
 
-              <!-- Candidate / Incoming message -->
               <div v-else class="message-bubble incoming">
                 <div class="bubble-avatar" :style="{ background: activeConversation.avatarColor }">
                   {{ activeConversation.candidateName.charAt(0) }}
@@ -102,56 +92,62 @@
             </div>
           </div>
 
-          <!-- Input Area -->
           <div class="chat-input">
             <div class="input-actions">
-              <el-button :icon="Document" size="small" text @click="templateDrawerVisible = true">插入话术</el-button>
+              <RButton variant="ghost" size="sm" @click="templateDrawerVisible = true">
+                <FileText class="mr-1 h-4 w-4" />
+                插入话术
+              </RButton>
             </div>
             <div class="input-row">
-              <el-input
+              <RTextarea
                 v-model="messageInput"
-                type="textarea"
                 :rows="2"
                 placeholder="输入消息内容..."
-                resize="none"
-                @keydown.enter.ctrl.exact.prevent="sendMessage"
+                class="flex-1 resize-none"
+                @keydown.ctrl.enter.prevent="sendMessage"
               />
-              <el-button type="primary" :icon="Promotion" @click="sendMessage" :disabled="!messageInput.trim()">
+              <RButton :disabled="!messageInput.trim()" @click="sendMessage">
+                <Send class="mr-1 h-4 w-4" />
                 发送
-              </el-button>
+              </RButton>
             </div>
           </div>
         </template>
 
-        <!-- Empty State -->
         <div v-else class="empty-chat">
-          <el-icon :size="64" color="#dcdfe6"><ChatLineRound /></el-icon>
+          <MessagesSquare class="h-16 w-16 text-muted-foreground/40" />
           <p>请从左侧选择一个对话</p>
         </div>
       </div>
     </div>
 
-    <!-- Template Drawer -->
-    <el-drawer v-model="templateDrawerVisible" title="选择话术模板" size="400px">
-      <div class="template-list">
-        <div
-          v-for="tpl in templateOptions"
-          :key="tpl.id"
-          class="template-option"
-          @click="insertTemplate(tpl.content)"
-        >
-          <div class="tpl-name">{{ tpl.name }}</div>
-          <div class="tpl-preview">{{ tpl.content }}</div>
+    <RSheet v-model:open="templateDrawerVisible">
+      <RSheetContent class="overflow-y-auto">
+        <h3 class="text-lg font-semibold mb-4">选择话术模板</h3>
+        <div class="template-list">
+          <div
+            v-for="tpl in templateOptions"
+            :key="tpl.id"
+            class="template-option"
+            @click="insertTemplate(tpl.content)"
+          >
+            <div class="tpl-name">{{ tpl.name }}</div>
+            <div class="tpl-preview">{{ tpl.content }}</div>
+          </div>
         </div>
-      </div>
-    </el-drawer>
-  </div>
+      </RSheetContent>
+    </RSheet>
+</PageShell>
 </template>
 
 <script setup lang="ts">
+import PageShell from '@/components/Layout/PageShell.vue'
 import { ref, computed, nextTick, onMounted } from 'vue'
-import { Search, User, MoreFilled, Document, Promotion, ChatLineRound, Check, Loading } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+import { User, MoreHorizontal, FileText, Send, MessagesSquare, Check, Loader2 } from 'lucide-vue-next'
+import { toast } from '@/lib/notify'
+import { elTagTypeToBadge } from '@/lib/badgeVariants'
+import { RButton, RInput, RBadge, RTextarea, RSheet, RSheetContent } from '@/components/ui'
 import {
   getConversationList, getConversationDetail, sendMessage as sendConversationMessage, getTemplateList,
 } from '@/api/modules/communication'
@@ -179,21 +175,10 @@ interface Message {
   status?: MsgStatus
 }
 
-const channelTagMap: Record<Channel, string> = {
-  SMS: '',
-  EMAIL: 'success',
-  WECHAT: 'success',
-  FEISHU: 'primary',
-}
+const channelTagMap: Record<Channel, string> = { SMS: '', EMAIL: 'success', WECHAT: 'success', FEISHU: 'primary' }
+const channelLabelMap: Record<Channel, string> = { SMS: '短信', EMAIL: '邮件', WECHAT: '企微', FEISHU: '飞书' }
 
-const channelLabelMap: Record<Channel, string> = {
-  SMS: '短信',
-  EMAIL: '邮件',
-  WECHAT: '企微',
-  FEISHU: '飞书',
-}
-
-const avatarColors = ['#3B82F6', '#059669', '#D97706', '#DC2626', '#64748B']
+const avatarColors = ['#3b82f6', '#16a34a', '#ca8a04', '#DC2626', '#64748b']
 const conversations = ref<Conversation[]>([])
 
 function formatMsgTime(t?: string) {
@@ -243,14 +228,11 @@ const messages = ref<Message[]>([])
 const messageInput = ref('')
 const messageListRef = ref<HTMLElement>()
 const templateDrawerVisible = ref(false)
-
 const templateOptions = ref<{ id: number; name: string; content: string }[]>([])
 
 const filteredConversations = computed(() => {
   if (!searchKeyword.value) return conversations.value
-  return conversations.value.filter((c) =>
-    c.candidateName.includes(searchKeyword.value)
-  )
+  return conversations.value.filter((c) => c.candidateName.includes(searchKeyword.value))
 })
 
 async function selectConversation(conv: Conversation) {
@@ -283,9 +265,9 @@ async function sendMessage() {
     activeConversation.value.lastTime = '刚刚'
     messageInput.value = ''
     nextTick(scrollToBottom)
-    ElMessage.success('消息已发送')
+    toast.success('消息已发送')
   } catch {
-    ElMessage.error('发送失败')
+    toast.error('发送失败')
   }
 }
 
@@ -312,6 +294,7 @@ function insertTemplate(content: string) {
 
 <style scoped lang="scss">
 @import '@/assets/styles/variables.scss';
+
 .conversation-page {
   min-height: calc(100vh - var(--layout-chrome-height));
 }
@@ -319,13 +302,12 @@ function insertTemplate(content: string) {
 .conversation-layout {
   display: flex;
   flex: 1;
-  border: 1px solid $border-color-light;
+  border: none;
   border-radius: 8px;
   overflow: hidden;
   min-height: 0;
 }
 
-/* Sidebar */
 .sidebar {
   width: 320px;
   border-right: 1px solid $border-color-light;
@@ -355,10 +337,7 @@ function insertTemplate(content: string) {
   transition: background 0.2s;
   border-bottom: 1px solid $border-color-light;
 
-  &:hover {
-    background: $primary-lighter;
-  }
-
+  &:hover { background: $primary-lighter; }
   &.active {
     background: $primary-lighter;
     border-right: 3px solid $primary-color;
@@ -372,16 +351,13 @@ function insertTemplate(content: string) {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
-  font-size: 16px;
-  font-weight: 600;
-  flex-shrink: 0;
+    color: var(--r-bg-card);
+    font-size: 16px;
+    font-weight: 600;
+    flex-shrink: 0;
 }
 
-.conv-info {
-  flex: 1;
-  min-width: 0;
-}
+.conv-info { flex: 1; min-width: 0; }
 
 .conv-top {
   display: flex;
@@ -390,17 +366,8 @@ function insertTemplate(content: string) {
   margin-bottom: 4px;
 }
 
-.conv-name {
-  font-size: 14px;
-  font-weight: 500;
-  color: $text-primary;
-}
-
-.conv-time {
-  font-size: 12px;
-  color: $text-secondary;
-  flex-shrink: 0;
-}
+.conv-name { font-size: 14px; font-weight: 500; color: $text-primary; }
+.conv-time { font-size: 12px; color: $text-secondary; flex-shrink: 0; }
 
 .conv-bottom {
   display: flex;
@@ -418,7 +385,6 @@ function insertTemplate(content: string) {
   margin-right: 8px;
 }
 
-/* Chat Panel */
 .chat-panel {
   flex: 1;
   display: flex;
@@ -448,12 +414,8 @@ function insertTemplate(content: string) {
   color: $text-primary;
 }
 
-.chat-header-actions {
-  display: flex;
-  gap: 4px;
-}
+.chat-header-actions { display: flex; gap: 4px; }
 
-/* Messages */
 .message-list {
   flex: 1;
   overflow-y: auto;
@@ -464,10 +426,7 @@ function insertTemplate(content: string) {
   gap: 16px;
 }
 
-.message-wrapper.system {
-  display: flex;
-  justify-content: center;
-}
+.message-wrapper.system { display: flex; justify-content: center; }
 
 .system-message {
   background: $border-color-light;
@@ -489,7 +448,7 @@ function insertTemplate(content: string) {
 
     .bubble-content {
       background: $primary-color;
-      color: #fff;
+      color: var(--r-bg-card);
       border-radius: 12px 12px 4px 12px;
     }
   }
@@ -515,7 +474,7 @@ function insertTemplate(content: string) {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: var(--r-bg-card);
   font-size: 13px;
   font-weight: 600;
   flex-shrink: 0;
@@ -540,26 +499,14 @@ function insertTemplate(content: string) {
   padding: 0 4px;
 }
 
-.msg-time {
-  font-size: 11px;
-  color: $text-placeholder;
-}
+.msg-time { font-size: 11px; color: $text-placeholder; }
 
 .status-icon {
-  font-size: 14px;
-
-  &.read {
-    color: $primary-color;
-  }
-  &.delivered {
-    color: $success-color;
-  }
-  &.sent {
-    color: $text-placeholder;
-  }
+  &.read { color: $primary-color; }
+  &.delivered { color: $success-color; }
+  &.sent { color: $text-placeholder; }
 }
 
-/* Input Area */
 .chat-input {
   border-top: 1px solid $border-color-light;
   padding: 12px 20px;
@@ -567,21 +514,14 @@ function insertTemplate(content: string) {
   background: $bg-card;
 }
 
-.input-actions {
-  margin-bottom: 8px;
-}
+.input-actions { margin-bottom: 8px; }
 
 .input-row {
   display: flex;
   gap: 10px;
   align-items: flex-end;
-
-  .el-textarea {
-    flex: 1;
-  }
 }
 
-/* Empty State */
 .empty-chat {
   flex: 1;
   display: flex;
@@ -597,7 +537,6 @@ function insertTemplate(content: string) {
   }
 }
 
-/* Template Drawer */
 .template-list {
   display: flex;
   flex-direction: column;
@@ -606,7 +545,7 @@ function insertTemplate(content: string) {
 
 .template-option {
   padding: 12px;
-  border: 1px solid $border-color-light;
+  border: none;
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s;

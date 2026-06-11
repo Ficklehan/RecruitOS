@@ -1,33 +1,28 @@
 <template>
-  <div class="page-container page-stack">
-    <!-- 页面头部 -->
-    <div class="page-header">
-      <h2 class="page-title">录用通知审批</h2>
-    </div>
+  <PageShell title="录用通知审批">
+<RTabs v-model="activeTab" class="approval-tabs" @update:model-value="handleTabChange">
+      <RTabsList>
+        <RTabsTrigger value="pending">待我审批</RTabsTrigger>
+        <RTabsTrigger value="approved">我已审批</RTabsTrigger>
+        <RTabsTrigger value="rejected">已驳回</RTabsTrigger>
+      </RTabsList>
+    </RTabs>
 
-    <!-- Tab 导航 -->
-    <el-tabs v-model="activeTab" class="approval-tabs" @tab-change="handleTabChange">
-      <el-tab-pane label="待我审批" name="pending" />
-      <el-tab-pane label="我已审批" name="approved" />
-      <el-tab-pane label="已驳回" name="rejected" />
-    </el-tabs>
+    <div class="approval-list relative">
+      <div v-if="loading" class="absolute inset-0 z-10 flex items-center justify-center bg-background/60 min-h-[120px]">
+        <Loader2 class="h-6 w-6 animate-spin text-primary" />
+      </div>
 
-    <!-- 审批卡片列表 -->
-    <div class="approval-list" v-loading="loading">
-      <div v-if="filteredItems.length === 0" class="empty-state">
+      <div v-if="filteredItems.length === 0 && !loading" class="empty-state">
         <EmptyStateCta description="当前没有需要您处理的录用通知" />
       </div>
       <div v-for="item in filteredItems" :key="item.id" class="approval-card">
         <div class="card-header">
           <div class="candidate-info">
             <h3 class="candidate-name">{{ item.candidateName }}</h3>
-            <el-tag
-              :type="getStatusType(item.status)"
-              size="small"
-              disable-transitions
-            >
+            <RBadge :variant="elTagTypeToBadge(getStatusType(item.status))">
               {{ getStatusLabel(item.status) }}
-            </el-tag>
+            </RBadge>
           </div>
           <span class="submit-time">{{ item.submitTime }}</span>
         </div>
@@ -56,65 +51,67 @@
           </div>
         </div>
         <div v-if="item.status === 'PENDING'" class="card-footer">
-          <el-button type="danger" @click="handleReject(item)">
-            <el-icon><Close /></el-icon>
+          <RButton variant="destructive" @click="handleReject(item)">
+            <X class="mr-2 h-4 w-4" />
             驳回
-          </el-button>
-          <el-button type="success" @click="handleApprove(item)">
-            <el-icon><Check /></el-icon>
+          </RButton>
+          <RButton class="bg-green-600 hover:bg-green-700" @click="handleApprove(item)">
+            <Check class="mr-2 h-4 w-4" />
             通过
-          </el-button>
+          </RButton>
         </div>
       </div>
     </div>
 
-    <!-- 审批对话框 -->
-    <el-dialog
-      v-model="approvalDialogVisible"
-      :title="approvalDialogTitle"
-      width="440px"
-      destroy-on-close
-    >
-      <div class="approval-candidate-info">
-        <p><strong>候选人：</strong>{{ currentApprovalItem?.candidateName }}</p>
-        <p><strong>岗位：</strong>{{ currentApprovalItem?.jobTitle }}</p>
-        <p><strong>薪资：</strong>{{ currentApprovalItem?.salary }}</p>
-      </div>
-      <el-form label-width="60px">
-        <el-form-item label="备注">
-          <el-input
+    <RDialog v-model:open="approvalDialogVisible">
+      <DialogContent class="max-w-md">
+        <DialogHeader>
+          <DialogTitle>{{ approvalDialogTitle }}</DialogTitle>
+        </DialogHeader>
+        <div class="approval-candidate-info">
+          <p><strong>候选人：</strong>{{ currentApprovalItem?.candidateName }}</p>
+          <p><strong>岗位：</strong>{{ currentApprovalItem?.jobTitle }}</p>
+          <p><strong>薪资：</strong>{{ currentApprovalItem?.salary }}</p>
+        </div>
+        <FormField label="备注">
+          <RTextarea
             v-model="approvalRemark"
-            type="textarea"
             :rows="3"
             :placeholder="approvalType === 'approve' ? '请输入审批意见（可选）' : '请输入驳回原因'"
           />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="approvalDialogVisible = false">取消</el-button>
-        <el-button
-          :type="approvalType === 'approve' ? 'success' : 'danger'"
-          :loading="approvalLoading"
-          @click="confirmApproval"
-        >
-          {{ approvalType === 'approve' ? '确认通过' : '确认驳回' }}
-        </el-button>
-      </template>
-    </el-dialog>
-  </div>
+        </FormField>
+        <DialogFooter>
+          <RButton variant="outline" @click="approvalDialogVisible = false">取消</RButton>
+          <RButton
+            :variant="approvalType === 'approve' ? 'default' : 'destructive'"
+            :class="approvalType === 'approve' ? 'bg-green-600 hover:bg-green-700' : ''"
+            :disabled="approvalLoading"
+            @click="confirmApproval"
+          >
+            {{ approvalType === 'approve' ? '确认通过' : '确认驳回' }}
+          </RButton>
+        </DialogFooter>
+      </DialogContent>
+    </RDialog>
+</PageShell>
 </template>
 
 <script setup lang="ts">
+import PageShell from '@/components/Layout/PageShell.vue'
 import { ref, computed, onMounted, watch } from 'vue'
-import { ElMessage } from 'element-plus'
-import { Check, Close } from '@element-plus/icons-vue'
+import { Check, X, Loader2 } from 'lucide-vue-next'
+import { toast } from '@/lib/notify'
+import { elTagTypeToBadge } from '@/lib/badgeVariants'
 import EmptyStateCta from '@/components/common/EmptyStateCta.vue'
-import { offerStatusLabel } from '@/constants/businessLabels'
+import FormField from '@/components/app/FormField.vue'
+import {
+  RButton, RBadge, RTabs, RTabsList, RTabsTrigger,
+  RDialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, RTextarea,
+} from '@/components/ui'
 import { getOfferList, approveOffer, rejectOffer } from '@/api/modules/offer'
 
 const activeTab = ref('pending')
 const loading = ref(false)
-
 const approvalDialogVisible = ref(false)
 const approvalType = ref<'approve' | 'reject'>('approve')
 const approvalRemark = ref('')
@@ -191,7 +188,7 @@ function handleReject(item: any) {
 
 async function confirmApproval() {
   if (approvalType.value === 'reject' && !approvalRemark.value.trim()) {
-    ElMessage.warning('请输入驳回原因')
+    toast.error('请输入驳回原因')
     return
   }
   if (!currentApprovalItem.value) return
@@ -199,10 +196,10 @@ async function confirmApproval() {
   try {
     if (approvalType.value === 'approve') {
       await approveOffer(currentApprovalItem.value.id, approvalRemark.value)
-      ElMessage.success('审批通过')
+      toast.success('审批通过')
     } else {
       await rejectOffer(currentApprovalItem.value.id, approvalRemark.value)
-      ElMessage.success('已驳回')
+      toast.success('已驳回')
     }
     approvalDialogVisible.value = false
     loadData()
@@ -217,25 +214,19 @@ onMounted(loadData)
 
 <style lang="scss" scoped>
 @import '@/assets/styles/variables.scss';
-.approval-tabs {
-  margin-bottom: 20px;
-}
-
-.approval-list {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
+.approval-tabs { margin-bottom: 20px; }
+.approval-list { display: flex; flex-direction: column; gap: 16px; }
 
 .approval-card {
   background: $bg-card;
-  border: 1px solid $border-color-light;
-  border-radius: 8px;
+  border-radius: 12px;
   padding: 20px;
-  transition: box-shadow 0.2s;
+  transition: all $transition-base;
+  box-shadow: $shadow-soft;
 
   &:hover {
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+    transform: translateY(-2px);
+    box-shadow: $shadow-card-hover;
   }
 
   .card-header {
@@ -275,35 +266,25 @@ onMounted(loadData)
       flex-direction: column;
       gap: 4px;
 
-      .info-label {
-        font-size: 12px;
-        color: $text-secondary;
-      }
-
-      .info-value {
-        font-size: 14px;
-        color: $text-primary;
-      }
+      .info-label { font-size: 12px; color: $text-secondary; }
+      .info-value { font-size: 14px; color: $text-primary; }
     }
 
     .remark-section {
       margin-top: 12px;
       padding-top: 12px;
-      border-top: 1px dashed $border-color-light;
+      border-top: 1px solid var(--r-divider);
       display: flex;
       gap: 8px;
 
-      .remark-text {
-        font-size: 13px;
-        color: $text-regular;
-      }
+      .remark-text { font-size: 13px; color: $text-regular; }
     }
   }
 
   .card-footer {
     margin-top: 16px;
     padding-top: 16px;
-    border-top: 1px solid $border-color-light;
+    border-top: 1px solid var(--r-divider);
     display: flex;
     justify-content: flex-end;
     gap: 12px;
@@ -322,13 +303,9 @@ onMounted(loadData)
     font-size: 14px;
     color: $text-regular;
 
-    strong {
-      color: $text-primary;
-    }
+    strong { color: $text-primary; }
   }
 }
 
-.empty-state {
-  padding: 60px 0;
-}
+.empty-state { padding: 60px 0; }
 </style>

@@ -1,162 +1,167 @@
 <template>
-  <ListPageLayout
+  <PageShell variant="list"
     title="在招职位"
     subtitle="管理正在招聘的职位，进入工作台查看进展与渠道招聘"
   >
     <template #actions>
-      <el-button type="primary" @click="handleCreate">
-        <el-icon><Plus /></el-icon>
+      <RButton @click="handleCreate">
+        <Plus class="mr-2 h-4 w-4" />
         创建在招职位
-      </el-button>
+      </RButton>
     </template>
 
     <template #filters>
-      <el-input
+      <RInput
         v-model="queryParams.title"
         placeholder="搜索职位名称"
-        :prefix-icon="Search"
-        clearable
-        class="filter-field filter-field--lg"
+        class="w-full sm:w-64"
         @keyup.enter="handleSearch"
       />
-      <el-select v-model="queryParams.status" placeholder="招聘状态" clearable class="filter-field filter-field--sm">
-        <el-option v-for="s in statusOptions" :key="s.value" :label="s.label" :value="s.value" />
-      </el-select>
-      <el-input
+      <RSelect
+        v-model="queryParams.status"
+        :options="statusOptions"
+        placeholder="招聘状态"
+        clearable
+        class="w-full sm:w-40"
+      />
+      <RInput
         v-model="queryParams.demandNo"
         placeholder="关联需求编号"
-        clearable
-        class="filter-field filter-field--md"
+        class="w-full sm:w-48"
         @keyup.enter="handleSearch"
       />
     </template>
+
     <template #filterActions>
-      <el-button type="primary" @click="handleSearch">
-        <el-icon><Search /></el-icon>
+      <RButton @click="handleSearch">
+        <Search class="mr-2 h-4 w-4" />
         搜索
-      </el-button>
-      <el-button @click="handleReset">
-        <el-icon><RefreshRight /></el-icon>
+      </RButton>
+      <RButton variant="outline" @click="handleReset">
+        <RefreshCw class="mr-2 h-4 w-4" />
         重置
-      </el-button>
+      </RButton>
     </template>
 
-      <el-table v-if="jobList.length" :data="jobList" highlight-current-row style="width: 100%">
-        <el-table-column prop="jobNo" label="职位编号" width="150" show-overflow-tooltip />
-        <el-table-column prop="title" label="职位名称" min-width="200" show-overflow-tooltip>
-          <template #default="{ row }">
-            <span class="title-link" @click="handleView(row)">{{ row.title }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="demandNo" label="关联需求" width="150" show-overflow-tooltip />
-        <el-table-column prop="headcount" label="招聘人数" width="100" align="center" />
-        <el-table-column prop="onboardCount" label="已到岗" width="90" align="center">
-          <template #default="{ row }">
-            <span :class="{ 'text-success': row.onboardCount >= row.headcount }">
+    <RTable v-if="jobList.length">
+      <RTableHead>
+        <RTableRow>
+          <RTableTh class="w-[150px]">职位编号</RTableTh>
+          <RTableTh class="min-w-[200px]">职位名称</RTableTh>
+          <RTableTh class="w-[150px]">关联需求</RTableTh>
+          <RTableTh class="w-[100px] text-center">招聘人数</RTableTh>
+          <RTableTh class="w-[90px] text-center">已到岗</RTableTh>
+          <RTableTh class="w-[100px] text-center">状态</RTableTh>
+          <RTableTh class="w-[110px] text-center">招人状态</RTableTh>
+          <RTableTh class="w-[170px]">创建时间</RTableTh>
+          <RTableTh class="w-[100px] text-center">操作</RTableTh>
+        </RTableRow>
+      </RTableHead>
+      <RTableBody>
+        <RTableRow v-for="row in jobList" :key="row.id">
+          <RTableCell class="font-mono text-xs text-muted-foreground">{{ row.jobNo }}</RTableCell>
+          <RTableCell>
+            <button
+              type="button"
+              class="font-medium text-primary hover:underline text-left"
+              @click="handleView(row)"
+            >
+              {{ row.title }}
+            </button>
+          </RTableCell>
+          <RTableCell>{{ row.demandNo || '—' }}</RTableCell>
+          <RTableCell class="text-center">{{ row.headcount }}</RTableCell>
+          <RTableCell class="text-center">
+            <span :class="row.onboardCount >= row.headcount ? 'text-green-600 font-semibold' : ''">
               {{ row.onboardCount || 0 }}
             </span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="status" label="状态" width="100" align="center">
-          <template #default="{ row }">
-            <el-tag :type="getStatusType(row.status)" size="small" disable-transitions>
+          </RTableCell>
+          <RTableCell class="text-center">
+            <RBadge :variant="jobStatusBadge(row.status)">
               {{ jobStatusLabel(row.status) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="招人状态" width="110" align="center">
-          <template #default="{ row }">
-            <el-tag
-              v-if="recruitStatusMap.get(row.id)"
-              :type="recruitStatusMap.get(row.id)!.type"
-              size="small"
-              effect="plain"
-            >
+            </RBadge>
+          </RTableCell>
+          <RTableCell class="text-center">
+            <RBadge v-if="recruitStatusMap.get(row.id)" variant="outline">
               {{ recruitStatusMap.get(row.id)!.label }}
-            </el-tag>
-            <span v-else class="text-muted">—</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="createdAt" label="创建时间" width="170" />
-        <el-table-column label="操作" width="320" fixed="right">
-          <template #default="{ row }">
-            <el-button type="primary" link size="small" @click="handleView(row)">工作台</el-button>
-            <el-button type="primary" link size="small" @click="handleEditRequirements(row)">任职要求</el-button>
-            <el-button
-              v-if="row.status === 'DRAFT'"
-              type="success" link size="small"
-              @click="handleActivate(row)"
-            >开始招聘</el-button>
-            <el-button
-              v-if="row.status === 'ACTIVE'"
-              type="warning" link size="small"
-              @click="handlePause(row)"
-            >暂停</el-button>
-            <el-button
-              v-if="row.status !== 'CLOSED'"
-              type="danger" link size="small"
-              @click="handleClose(row)"
-            >关闭</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+            </RBadge>
+            <span v-else class="text-muted-foreground">—</span>
+          </RTableCell>
+          <RTableCell class="text-muted-foreground">{{ row.createdAt }}</RTableCell>
+          <RTableCell class="text-center">
+            <RowActions :actions="getRowActions(row) as any" @action="(cmd) => handleRowCommand(cmd, row)" />
+          </RTableCell>
+        </RTableRow>
+      </RTableBody>
+    </RTable>
 
-      <EmptyStateCta
-        v-else
-        title="暂无在招职位"
-        description="创建职位并完善任职要求后，即可开始渠道招聘与候选人匹配"
-        :actions="[
-          { label: '创建在招职位', type: 'primary', onClick: handleCreate },
-          { label: '查看招聘需求', type: 'default', onClick: () => router.push('/planning/demands') },
-        ]"
-      />
+    <EmptyStateCta
+      v-else
+      title="暂无在招职位"
+      description="创建职位并完善任职要求后，即可开始渠道招聘与候选人匹配"
+      :actions="[
+        { label: '创建在招职位', type: 'primary', onClick: handleCreate },
+        { label: '查看招聘需求', type: 'default', onClick: () => router.push('/planning/demands') },
+      ]"
+    />
 
-      <div v-if="total > 0" class="data-card-footer">
-        <el-pagination
-          v-model:current-page="queryParams.pageNum"
-          v-model:page-size="queryParams.pageSize"
-          :page-sizes="[10, 20, 50, 100]"
-          :total="total"
-          layout="total, sizes, prev, pager, next, jumper"
-          @size-change="handleSearch"
-          @current-change="handleSearch"
-        />
-      </div>
+    <ListPagination
+      v-if="total > 0"
+      v-model:page-num="queryParams.pageNum"
+      v-model:page-size="queryParams.pageSize"
+      :total="total"
+      @change="loadData"
+    />
 
     <template #below>
-    <el-dialog v-model="closeDialogVisible" title="关闭职位" width="420px">
-      <el-form label-width="80px">
-        <el-form-item label="关闭原因">
-          <el-input v-model="closeReason" type="textarea" :rows="3" placeholder="请输入关闭原因" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="closeDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="confirmClose">确定关闭</el-button>
-      </template>
-    </el-dialog>
+      <RDialog :model-value="closeDialogVisible" title="关闭职位" @update:model-value="closeDialogVisible = $event">
+        <div class="space-y-2">
+          <RLabel for="close-reason">关闭原因</RLabel>
+          <RTextarea id="close-reason" v-model="closeReason" placeholder="请输入关闭原因" :rows="3" />
+        </div>
+        <template #footer>
+          <RButton variant="outline" @click="closeDialogVisible = false">取消</RButton>
+          <RButton @click="confirmClose">确定关闭</RButton>
+        </template>
+      </RDialog>
+
+      <ConfirmDialog
+        v-model:open="confirmState.open"
+        :title="confirmState.title"
+        :message="confirmState.message"
+        :destructive="confirmState.destructive"
+        @confirm="confirmState.onConfirm?.()"
+      />
     </template>
-  </ListPageLayout>
+  </PageShell>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Plus, RefreshRight } from '@element-plus/icons-vue'
-import ListPageLayout from '@/components/Layout/ListPageLayout.vue'
+import { Plus, Search, RefreshCw } from 'lucide-vue-next'
+import RowActions from '@/components/common/RowActions.vue'
+import PageShell from '@/components/Layout/PageShell.vue'
 import EmptyStateCta from '@/components/common/EmptyStateCta.vue'
+import ListPagination from '@/components/common/ListPagination.vue'
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
+import {
+  RButton, RInput, RSelect, RBadge, RLabel, RTextarea,
+  RTable, RTableHead, RTableBody, RTableRow, RTableTh, RTableCell,
+  RDialog,
+} from '@/components/ui'
 import { jobStatusLabel } from '@/constants/businessLabels'
+import { jobStatusBadge } from '@/lib/badgeVariants'
+import { toast } from '@/lib/notify'
 import { getJobList, activateJob, pauseJob, closeJob } from '@/api/modules/job'
 import { resolveJobRecruitStatuses, type JobRecruitStatus } from '@/utils/jobRecruitStatus'
 
 const router = useRouter()
-
 const recruitStatusMap = ref(new Map<number, JobRecruitStatus | null>())
 
 const queryParams = reactive({
   title: '',
-  status: '',
+  status: '' as string | undefined,
   demandNo: '',
   pageNum: 1,
   pageSize: 20,
@@ -168,6 +173,14 @@ const closeDialogVisible = ref(false)
 const closeReason = ref('')
 const closingJobId = ref<number | null>(null)
 
+const confirmState = reactive({
+  open: false,
+  title: '',
+  message: '',
+  destructive: false,
+  onConfirm: null as null | (() => void),
+})
+
 const statusOptions = [
   { label: '草稿', value: 'DRAFT' },
   { label: '招聘中', value: 'ACTIVE' },
@@ -175,11 +188,33 @@ const statusOptions = [
   { label: '已关闭', value: 'CLOSED' },
 ]
 
-function getStatusType(status: string) {
-  const map: Record<string, string> = {
-    DRAFT: 'info', ACTIVE: 'success', PAUSED: 'warning', CLOSED: 'info',
+function getRowActions(row: any) {
+  return [
+    { command: 'view', label: '工作台', icon: 'Monitor', type: 'primary', primary: true },
+    { command: 'requirements', label: '任职要求', icon: 'Document' },
+    { command: 'activate', label: '开始招聘', icon: 'VideoPlay' },
+    { command: 'pause', label: '暂停招聘', icon: 'VideoPause' },
+    { command: 'close', label: '关闭职位', icon: 'CircleClose', divided: true },
+  ]
+}
+
+function handleRowCommand(cmd: string, row: any) {
+  if (cmd === 'view') handleView(row)
+  else if (cmd === 'requirements') handleEditRequirements(row)
+  else if (cmd === 'activate') handleActivate(row)
+  else if (cmd === 'pause') handlePause(row)
+  else if (cmd === 'close') handleClose(row)
+}
+
+function openConfirm(title: string, message: string, onConfirm: () => void, destructive = false) {
+  confirmState.title = title
+  confirmState.message = message
+  confirmState.destructive = destructive
+  confirmState.onConfirm = () => {
+    confirmState.open = false
+    onConfirm()
   }
-  return map[status] || 'info'
+  confirmState.open = true
 }
 
 async function loadData() {
@@ -196,7 +231,7 @@ function handleSearch() {
 
 function handleReset() {
   queryParams.title = ''
-  queryParams.status = ''
+  queryParams.status = undefined
   queryParams.demandNo = ''
   handleSearch()
 }
@@ -213,30 +248,20 @@ function handleEditRequirements(row: any) {
   router.push(`/planning/jobs/${row.id}/jd`)
 }
 
-async function handleActivate(row: any) {
-  try {
-    await ElMessageBox.confirm('确定开始该职位的招聘吗？', '开始招聘', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'info',
-    })
+function handleActivate(row: any) {
+  openConfirm('开始招聘', '确定开始该职位的招聘吗？', async () => {
     await activateJob(row.id)
-    ElMessage.success('职位已开始招聘')
+    toast.success('职位已开始招聘')
     loadData()
-  } catch { /* cancel */ }
+  })
 }
 
-async function handlePause(row: any) {
-  try {
-    await ElMessageBox.confirm('确定暂停该职位的招聘吗？', '暂停招聘', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning',
-    })
+function handlePause(row: any) {
+  openConfirm('暂停招聘', '确定暂停该职位的招聘吗？', async () => {
     await pauseJob(row.id)
-    ElMessage.success('职位已暂停')
+    toast.success('职位已暂停')
     loadData()
-  } catch { /* cancel */ }
+  })
 }
 
 function handleClose(row: any) {
@@ -249,16 +274,13 @@ async function confirmClose() {
   if (!closingJobId.value) return
   try {
     await closeJob(closingJobId.value, closeReason.value)
-    ElMessage.success('职位已关闭')
+    toast.success('职位已关闭')
     closeDialogVisible.value = false
     loadData()
-  } catch { /* error */ }
+  } catch {
+    /* handled by interceptor */
+  }
 }
 
 onMounted(() => loadData())
 </script>
-
-<style lang="scss" scoped>
-@import '@/assets/styles/variables.scss';
-.text-success { color: $success-color; font-weight: 600; }
-</style>

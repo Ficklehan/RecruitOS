@@ -26,20 +26,22 @@ public class RoiService {
         vo.setDateTo(dateTo);
 
         List<Map<String, Object>> sourceStats = analyticsQueryMapper.countCandidatesBySource(tenantId, dateFrom, dateTo);
+        java.util.Map<String, Integer> hiresBySource = new java.util.HashMap<>();
+        for (Map<String, Object> hireRow : analyticsQueryMapper.countHiresBySource(tenantId, dateFrom, dateTo)) {
+            hiresBySource.put((String) hireRow.get("source"), ((Number) hireRow.get("hires")).intValue());
+        }
 
         List<RoiChannelVO> channels = new ArrayList<>();
         double totalCost = 0;
         int totalHires = 0;
 
-        // Map source to channel name and estimated cost per hire
         for (Map<String, Object> row : sourceStats) {
             String source = (String) row.get("source");
             int count = ((Number) row.get("cnt")).intValue();
+            int hires = hiresBySource.getOrDefault(source, 0);
 
             RoiChannelVO channel = new RoiChannelVO();
             channel.setChannelName(mapSourceToName(source));
-            // Estimate hires as ~10% of candidates for each source
-            int hires = Math.max(1, count / 5);
             channel.setHires(hires);
             double costPerHire = estimateCostPerHire(source);
             channel.setCostPerHire(costPerHire);

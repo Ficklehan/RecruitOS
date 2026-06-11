@@ -2,6 +2,7 @@ package com.recruitos.offer.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.recruitos.common.evolution.ModuleEvolutionEmitter;
 import com.recruitos.common.exception.BizException;
 import com.recruitos.common.result.PageResult;
 import com.recruitos.common.tenant.TenantContext;
@@ -10,6 +11,7 @@ import com.recruitos.offer.entity.Offer;
 import com.recruitos.offer.mapper.CandidateJobWriteMapper;
 import com.recruitos.offer.mapper.HiringDecisionReadMapper;
 import com.recruitos.offer.mapper.OfferMapper;
+import com.recruitos.offer.mapper.ReferralSyncMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -39,6 +41,12 @@ public class OfferService {
 
     @Resource
     private CandidateJobWriteMapper candidateJobWriteMapper;
+
+    @Resource
+    private ModuleEvolutionEmitter moduleEvolutionEmitter;
+
+    @Resource
+    private ReferralSyncMapper referralSyncMapper;
 
     /**
      * Create an offer with DRAFT status
@@ -230,6 +238,13 @@ public class OfferService {
         offer.setAcceptedAt(LocalDateTime.now());
         offerMapper.updateById(offer);
 
+        moduleEvolutionEmitter.emitOfferAccepted(offer.getJobId(), offer.getCandidateId());
+        try {
+            referralSyncMapper.markOfferAccepted(tenantId, offer.getCandidateId());
+        } catch (Exception ignored) {
+            /* referral sync is best-effort */
+        }
+
         return convertToVO(offer);
     }
 
@@ -253,6 +268,8 @@ public class OfferService {
 
         offer.setStatus("REJECTED");
         offerMapper.updateById(offer);
+
+        moduleEvolutionEmitter.emitOfferRejected(offer.getJobId(), offer.getCandidateId());
 
         return convertToVO(offer);
     }

@@ -1,0 +1,113 @@
+/* ═══════════════════════════════════════════════════════
+   RecruitOS Design Tokens v4
+   单一 Token 源 · 简约扁平 · 阴影分层 · 无边框
+   ═══════════════════════════════════════════════════════ */
+
+:root {
+  /* ── 品牌色 ─────────────────────────────────────── */
+  --r-primary: #4F6BED;
+  --r-primary-hover: #3A51C7;
+  --r-primary-light: #EEF0FE;
+  --r-primary-50: #F0F2FE;
+  --r-primary-100: #E0E4FD;
+  --r-primary-200: #C7CEFA;
+
+  /* ── 语义色 ─────────────────────────────────────── */
+  --r-success: #16A34A;
+  --r-success-light: #F0FDF4;
+  --r-warning: #F59E0B;
+  --r-warning-light: #FFFBEB;
+  --r-danger: #EF4444;
+  --r-danger-light: #FEF2F2;
+  --r-info: #6B7280;
+  --r-info-light: #F3F4F6;
+
+  /* ── 背景层级 ────────────────────────────────────── */
+  --r-bg-page: #FAFBFC;
+  --r-bg-card: #FFFFFF;
+  --r-bg-muted: #F3F4F6;
+  --r-bg-hover: #F5F7FA;
+  --r-bg-active: #EEF0FE;
+
+  /* ── 文字层级 ────────────────────────────────────── */
+  --r-text-primary: #1F2937;
+  --r-text-regular: #374151;
+  --r-text-secondary: #6B7280;
+  --r-text-placeholder: #9CA3AF;
+  --r-text-disabled: #D1D5DB;
+  --r-text-inverse: #FFFFFF;
+
+  /* ── 边框 & 分割线 ──────────────────────────────── */
+  --r-border: #E5E7EB;
+  --r-border-light: #F0F2F5;
+  --r-divider: #F0F2F5;
+
+  /* ── 阴影（4 级） ──────────────────────────────── */
+  --r-shadow-none: none;
+  --r-shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+  --r-shadow-md: 0 2px 8px rgba(0,0,0,0.06);
+  --r-shadow-lg: 0 8px 24px rgba(0,0,0,0.08);
+  --r-shadow-xl: 0 16px 48px rgba(0,0,0,0.10);
+
+  /* ── 圆角 ────────────────────────────────────────── */
+  --r-radius: 8px;
+  --r-radius-sm: 6px;
+  --r-radius-lg: 12px;
+  --r-radius-xl: 16px;
+  --r-radius-full: 9999px;
+
+  /* ── 间距 ────────────────────────────────────────── */
+  --r-space-1: 4px;
+  --r-space-2: 8px;
+  --r-space-3: 12px;
+  --r-space-4: 16px;
+  --r-space-5: 20px;
+  --r-space-6: 24px;
+  --r-space-8: 32px;
+  --r-space-10: 40px;
+
+  /* ── 动效 ────────────────────────────────────────── */
+  --r-transition-fast: 0.15s ease;
+  --r-transition-base: 0.25s ease;
+  --r-transition-slow: 0.35s ease;
+
+  /* ── 聚焦环 ──────────────────────────────────────── */
+  --r-focus-ring: 0 0 0 3px rgba(79,107,237,0.2);
+
+  /* ── 字号 ────────────────────────────────────────── */
+  --r-font-xs: 12px;
+  --r-font-sm: 13px;
+  --r-font-base: 14px;
+  --r-font-md: 16px;
+  --r-font-lg: 18px;
+  --r-font-xl: 20px;
+  --r-font-2xl: 24px;
+  --r-font-3xl: 30px;
+
+  /* ── 行高 ────────────────────────────────────────── */
+  --r-leading-tight: 1.3;
+  --r-leading-normal: 1.5;
+  --r-leading-relaxed: 1.6;
+
+  /* ── 字重 ────────────────────────────────────────── */
+  --r-font-normal: 400;
+  --r-font-medium: 500;
+  --r-font-semibold: 600;
+  --r-font-bold: 700;
+
+  /* ── 布局 ────────────────────────────────────────── */
+  --r-sidebar-width: 240px;
+  --r-sidebar-collapsed: 68px;
+  --r-header-height: 56px;
+  --r-content-max: 1200px;
+
+  /* ── Z-index ─────────────────────────────────────── */
+  --r-z-dropdown: 100;
+  --r-z-sticky: 200;
+  --r-z-sidebar: 300;
+  --r-z-header: 400;
+  --r-z-drawer: 500;
+  --r-z-modal: 600;
+  --r-z-tooltip: 700;
+  --r-z-toast: 800;
+}

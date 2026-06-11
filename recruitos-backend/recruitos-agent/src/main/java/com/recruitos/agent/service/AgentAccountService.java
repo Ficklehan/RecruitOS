@@ -14,6 +14,7 @@ import com.recruitos.agent.mapper.RecruitmentChannelMapper;
 import com.recruitos.agent.rpa.RpaCredential;
 import com.recruitos.agent.rpa.RpaCredentialParser;
 import com.recruitos.common.exception.BizException;
+import com.recruitos.common.license.LicenseQuotaService;
 import com.recruitos.common.result.PageResult;
 import com.recruitos.common.tenant.TenantContext;
 import org.springframework.stereotype.Service;
@@ -50,11 +51,15 @@ public class AgentAccountService {
     @Resource
     private AgentAutomationGuard automationGuard;
 
+    @Resource
+    private LicenseQuotaService licenseQuotaService;
+
     /**
      * Create a new agent account
      */
     public AgentAccountVO createAccount(AgentAccountCreateDTO dto) {
         Long tenantId = TenantContext.getTenantId();
+        licenseQuotaService.assertCanCreateAgent(tenantId);
         RecruitmentChannel channel = resolveChannelForWrite(dto, tenantId);
 
         AgentAccount account = new AgentAccount();
@@ -71,6 +76,7 @@ public class AgentAccountService {
         account.setEncryptedCredential(buildCredentialJson(dto));
         account.setCreatedBy(null); // Will be set by auth context
         accountMapper.insert(account);
+        licenseQuotaService.recordAgentCreated(tenantId);
 
         return convertToVO(account);
     }

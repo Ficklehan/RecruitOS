@@ -1,209 +1,238 @@
 <template>
-  <div class="page-container page-stack">
-    <div class="page-header">
-      <div>
-        <h2 class="page-title">简历收件</h2>
-        <p class="page-subtitle">管理各渠道收到的简历，解析后可加入人才库或关联在招职位</p>
-      </div>
-      <div class="header-actions">
-        <el-button @click="handleRefresh">
-          <el-icon><Refresh /></el-icon>
-        </el-button>
-        <el-button type="primary" @click="$router.push('/talent/resumes/upload')">
-          <el-icon><Upload /></el-icon>
-          上传简历
-        </el-button>
-      </div>
-    </div>
+  <PageShell variant="list"
+    title="简历收件"
+    subtitle="管理各渠道收到的简历，解析后可加入人才库或关联在招职位"
+  >
+    <template #actions>
+      <RButton variant="outline" size="icon" @click="handleRefresh">
+        <RefreshCw class="h-4 w-4" />
+      </RButton>
+      <RButton @click="router.push('/talent/resumes/upload')">
+        <Upload class="mr-2 h-4 w-4" />
+        上传简历
+      </RButton>
+    </template>
 
-    <div class="stats-row">
-      <div class="stat-card">
-        <div class="stat-icon" style="background: #EFF6FF; color: #3B82F6">
-          <el-icon :size="24"><Document /></el-icon>
-        </div>
-        <div class="stat-info">
-          <div class="stat-value">{{ stats.total }}</div>
-          <div class="stat-label">简历总数</div>
-        </div>
+    <template #toolbar>
+      <div class="stat-row">
+        <StatCard label="简历总数" :value="stats.total" icon="Document" color="$primary-color" />
+        <StatCard label="已解析" :value="stats.parsed" icon="CircleCheck" color="$success-color" />
+        <StatCard label="待解析" :value="stats.pending" icon="Clock" color="$warning-color" />
+        <StatCard label="解析失败" :value="stats.failed" icon="Warning" color="#DC2626" />
       </div>
-      <div class="stat-card">
-        <div class="stat-icon" style="background: #D1FAE5; color: #059669">
-          <el-icon :size="24"><CircleCheck /></el-icon>
-        </div>
-        <div class="stat-info">
-          <div class="stat-value">{{ stats.parsed }}</div>
-          <div class="stat-label">已解析</div>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon" style="background: #FEF3C7; color: #D97706">
-          <el-icon :size="24"><Clock /></el-icon>
-        </div>
-        <div class="stat-info">
-          <div class="stat-value">{{ stats.pending }}</div>
-          <div class="stat-label">待解析</div>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon" style="background: #FEE2E2; color: #DC2626">
-          <el-icon :size="24"><Warning /></el-icon>
-        </div>
-        <div class="stat-info">
-          <div class="stat-value">{{ stats.failed }}</div>
-          <div class="stat-label">解析失败</div>
-        </div>
-      </div>
-    </div>
+    </template>
 
-    <div class="filter-bar">
-      <el-input
+    <template #filters>
+      <RInput
         v-model="searchKeyword"
         placeholder="搜索姓名、公司、技能..."
-        :prefix-icon="Search"
-        clearable
-        style="width: 240px"
+        class="w-full sm:w-64"
         @keyup.enter="handleSearch"
       />
-      <el-select v-model="filterSource" placeholder="来源渠道" clearable style="width: 140px">
-        <el-option label="Boss直聘" value="BOSS" />
-        <el-option label="猎聘" value="LIEPIN" />
-        <el-option label="手动上传" value="MANUAL" />
-        <el-option label="内推" value="REFERRAL" />
-        <el-option label="猎头" value="HEADHUNTER" />
-      </el-select>
-      <el-select v-model="filterStatus" placeholder="解析状态" clearable style="width: 140px">
-        <el-option label="已解析" value="PARSED" />
-        <el-option label="待解析" value="PENDING" />
-        <el-option label="解析失败" value="FAILED" />
-      </el-select>
-      <el-button type="primary" @click="handleSearch">
-        <el-icon><Search /></el-icon>
+      <RSelect
+        v-model="filterSource"
+        :options="sourceOptions"
+        placeholder="来源渠道"
+        clearable
+        class="w-full sm:w-40"
+      />
+      <RSelect
+        v-model="filterStatus"
+        :options="statusOptions"
+        placeholder="解析状态"
+        clearable
+        class="w-full sm:w-40"
+      />
+    </template>
+
+    <template #filterActions>
+      <RButton @click="handleSearch">
+        <Search class="mr-2 h-4 w-4" />
         搜索
-      </el-button>
-      <el-button @click="handleReset">
-        <el-icon><RefreshRight /></el-icon>
-        重置
-      </el-button>
-      <div style="flex: 1" />
-      <el-button v-if="selectedIds.length" type="success" @click="handleBatchImport">
-        <el-icon><FolderAdd /></el-icon>
+      </RButton>
+      <RButton variant="outline" @click="handleReset">重置</RButton>
+      <RButton v-if="selectedIds.length" variant="secondary" @click="handleBatchImport">
+        <FolderPlus class="mr-2 h-4 w-4" />
         批量加入人才库 ({{ selectedIds.length }})
-      </el-button>
-    </div>
+      </RButton>
+    </template>
 
-    <div class="data-card">
-      <el-table
-        v-if="resumeList.length"
-        :data="resumeList"
-        style="width: 100%"
-        @selection-change="handleSelectionChange"
-      >
-        <el-table-column type="selection" width="45" />
-        <el-table-column prop="name" label="姓名" width="120">
-          <template #default="{ row }">
-            <span class="title-link" @click="goDetail(row)">{{ row.name || '未识别' }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="phone" label="手机号" width="130" />
-        <el-table-column prop="company" label="当前公司" min-width="160" show-overflow-tooltip />
-        <el-table-column prop="position" label="当前职位" min-width="140" show-overflow-tooltip />
-        <el-table-column prop="workYears" label="工作年限" width="90" align="center">
-          <template #default="{ row }">{{ row.workYears ? row.workYears + '年' : '-' }}</template>
-        </el-table-column>
-        <el-table-column prop="education" label="学历" width="90" align="center">
-          <template #default="{ row }">{{ educationLabel(row.education) }}</template>
-        </el-table-column>
-        <el-table-column prop="source" label="来源" width="100" align="center">
-          <template #default="{ row }">
-            <el-tag :type="sourceTagMap[row.source] || 'info'" size="small" disable-transitions>
-              {{ sourceLabel(row.source) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="parseStatus" label="解析状态" width="100" align="center">
-          <template #default="{ row }">
-            <el-tag :type="parseStatusTagMap[row.parseStatus]" size="small" disable-transitions>
+    <RTable v-if="resumeList.length">
+      <RTableHead>
+        <RTableRow>
+          <RTableTh class="w-10" />
+          <RTableTh class="w-[120px]">姓名</RTableTh>
+          <RTableTh class="w-[130px]">手机号</RTableTh>
+          <RTableTh class="min-w-[160px]">当前公司</RTableTh>
+          <RTableTh class="min-w-[140px]">当前职位</RTableTh>
+          <RTableTh class="w-[90px] text-center">工作年限</RTableTh>
+          <RTableTh class="w-[90px] text-center">学历</RTableTh>
+          <RTableTh class="w-[100px] text-center">来源</RTableTh>
+          <RTableTh class="w-[100px] text-center">解析状态</RTableTh>
+          <RTableTh class="w-[160px]">上传时间</RTableTh>
+          <RTableTh class="w-[100px] text-center">操作</RTableTh>
+        </RTableRow>
+      </RTableHead>
+      <RTableBody>
+        <RTableRow v-for="row in resumeList" :key="row.id">
+          <RTableCell>
+            <RCheckbox
+              :model-value="selectedIds.includes(row.id)"
+              @update:model-value="(v) => toggleSelect(row.id, v)"
+            />
+          </RTableCell>
+          <RTableCell>
+            <button type="button" class="font-medium text-primary hover:underline" @click="goDetail(row)">
+              {{ row.name || '未识别' }}
+            </button>
+          </RTableCell>
+          <RTableCell>{{ row.phone }}</RTableCell>
+          <RTableCell>{{ row.company }}</RTableCell>
+          <RTableCell>{{ row.position }}</RTableCell>
+          <RTableCell class="text-center">{{ row.workYears ? row.workYears + '年' : '—' }}</RTableCell>
+          <RTableCell class="text-center">{{ educationLabel(row.education) }}</RTableCell>
+          <RTableCell class="text-center">
+            <RBadge :variant="elTagTypeToBadge(sourceTagMap[row.source])">{{ sourceLabel(row.source) }}</RBadge>
+          </RTableCell>
+          <RTableCell class="text-center">
+            <RBadge :variant="elTagTypeToBadge(parseStatusTagMap[row.parseStatus])">
               {{ parseStatusLabelMap[row.parseStatus] }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="createdAt" label="上传时间" width="160" />
-        <el-table-column label="操作" width="240" fixed="right">
-          <template #default="{ row }">
-            <el-button type="primary" link size="small" @click="goDetail(row)">查看</el-button>
-            <el-button v-if="row.parseStatus !== 'PARSED'" type="success" link size="small" @click="handleParse(row)">解析</el-button>
-            <el-button type="warning" link size="small" @click="handleImportPool(row)">加入人才库</el-button>
-            <el-button type="danger" link size="small" @click="handleDelete(row)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+            </RBadge>
+          </RTableCell>
+          <RTableCell class="text-muted-foreground">{{ row.createdAt }}</RTableCell>
+          <RTableCell class="text-center">
+            <RowActions :actions="getRowActions(row)" @action="(cmd) => handleRowCommand(cmd, row)" />
+          </RTableCell>
+        </RTableRow>
+      </RTableBody>
+    </RTable>
 
-      <EmptyStateCta
-        v-else
-        title="暂无简历"
-        description="上传简历后将自动进入收件列表，解析后可加入人才库进行匹配"
-        :actions="[
-          { label: '上传简历', type: 'primary', onClick: () => router.push('/talent/resumes/upload') },
-          { label: '去人才库', type: 'default', onClick: () => router.push('/talent/pool') },
-        ]"
-      />
-    </div>
+    <EmptyStateCta
+      v-else
+      title="暂无简历"
+      description="上传简历后将自动进入收件列表，解析后可加入人才库进行匹配"
+      :actions="[
+        { label: '上传简历', type: 'primary', onClick: () => router.push('/talent/resumes/upload') },
+        { label: '去人才库', type: 'default', onClick: () => router.push('/talent/pool') },
+      ]"
+    />
 
-    <div v-if="total > 0" class="pagination-wrap">
-      <el-pagination
-        v-model:current-page="currentPage"
-        v-model:page-size="pageSize"
-        :total="total"
-        :page-sizes="[10, 20, 50]"
-        layout="total, sizes, prev, pager, next, jumper"
-        background
-        @size-change="loadData"
-        @current-change="loadData"
-      />
-    </div>
-  </div>
+    <ListPagination
+      v-if="total > 0"
+      v-model:page-num="currentPage"
+      v-model:page-size="pageSize"
+      :total="total"
+      @change="loadData"
+    />
+  </PageShell>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, RefreshRight, Refresh, Upload, Document, CircleCheck, Clock, Warning, FolderAdd } from '@element-plus/icons-vue'
+import { Search, RefreshCw, Upload, FolderPlus } from 'lucide-vue-next'
+import { toast } from '@/lib/notify'
+import { confirm } from '@/lib/confirm'
+import { elTagTypeToBadge } from '@/lib/badgeVariants'
+import RowActions from '@/components/common/RowActions.vue'
+import PageShell from '@/components/Layout/PageShell.vue'
+import StatCard from '@/components/StatCard.vue'
 import EmptyStateCta from '@/components/common/EmptyStateCta.vue'
+import ListPagination from '@/components/common/ListPagination.vue'
+import {
+  RButton,
+  RInput,
+  RSelect,
+  RBadge,
+  RTable,
+  RTableHead,
+  RTableBody,
+  RTableRow,
+  RTableTh,
+  RTableCell,
+  RCheckbox,
+} from '@/components/ui'
 import { sourceLabel, educationLabel } from '@/constants/businessLabels'
-import { getResumeList, parseResume, deleteResume, importToTalentPool, batchImportToTalentPool } from '@/api/modules/resume'
+import {
+  getResumeList,
+  parseResume,
+  deleteResume,
+  importToTalentPool,
+  batchImportToTalentPool,
+} from '@/api/modules/resume'
 
 const router = useRouter()
-
 const searchKeyword = ref('')
-const filterSource = ref('')
-const filterStatus = ref('')
+const filterSource = ref<string | undefined>()
+const filterStatus = ref<string | undefined>()
 const currentPage = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
 const resumeList = ref<any[]>([])
 const selectedIds = ref<number[]>([])
 
+const sourceOptions = [
+  { label: 'Boss直聘', value: 'BOSS' },
+  { label: '猎聘', value: 'LIEPIN' },
+  { label: '手动上传', value: 'MANUAL' },
+  { label: '内推', value: 'REFERRAL' },
+  { label: '猎头', value: 'HEADHUNTER' },
+]
+
+const statusOptions = [
+  { label: '已解析', value: 'PARSED' },
+  { label: '待解析', value: 'PENDING' },
+  { label: '解析失败', value: 'FAILED' },
+]
+
 const stats = computed(() => {
-  const total = resumeList.value.length
-  const parsed = resumeList.value.filter(r => r.parseStatus === 'PARSED').length
-  const pending = resumeList.value.filter(r => r.parseStatus === 'PENDING').length
-  const failed = resumeList.value.filter(r => r.parseStatus === 'FAILED').length
-  return { total, parsed, pending, failed }
+  const t = resumeList.value.length
+  const parsed = resumeList.value.filter((r) => r.parseStatus === 'PARSED').length
+  const pending = resumeList.value.filter((r) => r.parseStatus === 'PENDING').length
+  const failed = resumeList.value.filter((r) => r.parseStatus === 'FAILED').length
+  return { total: t, parsed, pending, failed }
 })
 
 const sourceTagMap: Record<string, string> = {
-  BOSS: '', LIEPIN: 'danger', MANUAL: 'info', REFERRAL: 'success', HEADHUNTER: 'warning',
+  BOSS: '',
+  LIEPIN: 'danger',
+  MANUAL: 'info',
+  REFERRAL: 'success',
+  HEADHUNTER: 'warning',
 }
 const parseStatusTagMap: Record<string, string> = {
-  PARSED: 'success', PENDING: 'warning', FAILED: 'danger',
+  PARSED: 'success',
+  PENDING: 'warning',
+  FAILED: 'danger',
 }
 const parseStatusLabelMap: Record<string, string> = {
-  PARSED: '已解析', PENDING: '待解析', FAILED: '解析失败',
+  PARSED: '已解析',
+  PENDING: '待解析',
+  FAILED: '解析失败',
 }
 
-function handleSelectionChange(rows: any[]) {
-  selectedIds.value = rows.map(r => r.id)
+function toggleSelect(id: number, checked: boolean) {
+  if (checked) {
+    if (!selectedIds.value.includes(id)) selectedIds.value.push(id)
+  } else {
+    selectedIds.value = selectedIds.value.filter((x) => x !== id)
+  }
+}
+
+function getRowActions(_row: any) {
+  return [
+    { command: 'view', label: '查看详情', icon: 'View', primary: true },
+    { command: 'parse', label: '解析', icon: 'MagicStick' },
+    { command: 'import', label: '加入人才库', icon: 'FolderAdd' },
+    { command: 'delete', label: '删除', icon: 'Delete', divided: true },
+  ]
+}
+
+function handleRowCommand(cmd: string, row: any) {
+  if (cmd === 'view') goDetail(row)
+  else if (cmd === 'parse') handleParse(row)
+  else if (cmd === 'import') handleImportPool(row)
+  else if (cmd === 'delete') handleDelete(row)
 }
 
 function goDetail(row: any) {
@@ -214,39 +243,41 @@ async function handleParse(row: any) {
   try {
     await parseResume(row.id)
     row.parseStatus = 'PARSED'
-    ElMessage.success('解析完成')
+    toast.success('解析完成')
   } catch {
-    ElMessage.error('解析失败')
+    toast.error('解析失败')
   }
 }
 
 async function handleImportPool(row: any) {
   try {
     await importToTalentPool(row.id)
-    ElMessage.success('已加入人才库')
+    toast.success('已加入人才库')
   } catch {
-    ElMessage.error('加入失败')
+    toast.error('加入失败')
   }
 }
 
 async function handleBatchImport() {
   try {
     await batchImportToTalentPool(selectedIds.value)
-    ElMessage.success(`已批量加入人才库 ${selectedIds.value.length} 份简历`)
+    toast.success('批量加入成功')
     selectedIds.value = []
+    loadData()
   } catch {
-    ElMessage.error('批量加入失败')
+    toast.error('批量加入失败')
   }
 }
 
 async function handleDelete(row: any) {
-  await ElMessageBox.confirm('确定删除该简历？', '删除确认', { type: 'warning' })
+  const ok = await confirm({ title: '删除确认', message: '确定删除该简历？', destructive: true })
+  if (!ok) return
   try {
     await deleteResume(row.id)
-    resumeList.value = resumeList.value.filter(r => r.id !== row.id)
-    ElMessage.success('已删除')
+    resumeList.value = resumeList.value.filter((r) => r.id !== row.id)
+    toast.success('已删除')
   } catch {
-    ElMessage.error('删除失败')
+    toast.error('删除失败')
   }
 }
 
@@ -257,15 +288,15 @@ function handleSearch() {
 
 function handleReset() {
   searchKeyword.value = ''
-  filterSource.value = ''
-  filterStatus.value = ''
+  filterSource.value = undefined
+  filterStatus.value = undefined
   currentPage.value = 1
   loadData()
 }
 
 function handleRefresh() {
   loadData()
-  ElMessage.success('已刷新')
+  toast.success('已刷新')
 }
 
 async function loadData() {
@@ -288,48 +319,3 @@ async function loadData() {
 
 onMounted(() => loadData())
 </script>
-
-<style lang="scss" scoped>
-@import '@/assets/styles/variables.scss';
-
-.header-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.title-link {
-  color: $primary-color;
-  cursor: pointer;
-  font-weight: 500;
-  &:hover { text-decoration: underline; }
-}
-
-.stats-row {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-  margin-bottom: $spacing-lg;
-  @media (max-width: 768px) { grid-template-columns: repeat(2, 1fr); }
-}
-
-.stat-card {
-  background: $bg-card;
-  border-radius: $border-radius;
-  padding: 20px;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  .stat-icon {
-    width: 48px; height: 48px; border-radius: 12px;
-    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-  }
-  .stat-value { font-size: 24px; font-weight: 700; color: $text-primary; line-height: 1.2; }
-  .stat-label { font-size: 13px; color: $text-secondary; margin-top: 2px; }
-}
-
-.pagination-wrap {
-  margin-top: 16px;
-  display: flex;
-  justify-content: flex-end;
-}
-</style>

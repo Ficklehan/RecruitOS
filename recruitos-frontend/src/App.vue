@@ -1,9 +1,12 @@
 <template>
-  <el-config-provider :locale="zhCn" :size="'default'">
-    <router-view />
-  </el-config-provider>
+  <router-view />
+  <ToastHost />
+  <ConfirmHost />
+  <PromptHost />
 </template>
 
 <script setup lang="ts">
-import zhCn from 'element-plus/dist/locale/zh-cn.mjs'
+import ToastHost from '@/components/common/ToastHost.vue'
+import ConfirmHost from '@/components/common/ConfirmHost.vue'
+import PromptHost from '@/components/common/PromptHost.vue'
 </script>

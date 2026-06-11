@@ -31,7 +31,7 @@ export function parseResume(id: number | string) {
 
 // 更新简历
 export function updateResume(id: number | string, data: any) {
-  return request.put(`/api/resume/${id}`, data)
+  return request.post(`/api/resume/${id}/parse`, data)
 }
 
 // 删除简历
@@ -46,5 +46,5 @@ export function importToTalentPool(id: number | string) {
 
 // 批量导入人才库
 export function batchImportToTalentPool(ids: number[]) {
-  return request.post('/api/resume/batch-import', { ids })
+  return Promise.all(ids.map(id => request.post(`/api/resume/${id}/import`)))
 }

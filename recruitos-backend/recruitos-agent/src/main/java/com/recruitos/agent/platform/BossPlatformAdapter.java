@@ -28,6 +28,11 @@ public class BossPlatformAdapter implements PlatformAdapter {
     }
 
     @Override
+    public List<PlatformCandidate> searchCandidates(AgentAccount account, List<String> keywords, int limit) {
+        return searchCandidates(account, keywords, limit, null);
+    }
+
+    @Override
     public List<PlatformCandidate> searchCandidates(AgentAccount account, List<String> keywords, int limit,
                                                     String searchSource) {
         return bridge.searchCandidates(account, keywords, limit, searchSource);

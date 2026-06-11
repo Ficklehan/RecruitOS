@@ -14,11 +14,11 @@ export function updateAgentAccount(id: number | string, data: any) {
 }
 
 export function deleteAgentAccount(id: number | string) {
-  return request.delete(`/api/agent/account/${id}`)
+  return request.put(`/api/agent/account/${id}/status`, { status: 'DISABLED' })
 }
 
 export function testAgentAccount(id: number | string) {
-  return request.post(`/api/agent/account/${id}/test`)
+  return request.post(`/api/agent/account/${id}/rpa-test`, null, { timeout: 120000 })
 }
 
 export function rpaLoginAccount(id: number | string) {
@@ -35,6 +35,18 @@ export function rpaLogoutAccount(id: number | string) {
 
 export function getRpaStatus() {
   return request.get('/api/agent/rpa/status')
+}
+
+export function lockRpaTesting() {
+  return request.post('/api/agent/rpa/lock-testing')
+}
+
+export function unlockRpaLive(data: { confirm: boolean; reason?: string }) {
+  return request.post('/api/agent/rpa/unlock-live', data)
+}
+
+export function resetRpaAccess() {
+  return request.post('/api/agent/rpa/reset-access')
 }
 
 // ── Agent任务 ──────────────────────────

@@ -1,114 +1,192 @@
 <template>
-  <div class="page-container page-stack">
-    <div class="page-header">
-      <h2 class="page-title">组织架构</h2>
-      <el-button type="primary" @click="handleAdd">
-        <el-icon><Plus /></el-icon>
+  <PageShell title="组织架构">
+    <template #actions>
+      <Button @click="handleAdd">
+        <Plus class="mr-2 h-4 w-4" />
         新增组织
-      </el-button>
-    </div>
+      </Button>
+    </template>
 
     <div class="org-container">
-      <!-- 左侧组织树 -->
-      <el-card class="org-tree-card">
-        <template #header>
+      <Card class="org-tree-card">
+        <CardHeader class="pb-3">
           <div class="card-header">
-            <span class="card-title">组织架构</span>
-            <el-input
+            <CardTitle class="text-base">组织架构</CardTitle>
+            <Input
               v-model="searchText"
               placeholder="搜索组织"
-              :prefix-icon="Search"
-              size="small"
-              clearable
+              class="w-40"
             />
           </div>
-        </template>
-        <el-tree
-          ref="treeRef"
-          :data="orgTree"
-          :props="{ children: 'children', label: 'name' }"
-          node-key="id"
-          default-expand-all
-          highlight-current
-          @node-click="handleNodeClick"
-        />
-      </el-card>
+        </CardHeader>
+        <CardContent>
+          <div v-if="loading" class="py-8 text-center text-sm text-muted-foreground">加载中...</div>
+          <div v-else class="org-tree">
+            <OrgTreeNode
+              v-for="node in filteredTree"
+              :key="node.id"
+              :node="node"
+              :selected-id="selectedOrg?.id"
+              :search-text="searchText"
+              @select="handleNodeClick"
+            />
+          </div>
+        </CardContent>
+      </Card>
 
-      <!-- 右侧详情 -->
-      <el-card class="org-detail-card">
-        <template #header>
+      <Card class="org-detail-card">
+        <CardHeader class="pb-3">
           <div class="card-header">
-            <span class="card-title">{{ isEditing ? '编辑组织' : '组织详情' }}</span>
-            <div class="card-actions" v-if="selectedOrg && !isEditing">
-              <el-button type="primary" size="small" @click="handleEdit">编辑</el-button>
-              <el-button type="danger" size="small" @click="handleDelete">删除</el-button>
+            <CardTitle class="text-base">{{ isEditing ? '编辑组织' : '组织详情' }}</CardTitle>
+            <div v-if="selectedOrg && !isEditing" class="card-actions">
+              <Button size="sm" @click="handleEdit">编辑</Button>
+              <Button size="sm" variant="destructive" @click="handleDelete">删除</Button>
             </div>
           </div>
-        </template>
+        </CardHeader>
+        <CardContent>
+          <div v-if="!selectedOrg" class="empty-hint">
+            <Building2 class="h-12 w-12 text-muted-foreground" />
+            <p>请从左侧选择一个组织节点</p>
+          </div>
 
-        <div v-if="!selectedOrg" class="empty-hint">
-          <el-icon :size="48" color="#94A3B8"><OfficeBuilding /></el-icon>
-          <p>请从左侧选择一个组织节点</p>
-        </div>
-
-        <el-form
-          v-else
-          ref="formRef"
-          :model="formData"
-          :rules="rules"
-          label-width="100px"
-          :disabled="!isEditing"
-        >
-          <el-form-item label="组织名称" prop="name">
-            <el-input v-model="formData.name" placeholder="请输入组织名称" />
-          </el-form-item>
-          <el-form-item label="组织类型" prop="type">
-            <el-select v-model="formData.type" placeholder="请选择类型" style="width: 100%">
-              <el-option label="公司" value="COMPANY" />
-              <el-option label="部门" value="DEPARTMENT" />
-              <el-option label="小组" value="TEAM" />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="上级组织" prop="parentId">
-            <el-tree-select
-              v-model="formData.parentId"
-              :data="orgTree"
-              :props="{ children: 'children', label: 'name', value: 'id' }"
-              placeholder="请选择上级组织"
-              check-strictly
-              clearable
-              style="width: 100%"
-            />
-          </el-form-item>
-          <el-form-item label="排序" prop="sortOrder">
-            <el-input-number v-model="formData.sortOrder" :min="0" :max="999" />
-          </el-form-item>
-          <el-form-item label="状态" prop="status">
-            <el-radio-group v-model="formData.status">
-              <el-radio label="active">启用</el-radio>
-              <el-radio label="inactive">禁用</el-radio>
-            </el-radio-group>
-          </el-form-item>
-
-          <el-form-item v-if="isEditing">
-            <el-button type="primary" @click="handleSave">保存</el-button>
-            <el-button @click="isEditing = false">取消</el-button>
-          </el-form-item>
-        </el-form>
-      </el-card>
+          <div v-else class="space-y-4 max-w-md">
+            <FormField label="组织名称" required :error="formErrors.name">
+              <Input v-model="formData.name" placeholder="请输入组织名称" :disabled="!isEditing" />
+            </FormField>
+            <FormField label="组织类型" required :error="formErrors.type">
+              <Select
+                v-model="formData.type"
+                :options="typeOptions"
+                placeholder="请选择类型"
+                :disabled="!isEditing"
+              />
+            </FormField>
+            <FormField label="上级组织">
+              <Select
+                v-model="formData.parentId"
+                :options="parentOptions"
+                placeholder="请选择上级组织"
+                clearable
+                :disabled="!isEditing"
+              />
+            </FormField>
+            <FormField label="排序">
+              <Input
+                v-model.number="formData.sortOrder"
+                type="number"
+                min="0"
+                max="999"
+                :disabled="!isEditing"
+              />
+            </FormField>
+            <FormField label="状态">
+              <RadioGroup v-model="formData.status" class="flex gap-6" :disabled="!isEditing">
+                <div class="flex items-center gap-2">
+                  <RadioGroupItem value="active" id="org-status-active" :disabled="!isEditing" />
+                  <Label for="org-status-active">启用</Label>
+                </div>
+                <div class="flex items-center gap-2">
+                  <RadioGroupItem value="inactive" id="org-status-inactive" :disabled="!isEditing" />
+                  <Label for="org-status-inactive">禁用</Label>
+                </div>
+              </RadioGroup>
+            </FormField>
+            <div v-if="isEditing" class="flex gap-2 pt-2">
+              <Button @click="handleSave">保存</Button>
+              <Button variant="outline" @click="isEditing = false">取消</Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
-  </div>
+</PageShell>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, reactive } from 'vue'
-import { Search } from '@element-plus/icons-vue'
-import type { FormInstance, FormRules } from 'element-plus'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import PageShell from '@/components/Layout/PageShell.vue'
+import { onMounted, ref, reactive, computed, defineComponent, h } from 'vue'
+import { Plus, ChevronRight, ChevronDown, Building2 } from 'lucide-vue-next'
+import { toast } from '@/lib/notify'
+import { confirm } from '@/lib/confirm'
+import FormField from '@/components/app/FormField.vue'
+import {
+  Button,
+  Input,
+  Select,
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  Label,
+  RadioGroup,
+  RadioGroupItem,
+} from '@/components/ui'
 import { getOrgTree, createOrg, updateOrg, deleteOrg } from '@/api/modules/org'
 
-const treeRef = ref()
-const formRef = ref<FormInstance>()
+const OrgTreeNode = defineComponent({
+  name: 'OrgTreeNode',
+  props: {
+    node: { type: Object, required: true },
+    selectedId: { type: Number, default: null },
+    searchText: { type: String, default: '' },
+    depth: { type: Number, default: 0 },
+  },
+  emits: ['select'],
+  setup(props, { emit }) {
+    const expanded = ref(true)
+    const hasChildren = () => (props.node.children?.length ?? 0) > 0
+    const matchesSearch = (name: string) =>
+      !props.searchText || name.toLowerCase().includes(props.searchText.toLowerCase())
+    const nodeVisible = computed(() => {
+      if (!props.searchText) return true
+      function hasMatch(n: any): boolean {
+        if (matchesSearch(n.name)) return true
+        return (n.children || []).some(hasMatch)
+      }
+      return hasMatch(props.node)
+    })
+    const isSelected = () => props.selectedId === props.node.id
+    return () => {
+      if (!nodeVisible.value) return null
+      return h('div', { class: 'org-tree-node' }, [
+        h('div', {
+          class: [
+            'flex items-center gap-1 py-1.5 px-2 rounded cursor-pointer text-sm transition-colors',
+            isSelected() ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-muted',
+          ],
+          style: { paddingLeft: `${props.depth * 12 + 8}px` },
+          onClick: () => emit('select', props.node),
+        }, [
+          hasChildren()
+            ? h(Button, {
+                variant: 'ghost',
+                size: 'icon',
+                class: 'h-6 w-6 shrink-0',
+                onClick: (e: Event) => { e.stopPropagation(); expanded.value = !expanded.value },
+              }, () => expanded.value
+                ? h(ChevronDown, { class: 'h-4 w-4' })
+                : h(ChevronRight, { class: 'h-4 w-4' }))
+            : h('span', { class: 'w-6 shrink-0' }),
+          h('span', { class: 'truncate' }, props.node.name),
+        ]),
+        expanded.value && hasChildren()
+          ? props.node.children.map((child: any) =>
+              h(OrgTreeNode, {
+                key: child.id,
+                node: child,
+                selectedId: props.selectedId,
+                searchText: props.searchText,
+                depth: props.depth + 1,
+                onSelect: (n: any) => emit('select', n),
+              })
+            )
+          : null,
+      ])
+    }
+  },
+})
+
 const searchText = ref('')
 const selectedOrg = ref<any>(null)
 const isEditing = ref(false)
@@ -120,15 +198,38 @@ const orgTree = ref<any[]>([])
 const formData = reactive({
   name: '',
   type: 'DEPARTMENT',
-  parentId: null as number | null,
+  parentId: undefined as number | undefined,
   sortOrder: 0,
   status: 'active',
 })
 
-const rules: FormRules = {
-  name: [{ required: true, message: '请输入组织名称', trigger: 'blur' }],
-  type: [{ required: true, message: '请选择组织类型', trigger: 'change' }],
+const formErrors = reactive({
+  name: '',
+  type: '',
+})
+
+const typeOptions = [
+  { label: '公司', value: 'COMPANY' },
+  { label: '部门', value: 'DEPARTMENT' },
+  { label: '小组', value: 'TEAM' },
+]
+
+const filteredTree = computed(() => orgTree.value)
+
+function flattenTree(nodes: any[], prefix = ''): { label: string; value: number }[] {
+  const result: { label: string; value: number }[] = []
+  for (const n of nodes) {
+    if (selectedOrg.value?.id !== n.id) {
+      result.push({ label: prefix + n.name, value: n.id })
+    }
+    if (n.children?.length) {
+      result.push(...flattenTree(n.children, prefix + n.name + ' / '))
+    }
+  }
+  return result
 }
+
+const parentOptions = computed(() => flattenTree(orgTree.value))
 
 function toFormStatus(status: number | string) {
   return status === 1 || status === 'active' ? 'active' : 'inactive'
@@ -151,7 +252,7 @@ async function loadTree() {
 function fillForm(data: any) {
   formData.name = data.name || ''
   formData.type = data.type || 'DEPARTMENT'
-  formData.parentId = data.parentId ?? null
+  formData.parentId = data.parentId ?? undefined
   formData.sortOrder = data.sortOrder ?? 0
   formData.status = toFormStatus(data.status ?? 1)
 }
@@ -161,6 +262,8 @@ function handleNodeClick(data: any) {
   isEditing.value = false
   isNew.value = false
   fillForm(data)
+  formErrors.name = ''
+  formErrors.type = ''
 }
 
 function handleAdd() {
@@ -169,9 +272,11 @@ function handleAdd() {
   isNew.value = true
   formData.name = ''
   formData.type = 'DEPARTMENT'
-  formData.parentId = null
+  formData.parentId = undefined
   formData.sortOrder = 0
   formData.status = 'active'
+  formErrors.name = ''
+  formErrors.type = ''
 }
 
 function handleEdit() {
@@ -180,42 +285,42 @@ function handleEdit() {
 
 async function handleDelete() {
   if (!selectedOrg.value?.id) return
-  try {
-    await ElMessageBox.confirm('确定要删除该组织吗？删除后不可恢复。', '警告', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning',
-    })
-    await deleteOrg(selectedOrg.value.id)
-    ElMessage.success('删除成功')
-    selectedOrg.value = null
-    loadTree()
-  } catch {
-    // cancelled
-  }
+  const ok = await confirm({
+    title: '警告',
+    message: '确定要删除该组织吗？删除后不可恢复。',
+    destructive: true,
+  })
+  if (!ok) return
+  await deleteOrg(selectedOrg.value.id)
+  toast.success('删除成功')
+  selectedOrg.value = null
+  loadTree()
+}
+
+function validateForm(): boolean {
+  formErrors.name = formData.name ? '' : '请输入组织名称'
+  formErrors.type = formData.type ? '' : '请选择组织类型'
+  return !Object.values(formErrors).some(Boolean)
 }
 
 async function handleSave() {
-  if (!formRef.value) return
-  await formRef.value.validate(async (valid) => {
-    if (!valid) return
-    const payload = {
-      name: formData.name,
-      type: formData.type,
-      parentId: formData.parentId,
-      sortOrder: formData.sortOrder,
-      status: toApiStatus(formData.status),
-    }
-    if (isNew.value) {
-      await createOrg(payload)
-    } else if (selectedOrg.value?.id) {
-      await updateOrg(selectedOrg.value.id, payload)
-    }
-    ElMessage.success('保存成功')
-    isEditing.value = false
-    isNew.value = false
-    await loadTree()
-  })
+  if (!validateForm()) return
+  const payload = {
+    name: formData.name,
+    type: formData.type,
+    parentId: formData.parentId ?? null,
+    sortOrder: formData.sortOrder,
+    status: toApiStatus(formData.status),
+  }
+  if (isNew.value) {
+    await createOrg(payload)
+  } else if (selectedOrg.value?.id) {
+    await updateOrg(selectedOrg.value.id, payload)
+  }
+  toast.success('保存成功')
+  isEditing.value = false
+  isNew.value = false
+  await loadTree()
 }
 
 onMounted(loadTree)
@@ -223,6 +328,7 @@ onMounted(loadTree)
 
 <style lang="scss" scoped>
 @import '@/assets/styles/variables.scss';
+
 .org-container {
   display: grid;
   grid-template-columns: 360px 1fr;
@@ -238,12 +344,7 @@ onMounted(loadTree)
   display: flex;
   align-items: center;
   justify-content: space-between;
-}
-
-.card-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: $text-primary;
+  gap: 12px;
 }
 
 .card-actions {
@@ -262,22 +363,6 @@ onMounted(loadTree)
   p {
     margin-top: 16px;
     font-size: 14px;
-  }
-}
-
-.el-tree {
-  :deep(.el-tree-node__content) {
-    height: 36px;
-    border-radius: 4px;
-
-    &:hover {
-      background-color: $bg-muted;
-    }
-  }
-
-  :deep(.el-tree-node.is-current > .el-tree-node__content) {
-    background-color: $primary-lighter;
-    color: $primary-color;
   }
 }
 </style>

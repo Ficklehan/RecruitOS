@@ -1,12 +1,12 @@
 <template>
-  <div class="page-container page-stack" v-loading="loading">
-    <!-- Header -->
+  <PageShell>
+<!-- Header -->
     <div class="page-top">
       <div class="page-nav">
-        <button class="btn-back" @click="router.push('/platform/tenants')">
-          <el-icon><ArrowLeft /></el-icon>
-          <span>返回</span>
-        </button>
+        <Button variant="outline" size="sm" @click="router.push('/platform/tenants')">
+          <ArrowLeft class="mr-1 h-4 w-4" />
+          返回
+        </Button>
         <div class="page-title">
           <div class="title-avatar" :style="{ background: avatarColor(tenant.companyName || '') }">
             {{ (tenant.companyName || '?')[0] }}
@@ -18,10 +18,10 @@
         </div>
       </div>
       <div class="page-actions">
-        <button class="btn-outline" @click="showPlanDialog">变更套餐</button>
-        <button :class="tenant.status === 1 ? 'btn-danger' : 'btn-success'" @click="toggleStatus">
+        <Button variant="outline" @click="showPlanDialog">变更套餐</Button>
+        <Button :variant="tenant.status === 1 ? 'destructive' : 'default'" @click="toggleStatus">
           {{ tenant.status === 1 ? '禁用租户' : '启用租户' }}
-        </button>
+        </Button>
       </div>
     </div>
 
@@ -102,43 +102,59 @@
       </div>
     </div>
 
-    <!-- Plan Dialog -->
-    <Teleport to="body">
-      <div v-if="showPlan" class="modal-overlay" @click.self="showPlan = false">
-        <div class="modal">
-          <div class="modal-header">
-            <h3>变更套餐</h3>
-            <el-icon class="modal-close" @click="showPlan = false"><Close /></el-icon>
-          </div>
-          <div class="modal-body">
-            <p class="current-plan">当前套餐：<span class="plan-tag" :class="'plan-' + (tenant.plan || '').toLowerCase()">{{ tenant.plan }}</span></p>
-            <div class="plan-options">
-              <label v-for="p in planOptions" :key="p.value" class="plan-option" :class="{ active: newPlan === p.value }">
-                <input type="radio" v-model="newPlan" :value="p.value" />
-                <div class="plan-content">
-                  <span class="plan-name">{{ p.value }}</span>
-                  <span class="plan-desc">{{ p.desc }}</span>
-                </div>
-              </label>
+    <div v-if="loading" class="py-8 text-center text-sm text-muted-foreground">加载中...</div>
+
+    <Dialog v-model:open="showPlan">
+      <DialogContent class="max-w-md">
+        <DialogHeader>
+          <DialogTitle>变更套餐</DialogTitle>
+        </DialogHeader>
+        <p class="current-plan text-sm">
+          当前套餐：
+          <span class="plan-tag" :class="'plan-' + (tenant.plan || '').toLowerCase()">{{ tenant.plan }}</span>
+        </p>
+        <RadioGroup v-model="newPlan" class="plan-options gap-2">
+          <label
+            v-for="p in planOptions"
+            :key="p.value"
+            class="plan-option flex items-center gap-3"
+            :class="{ active: newPlan === p.value }"
+          >
+            <RadioGroupItem :value="p.value" />
+            <div class="plan-content">
+              <span class="plan-name">{{ p.value }}</span>
+              <span class="plan-desc">{{ p.desc }}</span>
             </div>
-          </div>
-          <div class="modal-footer">
-            <button class="btn-cancel" @click="showPlan = false">取消</button>
-            <button class="btn-primary" :disabled="changingPlan" @click="handleChangePlan">
-              {{ changingPlan ? '变更中...' : '确认变更' }}
-            </button>
-          </div>
-        </div>
-      </div>
-    </Teleport>
-  </div>
+          </label>
+        </RadioGroup>
+        <DialogFooter>
+          <Button variant="outline" @click="showPlan = false">取消</Button>
+          <Button :disabled="changingPlan" @click="handleChangePlan">
+            {{ changingPlan ? '变更中...' : '确认变更' }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+</PageShell>
 </template>
 
 <script setup lang="ts">
+import PageShell from '@/components/Layout/PageShell.vue'
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, Close } from '@element-plus/icons-vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ArrowLeft } from 'lucide-vue-next'
+import { toast } from '@/lib/notify'
+import { confirm } from '@/lib/confirm'
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  RadioGroup,
+  RadioGroupItem,
+} from '@/components/ui'
 import { getPlatformTenantDetail, updateTenantStatus, updateTenantPlan } from '@/api/modules/platform'
 
 const route = useRoute()
@@ -160,9 +176,9 @@ const planOptions = [
 const quotas = computed(() => {
   const t = tenant.value
   return [
-    { label: '岗位数量', used: t.usedJobs || 0, max: t.maxJobs || 0, percent: pct(t.usedJobs, t.maxJobs), color: 'linear-gradient(90deg,#6366f1,#8b5cf6)' },
-    { label: 'Agent 数量', used: t.usedAgents || 0, max: t.maxAgents || 0, percent: pct(t.usedAgents, t.maxAgents), color: 'linear-gradient(90deg,#8b5cf6,#a78bfa)' },
-    { label: '简历解析', used: t.resumeUsed || 0, max: t.resumeQuota || 0, percent: pct(t.resumeUsed, t.resumeQuota), color: 'linear-gradient(90deg,#10b981,#34d399)' },
+    { label: '岗位数量', used: t.usedJobs || 0, max: t.maxJobs || 0, percent: pct(t.usedJobs, t.maxJobs), color: 'linear-gradient(90deg,$status-new,$status-interviewing)' },
+    { label: 'Agent 数量', used: t.usedAgents || 0, max: t.maxAgents || 0, percent: pct(t.usedAgents, t.maxAgents), color: 'linear-gradient(90deg,$status-interviewing,#a78bfa)' },
+    { label: '简历解析', used: t.resumeUsed || 0, max: t.resumeQuota || 0, percent: pct(t.resumeUsed, t.resumeQuota), color: 'linear-gradient(90deg,$status-offer,#34d399)' },
     { label: '消息额度', used: t.messageUsed || 0, max: t.messageQuota || 0, percent: pct(t.messageUsed, t.messageQuota), color: 'linear-gradient(90deg,#f59e0b,#fbbf24)' },
   ]
 })
@@ -173,7 +189,7 @@ function pct(used: number, max: number) {
 }
 
 function avatarColor(name: string) {
-  const colors = ['#6366f1','#8b5cf6','#ec4899','#f43f5e','#f97316','#eab308','#22c55e','#06b6d4','#3b82f6']
+  const colors = ['$status-new','$status-interviewing','#ec4899','#f43f5e','#f97316','#eab308','#22c55e','#06b6d4','$primary-color']
   let hash = 0
   for (const c of name) hash = c.charCodeAt(0) + ((hash << 5) - hash)
   return colors[Math.abs(hash) % colors.length]
@@ -203,7 +219,7 @@ async function handleChangePlan() {
   changingPlan.value = true
   try {
     await updateTenantPlan(tenant.value.id, newPlan.value)
-    ElMessage.success('套餐变更成功')
+    toast.success('套餐变更成功')
     showPlan.value = false
     loadDetail()
   } catch {}
@@ -213,12 +229,15 @@ async function handleChangePlan() {
 async function toggleStatus() {
   const newStatus = tenant.value.status === 1 ? 0 : 1
   const action = newStatus === 1 ? '启用' : '禁用'
-  try {
-    await ElMessageBox.confirm(`确定要${action}该租户吗？`, '确认操作', { type: 'warning' })
-    await updateTenantStatus(tenant.value.id, newStatus)
-    ElMessage.success(`已${action}`)
-    loadDetail()
-  } catch {}
+  const ok = await confirm({
+    title: '确认操作',
+    message: `确定要${action}该租户吗？`,
+    destructive: newStatus === 0,
+  })
+  if (!ok) return
+  await updateTenantStatus(tenant.value.id, newStatus)
+  toast.success(`已${action}`)
+  loadDetail()
 }
 
 onMounted(() => loadDetail())
@@ -247,14 +266,14 @@ onMounted(() => loadDetail())
   gap: 4px;
   padding: 8px 14px;
   background: $bg-card;
-  border: 1px solid #e2e8f0;
+  border: none;
   border-radius: 8px;
   font-size: 13px;
-  color: #475569;
+  color: $neutral-600;
   cursor: pointer;
   transition: all 0.2s;
 }
-.btn-back:hover { background: #f8fafc; border-color: #cbd5e1; }
+.btn-back:hover { background: $bg-warm; border-color: $border-color; }
 
 .page-title {
   display: flex;
@@ -269,7 +288,7 @@ onMounted(() => loadDetail())
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: var(--r-bg-card);
   font-size: 20px;
   font-weight: 700;
   flex-shrink: 0;
@@ -278,13 +297,13 @@ onMounted(() => loadDetail())
 .page-title h2 {
   font-size: 20px;
   font-weight: 700;
-  color: #0f172a;
+  color: $text-primary;
   margin: 0;
 }
 
 .title-sub {
   font-size: 13px;
-  color: #94a3b8;
+  color: $text-secondary;
 }
 
 .page-actions {
@@ -296,15 +315,15 @@ onMounted(() => loadDetail())
   height: 38px;
   padding: 0 18px;
   background: $bg-card;
-  border: 1px solid #e2e8f0;
+  border: none;
   border-radius: 8px;
   font-size: 13px;
   font-weight: 500;
-  color: #475569;
+  color: $neutral-600;
   cursor: pointer;
   transition: all 0.2s;
 }
-.btn-outline:hover { background: #f8fafc; border-color: #cbd5e1; }
+.btn-outline:hover { background: $bg-warm; border-color: $border-color; }
 
 .btn-danger {
   height: 38px;
@@ -314,7 +333,7 @@ onMounted(() => loadDetail())
   border-radius: 8px;
   font-size: 13px;
   font-weight: 500;
-  color: #ef4444;
+  color: $danger-color;
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -328,17 +347,17 @@ onMounted(() => loadDetail())
   border-radius: 8px;
   font-size: 13px;
   font-weight: 500;
-  color: #10b981;
+  color: $status-offer;
   cursor: pointer;
   transition: all 0.2s;
 }
-.btn-success:hover { background: #f0fdf4; }
+.btn-success:hover { background: $success-lighter; }
 
 .btn-primary {
   height: 38px;
   padding: 0 20px;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
-  color: #fff;
+  background: linear-gradient(135deg, $status-new, $status-interviewing);
+  color: var(--r-bg-card);
   border: none;
   border-radius: 8px;
   font-size: 13px;
@@ -352,15 +371,15 @@ onMounted(() => loadDetail())
 .btn-cancel {
   height: 38px;
   padding: 0 18px;
-  background: #f1f5f9;
-  color: #475569;
+  background: $bg-muted;
+  color: $neutral-600;
   border: none;
   border-radius: 8px;
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
 }
-.btn-cancel:hover { background: #e2e8f0; }
+.btn-cancel:hover { background: $border-color; }
 
 /* Info Grid */
 .info-grid {
@@ -380,7 +399,7 @@ onMounted(() => loadDetail())
 .info-label {
   font-size: 12px;
   font-weight: 500;
-  color: #94a3b8;
+  color: $text-secondary;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-bottom: 8px;
@@ -389,7 +408,7 @@ onMounted(() => loadDetail())
 .info-value {
   font-size: 14px;
   font-weight: 500;
-  color: #334155;
+  color: $text-regular;
 }
 
 .status-line {
@@ -397,7 +416,7 @@ onMounted(() => loadDetail())
   align-items: center;
   font-size: 14px;
   font-weight: 500;
-  color: #334155;
+  color: $text-regular;
 }
 
 .status-dot {
@@ -407,8 +426,8 @@ onMounted(() => loadDetail())
   border-radius: 50%;
   margin-right: 6px;
 }
-.status-dot.active { background: #10b981; box-shadow: 0 0 6px rgba(16,185,129,0.4); }
-.status-dot.inactive { background: #94a3b8; }
+.status-dot.active { background: $status-offer; box-shadow: 0 0 6px rgba(16,185,129,0.4); }
+.status-dot.inactive { background: $text-secondary; }
 
 /* Plan Tags */
 .plan-tag {
@@ -419,10 +438,10 @@ onMounted(() => loadDetail())
   font-weight: 600;
   letter-spacing: 0.5px;
 }
-.plan-starter { background: #f1f5f9; color: #64748b; }
-.plan-basic { background: #eff6ff; color: #3b82f6; }
-.plan-pro { background: #f0fdf4; color: #16a34a; }
-.plan-enterprise { background: #fefce8; color: #ca8a04; }
+.plan-starter { background: $bg-muted; color: $text-secondary; }
+.plan-basic { background: #eff6ff; color: $primary-color; }
+.plan-pro { background: $success-lighter; color: var(--r-success); }
+.plan-enterprise { background: $warning-lighter; color: #ca8a04; }
 
 /* Quota Section */
 .quota-section {
@@ -430,9 +449,9 @@ onMounted(() => loadDetail())
 }
 
 .quota-section h3, .license-card h3 {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
-  color: #0f172a;
+  color: $text-primary;
   margin-bottom: 16px;
 }
 
@@ -459,24 +478,24 @@ onMounted(() => loadDetail())
 .quota-label {
   font-size: 13px;
   font-weight: 500;
-  color: #64748b;
+  color: $text-secondary;
 }
 
 .quota-num {
   font-size: 20px;
   font-weight: 700;
-  color: #0f172a;
+  color: $text-primary;
 }
 
 .quota-max {
   font-size: 14px;
   font-weight: 500;
-  color: #94a3b8;
+  color: $text-secondary;
 }
 
 .quota-bar {
   height: 8px;
-  background: #f1f5f9;
+  background: $bg-muted;
   border-radius: 4px;
   overflow: hidden;
   margin-bottom: 10px;
@@ -496,12 +515,12 @@ onMounted(() => loadDetail())
 .quota-percent {
   font-size: 12px;
   font-weight: 600;
-  color: #6366f1;
+  color: $status-new;
 }
 
 .quota-rest {
   font-size: 12px;
-  color: #94a3b8;
+  color: $text-secondary;
 }
 
 /* License Card */
@@ -526,14 +545,14 @@ onMounted(() => loadDetail())
 
 .dl-label {
   font-size: 12px;
-  color: #94a3b8;
+  color: $text-secondary;
   font-weight: 500;
 }
 
 .dl-value {
   font-size: 14px;
   font-weight: 500;
-  color: #334155;
+  color: $text-regular;
   display: flex;
   align-items: center;
 }
@@ -568,11 +587,11 @@ onMounted(() => loadDetail())
   align-items: center;
   justify-content: space-between;
   padding: 20px 24px;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid $bg-muted;
 }
-.modal-header h3 { font-size: 16px; font-weight: 600; color: #0f172a; margin: 0; }
-.modal-close { color: #94a3b8; cursor: pointer; padding: 4px; border-radius: 6px; transition: all 0.2s; }
-.modal-close:hover { color: #475569; background: #f1f5f9; }
+.modal-header h3 { font-size: 16px; font-weight: 600; color: $text-primary; margin: 0; }
+.modal-close { color: $text-secondary; cursor: pointer; padding: 4px; border-radius: 6px; transition: all 0.2s; }
+.modal-close:hover { color: $neutral-600; background: $bg-muted; }
 
 .modal-body { padding: 24px; }
 
@@ -581,12 +600,12 @@ onMounted(() => loadDetail())
   justify-content: flex-end;
   gap: 10px;
   padding: 16px 24px;
-  border-top: 1px solid #f1f5f9;
+  border-top: 1px solid $bg-muted;
 }
 
 .current-plan {
   font-size: 14px;
-  color: #475569;
+  color: $neutral-600;
   margin-bottom: 16px;
 }
 
@@ -601,16 +620,16 @@ onMounted(() => loadDetail())
   align-items: center;
   gap: 12px;
   padding: 14px 16px;
-  border: 1px solid #e2e8f0;
+  border: none;
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.2s;
 }
 .plan-option:hover { border-color: #c7d2fe; background: #fafbff; }
-.plan-option.active { border-color: #6366f1; background: #eef2ff; }
+.plan-option.active { border-color: $status-new; background: #eef2ff; }
 .plan-option input { display: none; }
 
 .plan-content { display: flex; flex-direction: column; }
-.plan-name { font-size: 14px; font-weight: 600; color: #0f172a; }
-.plan-desc { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+.plan-name { font-size: 14px; font-weight: 600; color: $text-primary; }
+.plan-desc { font-size: 12px; color: $text-secondary; margin-top: 2px; }
 </style>

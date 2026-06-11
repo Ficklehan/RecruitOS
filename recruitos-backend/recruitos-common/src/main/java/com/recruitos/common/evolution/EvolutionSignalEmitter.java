@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.recruitos.common.tenant.TenantContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.http.HttpEntity;
@@ -26,6 +27,9 @@ public class EvolutionSignalEmitter {
     private final EvolutionClientProperties properties;
     private final ObjectMapper objectMapper;
     private final RestTemplate restTemplate;
+
+    @Autowired(required = false)
+    private EvolutionSignalRetryStore retryStore;
 
     public EvolutionSignalEmitter(EvolutionClientProperties properties, ObjectMapper objectMapper) {
         this.properties = properties;
@@ -64,6 +68,9 @@ public class EvolutionSignalEmitter {
         } catch (Exception e) {
             log.warn("Evolution signal emit failed (non-blocking): jobId={} event={} err={}",
                     request.getJobId(), request.getSourceEvent(), e.getMessage());
+            if (retryStore != null) {
+                retryStore.enqueue(request, e.getMessage());
+            }
         }
     }
 }

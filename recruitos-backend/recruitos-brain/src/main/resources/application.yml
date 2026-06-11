@@ -1,0 +1,45 @@
+server:
+  port: 8100
+
+spring:
+  application:
+    name: recruitos-brain
+  datasource:
+    url: jdbc:mysql://localhost:3306/recruit_os?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: 12345678
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  global-config:
+    db-config:
+      id-type: assign_id
+
+sa-token:
+  token-name: Authorization
+  token-prefix: Bearer
+  timeout: 7200
+  active-timeout: -1
+  is-concurrent: true
+  is-share: true
+  token-style: uuid
+  is-log: false
+
+# Brain-specific config
+recruitos:
+  brain:
+    diagnosis:
+      daily-scan-cron: "0 0 8 * * ?"        # 每天8点自动巡检
+      funnel-bottleneck-threshold: 0.3        # 阶段转化率低于30%触发诊断
+      campaign-stale-days: 7                  # Campaign 7天无进展触发诊断
+    insight:
+      max-daily-insights: 20                  # 每天最多生成20条洞察
+      refresh-interval-minutes: 30            # 洞察刷新间隔
+    strategy:
+      auto-execute-enabled: true              # 是否允许AI自动执行低风险操作
+      auto-execute-max-confidence: 0.85       # 自动执行需要的最小置信度
+    llm:
+      endpoint: http://localhost:8095         # recruitos-llm 服务地址
+      diagnosis-model: diagnosis-v1           # 诊断推理模型
+      strategy-model: strategy-v1             # 策略推理模型

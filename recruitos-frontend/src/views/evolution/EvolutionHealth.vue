@@ -1,118 +1,100 @@
 <template>
-  <div class="page-container page-stack">
-    <!-- 页面头部 -->
-    <div class="page-header">
-      <h2 class="page-title">健康监控</h2>
-    </div>
-
-    <!-- 系统健康概览卡片 -->
-    <div class="health-overview">
+  <PageShell title="健康监控">
+<div class="health-overview">
       <div
         v-for="card in overviewCards"
         :key="card.label"
         class="health-card"
         :style="{ borderTop: `3px solid ${getHealthColor(card.value)}` }"
       >
-        <div class="health-card-icon" :style="{ backgroundColor: getHealthColor(card.value) + '15', color: getHealthColor(card.value) }">
-          <el-icon :size="28">
-            <component :is="card.icon" />
-          </el-icon>
+        <div
+          class="health-card-icon"
+          :style="{ backgroundColor: getHealthColor(card.value) + '15', color: getHealthColor(card.value) }"
+        >
+          <component :is="card.icon" class="h-7 w-7" />
         </div>
         <div class="health-card-info">
           <div class="health-card-label">{{ card.label }}</div>
           <div class="health-card-value">{{ card.value }}%</div>
-          <el-progress
-            :percentage="card.value"
-            :color="getHealthColor(card.value)"
-            :show-text="false"
-            :stroke-width="6"
-            style="margin-top: 8px;"
-          />
+          <RProgress :value="card.value" class="h-1.5 mt-2" />
         </div>
       </div>
     </div>
 
-    <!-- 岗位健康列表 -->
-    <div class="data-card">
+    <RCard class="p-4 mb-6">
       <div class="section-header">
         <span class="section-title">岗位健康列表</span>
-        <el-button type="primary" link>
-          <el-icon><Refresh /></el-icon>
+        <RButton variant="link" size="sm" :disabled="loading" @click="loadData">
+          <RefreshCw class="mr-1 h-4 w-4" />
           刷新数据
-        </el-button>
+        </RButton>
       </div>
-      <el-table :data="jobHealthList" stripe style="width: 100%">
-        <el-table-column prop="jobName" label="岗位" min-width="160" show-overflow-tooltip />
-        <el-table-column label="数据充足度" width="160" align="center">
-          <template #default="{ row }">
-            <el-progress
-              :percentage="row.dataSufficiency"
-              :color="getHealthColor(row.dataSufficiency)"
-              :stroke-width="8"
-              :format="(p: number) => p + '%'"
-            />
-          </template>
-        </el-table-column>
-        <el-table-column label="权重稳定性" width="160" align="center">
-          <template #default="{ row }">
-            <el-progress
-              :percentage="row.weightStability"
-              :color="getHealthColor(row.weightStability)"
-              :stroke-width="8"
-              :format="(p: number) => p + '%'"
-            />
-          </template>
-        </el-table-column>
-        <el-table-column label="匹配质量" width="160" align="center">
-          <template #default="{ row }">
-            <el-progress
-              :percentage="row.matchQuality"
-              :color="getHealthColor(row.matchQuality)"
-              :stroke-width="8"
-              :format="(p: number) => p + '%'"
-            />
-          </template>
-        </el-table-column>
-        <el-table-column label="进化新鲜度" width="160" align="center">
-          <template #default="{ row }">
-            <el-progress
-              :percentage="row.evolutionFreshness"
-              :color="getHealthColor(row.evolutionFreshness)"
-              :stroke-width="8"
-              :format="(p: number) => p + '%'"
-            />
-          </template>
-        </el-table-column>
-        <el-table-column prop="overallScore" label="综合评分" width="100" align="center">
-          <template #default="{ row }">
-            <span class="score-value" :style="{ color: getHealthColor(row.overallScore) }">
-              {{ row.overallScore }}
-            </span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="status" label="状态" width="90" align="center">
-          <template #default="{ row }">
-            <el-tag :type="getStatusType(row.status)" size="small" disable-transitions>
-              {{ row.status }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="120" fixed="right">
-          <template #default="{ row }">
-            <el-button type="primary" link size="small" @click="handleViewDetail(row)">详情</el-button>
-            <el-button type="warning" link size="small" @click="handleTriggerEvolution(row)">触发进化</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-    </div>
+      <RTable>
+        <RTableHead>
+          <RTableRow>
+            <RTableTh class="min-w-[160px]">岗位</RTableTh>
+            <RTableTh class="w-[160px] text-center">数据充足度</RTableTh>
+            <RTableTh class="w-[160px] text-center">权重稳定性</RTableTh>
+            <RTableTh class="w-[160px] text-center">匹配质量</RTableTh>
+            <RTableTh class="w-[160px] text-center">进化新鲜度</RTableTh>
+            <RTableTh class="w-[100px] text-center">综合评分</RTableTh>
+            <RTableTh class="w-[90px] text-center">状态</RTableTh>
+            <RTableTh class="w-[100px] text-center">操作</RTableTh>
+          </RTableRow>
+        </RTableHead>
+        <RTableBody>
+          <RTableRow v-if="!loading && jobHealthList.length === 0">
+            <RTableCell colspan="8" class="text-center text-muted-foreground py-8">暂无进化数据岗位</RTableCell>
+          </RTableRow>
+          <RTableRow v-for="row in jobHealthList" :key="row.jobId ?? row.jobName">
+            <RTableCell class="truncate max-w-[200px]">{{ row.jobName }}</RTableCell>
+            <RTableCell>
+              <div class="metric-cell">
+                <RProgress :value="row.dataSufficiency" class="h-2" />
+                <span class="metric-label">{{ row.dataSufficiency }}%</span>
+              </div>
+            </RTableCell>
+            <RTableCell>
+              <div class="metric-cell">
+                <RProgress :value="row.weightStability" class="h-2" />
+                <span class="metric-label">{{ row.weightStability }}%</span>
+              </div>
+            </RTableCell>
+            <RTableCell>
+              <div class="metric-cell">
+                <RProgress :value="row.matchQuality" class="h-2" />
+                <span class="metric-label">{{ row.matchQuality }}%</span>
+              </div>
+            </RTableCell>
+            <RTableCell>
+              <div class="metric-cell">
+                <RProgress :value="row.evolutionFreshness" class="h-2" />
+                <span class="metric-label">{{ row.evolutionFreshness }}%</span>
+              </div>
+            </RTableCell>
+            <RTableCell class="text-center">
+              <span class="score-value" :style="{ color: getHealthColor(row.overallScore) }">
+                {{ row.overallScore }}
+              </span>
+            </RTableCell>
+            <RTableCell class="text-center">
+              <RBadge :variant="elTagTypeToBadge(getStatusType(row.status))">{{ row.status }}</RBadge>
+            </RTableCell>
+            <RTableCell class="text-center">
+              <RowActions :actions="getRowActions(row)" @action="(cmd) => handleRowCommand(cmd, row)" />
+            </RTableCell>
+          </RTableRow>
+        </RTableBody>
+      </RTable>
+    </RCard>
 
-    <!-- 健康告警 -->
-    <div class="data-card">
+    <RCard class="p-4">
       <div class="section-header">
         <span class="section-title">健康告警</span>
-        <el-badge :value="alerts.length" :max="99" type="warning">
-          <el-button type="primary" link>查看全部</el-button>
-        </el-badge>
+        <div class="flex items-center gap-2">
+          <RBadge variant="outline">{{ alerts.length }}</RBadge>
+          <RButton variant="link" size="sm">查看全部</RButton>
+        </div>
       </div>
       <div class="alert-list">
         <div
@@ -122,35 +104,39 @@
           :class="'alert-' + alert.severity"
         >
           <div class="alert-icon">
-            <el-icon v-if="alert.severity === 'error'" color="#DC2626"><CircleCloseFilled /></el-icon>
-            <el-icon v-else-if="alert.severity === 'warning'" color="#D97706"><WarningFilled /></el-icon>
-            <el-icon v-else color="#3B82F6"><InfoFilled /></el-icon>
+            <CircleX v-if="alert.severity === 'error'" class="h-5 w-5 text-destructive" />
+            <AlertTriangle v-else-if="alert.severity === 'warning'" class="h-5 w-5 text-yellow-600" />
+            <Info v-else class="h-5 w-5 text-primary" />
           </div>
           <div class="alert-content">
             <div class="alert-title">{{ alert.jobName }} - {{ alert.title }}</div>
             <div class="alert-desc">{{ alert.description }}</div>
           </div>
           <div class="alert-time">{{ alert.time }}</div>
-          <el-button type="primary" link size="small" @click="handleResolveAlert(alert)">处理</el-button>
+          <RButton variant="link" size="sm" @click="handleResolveAlert(alert)">处理</RButton>
         </div>
       </div>
-    </div>
-  </div>
+    </RCard>
+</PageShell>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
-import { ElMessage } from 'element-plus'
+import PageShell from '@/components/Layout/PageShell.vue'
+import { ref, reactive, onMounted } from 'vue'
 import {
-  DataAnalysis,
-  TrendCharts,
-  CircleCloseFilled,
-  WarningFilled,
-  InfoFilled,
-  Refresh,
-} from '@element-plus/icons-vue'
+  BarChart3, TrendingUp, RefreshCw, CircleX, AlertTriangle, Info,
+} from 'lucide-vue-next'
+import { toast } from '@/lib/notify'
+import { elTagTypeToBadge } from '@/lib/badgeVariants'
+import RowActions from '@/components/common/RowActions.vue'
+import { getJobList } from '@/api/modules/job'
+import { getJobHealth, getSystemHealth, getHealthAlerts } from '@/api/modules/evolution'
+import {
+  RButton, RBadge, RCard, RTable, RTableHead, RTableBody, RTableRow, RTableTh, RTableCell, RProgress,
+} from '@/components/ui'
 
 interface JobHealth {
+  jobId?: number
   jobName: string
   dataSufficiency: number
   weightStability: number
@@ -168,149 +154,123 @@ interface Alert {
   time: string
 }
 
-// 系统概览卡片
+const loading = ref(false)
+
 const overviewCards = reactive([
-  { label: '数据充足度', value: 87, icon: 'DataAnalysis' },
-  { label: '权重稳定性', value: 92, icon: 'TrendCharts' },
-  { label: '匹配质量', value: 78, icon: 'TrendCharts' },
-  { label: '进化新鲜度', value: 65, icon: 'TrendCharts' },
+  { label: '数据充足度', value: 0, icon: BarChart3 },
+  { label: '权重稳定性', value: 0, icon: TrendingUp },
+  { label: '匹配质量', value: 0, icon: TrendingUp },
+  { label: '进化新鲜度', value: 0, icon: TrendingUp },
 ])
 
-// 岗位健康列表
-const jobHealthList = ref<JobHealth[]>([
-  {
-    jobName: '高级前端工程师',
-    dataSufficiency: 92,
-    weightStability: 88,
-    matchQuality: 85,
-    evolutionFreshness: 70,
-    overallScore: 84,
-    status: '健康',
-  },
-  {
-    jobName: 'Java后端工程师',
-    dataSufficiency: 85,
-    weightStability: 90,
-    matchQuality: 82,
-    evolutionFreshness: 75,
-    overallScore: 83,
-    status: '健康',
-  },
-  {
-    jobName: '产品经理',
-    dataSufficiency: 70,
-    weightStability: 75,
-    matchQuality: 68,
-    evolutionFreshness: 55,
-    overallScore: 67,
-    status: '警告',
-  },
-  {
-    jobName: 'UI设计师',
-    dataSufficiency: 60,
-    weightStability: 65,
-    matchQuality: 58,
-    evolutionFreshness: 45,
-    overallScore: 57,
-    status: '异常',
-  },
-  {
-    jobName: '算法工程师',
-    dataSufficiency: 78,
-    weightStability: 82,
-    matchQuality: 75,
-    evolutionFreshness: 60,
-    overallScore: 74,
-    status: '警告',
-  },
-  {
-    jobName: '测试工程师',
-    dataSufficiency: 88,
-    weightStability: 85,
-    matchQuality: 80,
-    evolutionFreshness: 72,
-    overallScore: 81,
-    status: '健康',
-  },
-])
+const jobHealthList = ref<JobHealth[]>([])
+const alerts = ref<Alert[]>([])
 
-// 健康告警
-const alerts = ref<Alert[]>([
-  {
-    jobName: 'UI设计师',
-    title: '数据严重不足',
-    description: '近30天内搜索信号仅收到12条，建议增加搜索频率或扩展搜索渠道，当前数据量无法支撑可靠的权重进化。',
-    severity: 'error',
-    time: '10分钟前',
-  },
-  {
-    jobName: '高级前端工程师',
-    title: '数据不足',
-    description: '建议增加搜索信号采集，当前数据量接近临界值，可能影响下一轮进化质量。',
-    severity: 'warning',
-    time: '1小时前',
-  },
-  {
-    jobName: '产品经理',
-    title: '匹配质量下降',
-    description: '近7天匹配准确率下降5.2%，建议检查权重配置或增加训练数据。',
-    severity: 'warning',
-    time: '3小时前',
-  },
-  {
-    jobName: '算法工程师',
-    title: '进化周期延长',
-    description: '距上次进化已超过14天，系统建议触发一次手动进化。',
-    severity: 'info',
-    time: '6小时前',
-  },
-])
+function mapStatusLabel(status?: string): string {
+  const map: Record<string, string> = { HEALTHY: '健康', WARNING: '警告', CRITICAL: '异常' }
+  return status ? (map[status] || status) : '未知'
+}
 
-// 获取健康颜色
+function mapHealthRow(vo: any, titleFallback?: string): JobHealth {
+  return {
+    jobId: vo.jobId,
+    jobName: vo.jobTitle || titleFallback || `岗位 #${vo.jobId}`,
+    dataSufficiency: vo.dataSufficiencyScore ?? 0,
+    weightStability: vo.weightStabilityScore ?? 0,
+    matchQuality: vo.matchQualityScore ?? 0,
+    evolutionFreshness: vo.evolutionFreshnessScore ?? 0,
+    overallScore: vo.overallScore ?? 0,
+    status: mapStatusLabel(vo.status),
+  }
+}
+
+function alertSeverity(status?: string): Alert['severity'] {
+  if (status === 'CRITICAL') return 'error'
+  if (status === 'WARNING') return 'warning'
+  return 'info'
+}
+
+async function loadData() {
+  loading.value = true
+  try {
+    const sysRes: any = await getSystemHealth()
+    const sys = sysRes?.data ?? sysRes
+    overviewCards[0].value = sys?.dataSufficiencyScore ?? 0
+    overviewCards[1].value = sys?.weightStabilityScore ?? 0
+    overviewCards[2].value = sys?.matchQualityScore ?? 0
+    overviewCards[3].value = sys?.evolutionFreshnessScore ?? 0
+
+    const jobsRes: any = await getJobList({ pageNum: 1, pageSize: 50, status: 'ACTIVE' })
+    const jobs = jobsRes?.data?.records ?? jobsRes?.records ?? []
+    const rows: JobHealth[] = []
+    for (const job of jobs) {
+      try {
+        const hRes: any = await getJobHealth(job.id)
+        const vo = hRes?.data ?? hRes
+        rows.push(mapHealthRow(vo, job.title))
+      } catch {
+        /* skip jobs without evolution data */
+      }
+    }
+    jobHealthList.value = rows.sort((a, b) => a.overallScore - b.overallScore)
+
+    const alertRes: any = await getHealthAlerts()
+    const alertList = alertRes?.data ?? alertRes ?? []
+    alerts.value = (Array.isArray(alertList) ? alertList : []).map((vo: any) => ({
+      jobName: vo.jobTitle || `岗位 #${vo.jobId}`,
+      title: mapStatusLabel(vo.status),
+      description: (vo.alerts && vo.alerts.length) ? vo.alerts.join('；') : '健康指标异常，建议查看岗位进化数据',
+      severity: alertSeverity(vo.status),
+      time: '—',
+    }))
+  } catch (e: any) {
+    toast.error(e?.message || '加载健康数据失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(loadData)
+
 function getHealthColor(value: number): string {
-  if (value >= 80) return '#059669'
-  if (value >= 60) return '#D97706'
+  if (value >= 80) return '#16a34a'
+  if (value >= 60) return '#ca8a04'
   return '#DC2626'
 }
 
-// 获取状态类型
 function getStatusType(status: string): string {
-  const map: Record<string, string> = {
-    '健康': 'success',
-    '警告': 'warning',
-    '异常': 'danger',
-  }
+  const map: Record<string, string> = { '健康': 'success', '警告': 'warning', '异常': 'danger' }
   return map[status] || 'info'
 }
 
 function handleViewDetail(row: JobHealth) {
-  ElMessage.info(`查看「${row.jobName}」健康详情`)
-}
-
-function handleTriggerEvolution(row: JobHealth) {
-  ElMessage.success(`已触发「${row.jobName}」进化任务`)
+  toast.info(`查看「${row.jobName}」健康详情`)
 }
 
 function handleResolveAlert(alert: Alert) {
-  ElMessage.info(`处理告警：${alert.title}`)
+  toast.info(`处理告警：${alert.title}`)
+}
+
+function getRowActions(_row: JobHealth) {
+  return [{ command: 'view', label: '查看详情', icon: 'View', type: 'primary', primary: true }]
+}
+
+function handleRowCommand(cmd: string, row: JobHealth) {
+  if (cmd === 'view') handleViewDetail(row)
 }
 </script>
 
 <style lang="scss" scoped>
 @import '@/assets/styles/variables.scss';
+
 .health-overview {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 20px;
   margin-bottom: 24px;
 
-  @media (max-width: 1200px) {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  @media (max-width: 768px) {
-    grid-template-columns: 1fr;
-  }
+  @media (max-width: 1200px) { grid-template-columns: repeat(2, 1fr); }
+  @media (max-width: 768px) { grid-template-columns: 1fr; }
 }
 
 .health-card {
@@ -338,21 +298,17 @@ function handleResolveAlert(alert: Alert) {
     flex-shrink: 0;
   }
 
-  .health-card-info {
-    flex: 1;
+  .health-card-label {
+    font-size: 14px;
+    color: $text-secondary;
+    margin-bottom: 4px;
+  }
 
-    .health-card-label {
-      font-size: 14px;
-      color: $text-secondary;
-      margin-bottom: 4px;
-    }
-
-    .health-card-value {
-      font-size: 28px;
-      font-weight: 700;
-      color: $text-primary;
-      line-height: 1.2;
-    }
+  .health-card-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: $text-primary;
+    line-height: 1.2;
   }
 }
 
@@ -366,6 +322,19 @@ function handleResolveAlert(alert: Alert) {
     font-size: 16px;
     font-weight: 600;
     color: $text-primary;
+  }
+}
+
+.metric-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  .metric-label {
+    font-size: 12px;
+    color: $text-secondary;
+    min-width: 36px;
+    text-align: right;
   }
 }
 
@@ -387,7 +356,6 @@ function handleResolveAlert(alert: Alert) {
   padding: 16px;
   border-radius: 8px;
   border-left: 4px solid transparent;
-  transition: background-color 0.2s;
 
   &.alert-error {
     background-color: $danger-lighter;
@@ -404,26 +372,22 @@ function handleResolveAlert(alert: Alert) {
     border-left-color: $primary-color;
   }
 
-  .alert-icon {
-    flex-shrink: 0;
-  }
-
   .alert-content {
     flex: 1;
     min-width: 0;
+  }
 
-    .alert-title {
-      font-size: 14px;
-      font-weight: 600;
-      color: $text-primary;
-      margin-bottom: 4px;
-    }
+  .alert-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: $text-primary;
+    margin-bottom: 4px;
+  }
 
-    .alert-desc {
-      font-size: 13px;
-      color: $text-regular;
-      line-height: 1.5;
-    }
+  .alert-desc {
+    font-size: 13px;
+    color: $text-regular;
+    line-height: 1.5;
   }
 
   .alert-time {

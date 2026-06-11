@@ -1,46 +1,39 @@
 <template>
-  <div class="page-container page-stack">
-    <!-- 页面头部 -->
-    <div class="page-header">
-      <div>
-        <h2 class="page-title">面试日历</h2>
-        <p class="page-subtitle">按周/月查看面试场次，点击可进入候选人详情</p>
-      </div>
-      <div class="header-actions">
-        <el-button @click="handleRefresh">
-          <el-icon><Refresh /></el-icon>
-        </el-button>
-        <el-button type="primary" @click="handleArrange">
-          <el-icon><Plus /></el-icon>
-          安排面试
-        </el-button>
-      </div>
-    </div>
+  <PageShell title="面试日历" subtitle="按周/月查看面试场次，点击可进入候选人详情">
+    <template #actions>
+      <RButton variant="outline" size="icon" @click="handleRefresh">
+        <RefreshCw class="h-4 w-4" />
+      </RButton>
+      <RButton @click="handleArrange">
+        <Plus class="mr-2 h-4 w-4" />
+        安排面试
+      </RButton>
+    </template>
 
     <!-- 日历控制栏 -->
     <div class="calendar-controls">
       <div class="control-left">
-        <el-button-group>
-          <el-button @click="handlePrev">&lt;</el-button>
-          <el-button @click="handleToday">今天</el-button>
-          <el-button @click="handleNext">&gt;</el-button>
-        </el-button-group>
+        <div class="inline-flex rounded-md border">
+          <RButton variant="ghost" size="sm" class="rounded-none border-r" @click="handlePrev">&lt;</RButton>
+          <RButton variant="ghost" size="sm" class="rounded-none border-r" @click="handleToday">今天</RButton>
+          <RButton variant="ghost" size="sm" class="rounded-none" @click="handleNext">&gt;</RButton>
+        </div>
         <span class="current-range">{{ currentRange }}</span>
       </div>
       <div class="control-right">
-        <el-radio-group v-model="viewMode" @change="handleViewChange">
-          <el-radio-button label="week">周</el-radio-button>
-          <el-radio-button label="month">月</el-radio-button>
-        </el-radio-group>
+        <div class="inline-flex rounded-md border p-1">
+          <RButton size="sm" :variant="viewMode === 'week' ? 'default' : 'ghost'" @click="viewMode = 'week'; handleViewChange()">周</RButton>
+          <RButton size="sm" :variant="viewMode === 'month' ? 'default' : 'ghost'" @click="viewMode = 'month'; handleViewChange()">月</RButton>
+        </div>
         <div class="legend">
           <span class="legend-item">
-            <span class="legend-dot" style="background: #3B82F6"></span> 初面
+            <span class="legend-dot legend-dot--primary"></span> 初面
           </span>
           <span class="legend-item">
-            <span class="legend-dot" style="background: #059669"></span> 复试
+            <span class="legend-dot legend-dot--success"></span> 复试
           </span>
           <span class="legend-item">
-            <span class="legend-dot" style="background: #D97706"></span> 待安排
+            <span class="legend-dot legend-dot--warning"></span> 待安排
           </span>
         </div>
       </div>
@@ -120,13 +113,16 @@
         </div>
       </div>
     </div>
-  </div>
+</PageShell>
 </template>
 
 <script setup lang="ts">
+import PageShell from '@/components/Layout/PageShell.vue'
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { Plus, RefreshCw } from 'lucide-vue-next'
+import { toast } from '@/lib/notify'
+import { RButton } from '@/components/ui'
 import EmptyStateCta from '@/components/common/EmptyStateCta.vue'
 import { getInterviewList } from '@/api/modules/interview'
 
@@ -223,9 +219,9 @@ function getEventHeight() {
 }
 
 function getEventColor(event: any) {
-  if (event.round === 'SECOND') return '#059669'
-  if (event.status === 'PENDING_ARRANGE') return '#D97706'
-  return '#3B82F6'
+  if (event.round === 'SECOND') return '$success-color'
+  if (event.status === 'PENDING_ARRANGE') return '$warning-color'
+  return '$primary-color'
 }
 
 function handlePrev() {
@@ -250,7 +246,7 @@ function handleViewChange() {}
 
 function handleRefresh() {
   loadData()
-  ElMessage.success('刷新成功')
+  toast.success('刷新成功')
 }
 
 function handleArrange() {
@@ -264,7 +260,7 @@ function handleEventClick(event: any) {
     router.push({ path: `/pipeline/candidates/${event.candidateId}`, query })
     return
   }
-  ElMessage.info(`${event.candidateName} · ${event.jobTitle || '在招职位'}`)
+  toast.info(`${event.candidateName} · ${event.jobTitle || '在招职位'}`)
 }
 
 async function loadData() {
@@ -307,7 +303,7 @@ onMounted(() => { loadData() })
 }
 
 .current-range {
-  font-size: 15px;
+  font-size: $text-heading-sm;
   font-weight: 600;
   color: $text-primary;
 }
@@ -337,6 +333,10 @@ onMounted(() => { loadData() })
   height: 8px;
   border-radius: 50%;
 }
+
+.legend-dot--primary { background: $primary-color; }
+.legend-dot--success { background: $success-color; }
+.legend-dot--warning { background: $warning-color; }
 
 // ── 周视图 ──────────────────────────────
 .week-view {

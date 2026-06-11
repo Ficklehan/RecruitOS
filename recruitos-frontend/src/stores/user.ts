@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import { loginApi, logoutApi, getCurrentUserApi } from '@/api/modules/auth'
 import { getPlatformAdminInfo, platformLogoutApi } from '@/api/modules/platform'
 import { getToken, setToken, removeToken } from '@/utils/auth'
-import { ElMessage } from 'element-plus'
+import { toast } from '@/lib/notify'
 
 interface UserInfo {
   id: number
@@ -34,7 +34,7 @@ export const useUserStore = defineStore('user', () => {
       setToken(data.token)
       return data
     } catch (error: any) {
-      ElMessage.error(error.message || '登录失败')
+      toast.error(error.message || '登录失败')
       throw error
     }
   }

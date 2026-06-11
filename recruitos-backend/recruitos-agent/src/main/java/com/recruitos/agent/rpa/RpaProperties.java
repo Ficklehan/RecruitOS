@@ -7,8 +7,14 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "recruitos.agent.rpa")
 public class RpaProperties {
 
-    /** 启用 Playwright 真实 RPA；false 时使用模拟适配器 */
+    /** 启用寻源编排与 RPA 模块；false 时 Campaign 调度器不运行 */
     private boolean enabled = true;
+
+    /**
+     * 是否允许真实访问 Boss直聘 / 猎聘（网络 + Playwright）。
+     * 测试阶段务必保持 false，仅走模拟数据；手动联调平台时再显式开启。
+     */
+    private boolean platformAccessEnabled = false;
 
     /** 无头模式；首次扫码登录建议 false */
     private boolean headless = false;
@@ -34,6 +40,19 @@ public class RpaProperties {
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
+    }
+
+    public boolean isPlatformAccessEnabled() {
+        return platformAccessEnabled;
+    }
+
+    public void setPlatformAccessEnabled(boolean platformAccessEnabled) {
+        this.platformAccessEnabled = platformAccessEnabled;
+    }
+
+    /** 同时满足模块启用与平台实况开关时，才允许连接真实招聘平台 */
+    public boolean isPlatformAccessAllowed() {
+        return enabled && platformAccessEnabled;
     }
 
     public boolean isHeadless() {

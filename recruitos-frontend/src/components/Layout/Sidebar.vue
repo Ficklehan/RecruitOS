@@ -1,28 +1,17 @@
-<template>
-  <aside class="sub-sidebar" v-if="sidebarMenu">
-    <div class="sub-sidebar-header">
-      <span class="sub-sidebar-title">{{ sidebarMenu.label }}</span>
-    </div>
-    <nav class="sub-menu-list" aria-label="子导航">
-      <div
-        v-for="child in sidebarMenu.children"
-        :key="child.path"
-        class="sub-menu-item"
-        :class="{ active: isActive(child.path) }"
-        @click="router.push(child.path)"
-      >
-        <el-icon v-if="child.icon" :size="16"><component :is="child.icon" /></el-icon>
-        <span>{{ child.label }}</span>
-      </div>
-    </nav>
-  </aside>
-</template>
-
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { cn } from '@/lib/utils'
 import { useUserStore } from '@/stores/user'
 import { topNavMenus, filterMenus } from '@/config/menus'
+import { resolveActionIcon } from '@/lib/actionIcons'
+import { RScrollArea } from '@/components/ui'
+
+interface Props {
+  collapsed?: boolean
+}
+
+const props = defineProps<Props>()
 
 const route = useRoute()
 const router = useRouter()
@@ -31,7 +20,11 @@ const userStore = useUserStore()
 const sidebarMenu = computed(() => {
   const menus = filterMenus(topNavMenus, userStore.permissions)
   const topKey = route.path.split('/')[1]
-  return menus.find(m => m.key === topKey) || null
+  // First try exact key match
+  const exact = menus.find(m => m.key === topKey)
+  if (exact) return exact
+  // Then try matching by child path prefix
+  return menus.find(m => m.children?.some(c => route.path.startsWith(c.path))) || null
 })
 
 function isActive(path: string) {
@@ -39,84 +32,52 @@ function isActive(path: string) {
 }
 </script>
 
-<style lang="scss" scoped>
-@import '@/assets/styles/variables.scss';
+<template>
+  <aside
+    v-if="sidebarMenu"
+    :class="cn(
+      'fixed top-[var(--r-header-height)] left-0 bottom-0 bg-bg-card z-[var(--r-z-sidebar)] flex flex-col transition-all duration-200 border-r border-divider',
+      collapsed ? 'w-[var(--r-sidebar-collapsed)]' : 'w-[var(--r-sidebar-width)]',
+    )"
+  >
+    <!-- Section title -->
+    <div :class="cn('px-4 pt-5 pb-3', collapsed && 'px-2 pt-5 text-center')">
+      <h3 v-if="!collapsed" class="text-[11px] font-semibold text-text-placeholder uppercase tracking-wider">
+        {{ sidebarMenu.label }}
+      </h3>
+      <div v-else class="w-6 h-0.5 bg-bg-muted mx-auto rounded-full" />
+    </div>
 
-.sub-sidebar {
-  position: fixed;
-  top: $topnav-height;
-  left: 0;
-  bottom: 0;
-  width: $sub-sidebar-width;
-  background: $bg-card;
-  border-right: 1px solid $border-color;
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-  z-index: 100;
-}
-
-.sub-sidebar-header {
-  padding: 18px 16px 10px;
-}
-
-.sub-sidebar-title {
-  font-size: 11px;
-  font-weight: 600;
-  color: $text-placeholder;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.sub-menu-list {
-  padding: 4px 10px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.sub-menu-item {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 9px 12px;
-  border-radius: $border-radius-sm;
-  font-size: 14px;
-  font-weight: 450;
-  color: $text-secondary;
-  cursor: pointer;
-  transition: background-color $transition-fast, color $transition-fast;
-
-  .el-icon {
-    color: inherit;
-    opacity: 0.65;
-  }
-
-  &:hover {
-    background: $bg-muted;
-    color: $text-primary;
-  }
-
-  &.active {
-    background: $primary-lighter;
-    color: $primary-color;
-    font-weight: 500;
-
-    &::before {
-      content: '';
-      position: absolute;
-      left: 0;
-      top: 8px;
-      bottom: 8px;
-      width: 3px;
-      border-radius: 0 2px 2px 0;
-      background: $sidebar-active-bar;
-    }
-
-    .el-icon {
-      opacity: 1;
-    }
-  }
-}
-</style>
+    <!-- Menu items -->
+    <RScrollArea class="flex-1">
+      <nav class="px-2 pb-4">
+        <div class="space-y-0.5">
+          <div
+            v-for="child in sidebarMenu.children"
+            :key="child.path"
+            :class="cn(
+              'relative flex items-center gap-3 rounded-[var(--r-radius-sm)] px-3 py-2.5 text-[13px] font-medium transition-all duration-200 cursor-pointer',
+              isActive(child.path)
+                ? 'bg-primary-light text-primary'
+                : 'text-text-secondary hover:bg-bg-hover hover:text-text-primary',
+              collapsed && 'justify-center px-2',
+            )"
+            :title="collapsed ? child.label : undefined"
+            @click="router.push(child.path)"
+          >
+            <!-- Active indicator bar -->
+            <div
+              v-if="isActive(child.path)"
+              class="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-primary rounded-r-full"
+            />
+            <component
+              :is="resolveActionIcon(child.icon)"
+              :class="cn('h-4 w-4 shrink-0', !isActive(child.path) && 'opacity-50')"
+            />
+            <span v-if="!collapsed" class="truncate">{{ child.label }}</span>
+          </div>
+        </div>
+      </nav>
+    </RScrollArea>
+  </aside>
+</template>

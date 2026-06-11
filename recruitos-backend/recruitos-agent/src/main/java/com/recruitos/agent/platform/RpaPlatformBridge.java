@@ -22,6 +22,8 @@ public class RpaPlatformBridge {
     @Resource
     private RpaProperties properties;
     @Resource
+    private com.recruitos.agent.rpa.PlatformAccessRuntimeSwitch runtimeSwitch;
+    @Resource
     private SimulatedPlatformSupport simulated;
     @Resource
     private BossRpaExecutor bossRpa;
@@ -99,7 +101,7 @@ public class RpaPlatformBridge {
     }
 
     private <T> T run(AgentAccount account, Supplier<T> rpa, Supplier<T> sim) {
-        if (!properties.isEnabled()) {
+        if (!runtimeSwitch.isAccessAllowed(properties)) {
             return sim.get();
         }
         try {

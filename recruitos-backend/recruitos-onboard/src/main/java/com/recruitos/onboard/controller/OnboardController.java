@@ -50,6 +50,13 @@ public class OnboardController {
         return R.ok(vo);
     }
 
+    @ApiOperation("Submit probation feedback (HRone / demo webhook) → L6 signal")
+    @PostMapping("/{id}/probation-feedback")
+    public R<OnboardVO> submitProbationFeedback(@PathVariable Long id, @RequestBody ProbationFeedbackDTO dto) {
+        OnboardVO vo = onboardService.submitProbationFeedback(id, dto);
+        return R.ok(vo);
+    }
+
     @ApiOperation("Create a task for an onboard record")
     @PostMapping("/task")
     public R<OnboardTaskVO> createTask(@RequestBody OnboardTaskCreateDTO dto) {

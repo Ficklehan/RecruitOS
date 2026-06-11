@@ -1,5 +1,6 @@
 package com.recruitos.communication.entity;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.recruitos.common.mybatis.BaseEntity;
 
@@ -16,16 +17,19 @@ public class Conversation extends BaseEntity {
     /** Candidate ID */
     private Long candidateId;
 
-    /** Candidate name */
+    /** Candidate name (joined in service layer, not a DB column) */
+    @TableField(exist = false)
     private String candidateName;
 
     /** Job ID */
     private Long jobId;
 
-    /** Job title */
+    /** Job title (joined in service layer, not a DB column) */
+    @TableField(exist = false)
     private String jobTitle;
 
-    /** Channel: SMS / EMAIL / WECHAT / FEISHU */
+    /** Channel / platform: BOSS / LIEPIN / etc. */
+    @TableField("platform")
     private String channel;
 
     /** Status: ACTIVE / CLOSED */
@@ -37,7 +41,8 @@ public class Conversation extends BaseEntity {
     /** Message count */
     private Integer messageCount;
 
-    /** Created by user ID */
+    /** Created by user ID (not persisted on conversation table) */
+    @TableField(exist = false)
     private Long createdBy;
 
     // Getters and Setters

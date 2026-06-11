@@ -1,106 +1,149 @@
 <template>
-  <ListPageLayout
+  <PageShell variant="list"
     v-if="isDev"
     title="UI 体系预览"
-    subtitle="用于快速验证 token、骨架、筛选、统计、表格节奏是否收敛为统一系统"
+    subtitle="shadcn-vue + RecruitOS 设计令牌 — 开发环境验收用"
   >
     <template #actions>
-      <el-button @click="resetFilters">重置</el-button>
-      <el-button type="primary">主操作</el-button>
+      <Button variant="outline" @click="resetFilters">重置</Button>
+      <Button>主操作</Button>
     </template>
 
-    <div class="stat-row">
-      <div class="stat-card" v-for="s in stats" :key="s.label">
-        <div class="stat-icon" :style="{ background: s.bg, color: s.color }">{{ s.icon }}</div>
-        <div>
-          <div class="stat-label">{{ s.label }}</div>
-          <div class="stat-value">{{ s.value }}</div>
-        </div>
-      </div>
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-2">
+      <StatCard
+        v-for="s in stats"
+        :key="s.label"
+        :label="s.label"
+        :value="s.value"
+        :icon="s.icon"
+        :color="s.color"
+        :trend="s.trend"
+      />
     </div>
 
     <template #filters>
-      <el-input v-model="keyword" placeholder="搜索候选人、职位、需求" clearable class="filter-field filter-field--lg" />
-      <el-select v-model="status" placeholder="状态" clearable class="filter-field filter-field--sm">
-        <el-option label="全部" value="" />
-        <el-option label="进行中" value="ACTIVE" />
-        <el-option label="待处理" value="PENDING" />
-      </el-select>
+      <Input v-model="keyword" placeholder="搜索候选人、职位、需求" class="w-full sm:w-72" />
+      <Select v-model="status" :options="statusOptions" placeholder="状态" clearable class="w-full sm:w-40" />
     </template>
     <template #filterActions>
-      <el-button type="primary">搜索</el-button>
+      <Button>搜索</Button>
     </template>
 
-    <el-table :data="rows" style="width: 100%">
-      <el-table-column prop="name" label="名称" min-width="160">
-        <template #default="{ row }">
-          <span class="title-link">{{ row.name }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column prop="owner" label="负责人" width="120" />
-      <el-table-column prop="status" label="状态" width="100" align="center">
-        <template #default="{ row }">
-          <el-tag size="small" :type="row.statusType">{{ row.status }}</el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column prop="updatedAt" label="更新时间" width="180" />
-    </el-table>
-  </ListPageLayout>
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>名称</TableHead>
+          <TableHead class="w-[120px]">负责人</TableHead>
+          <TableHead class="w-[100px] text-center">状态</TableHead>
+          <TableHead class="w-[180px]">更新时间</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        <TableRow v-for="row in filteredRows" :key="row.name">
+          <TableCell>
+            <span class="font-medium text-primary">{{ row.name }}</span>
+          </TableCell>
+          <TableCell>{{ row.owner }}</TableCell>
+          <TableCell class="text-center">
+            <Badge :variant="row.badge">{{ row.status }}</Badge>
+          </TableCell>
+          <TableCell class="text-muted-foreground">{{ row.updatedAt }}</TableCell>
+        </TableRow>
+      </TableBody>
+    </Table>
+
+    <div class="mt-8 grid gap-4 lg:grid-cols-2">
+      <Card class="p-6 space-y-4">
+        <h3 class="font-semibold">按钮变体</h3>
+        <div class="flex flex-wrap gap-2">
+          <Button>Default</Button>
+          <Button variant="secondary">Secondary</Button>
+          <Button variant="outline">Outline</Button>
+          <Button variant="ghost">Ghost</Button>
+          <Button variant="destructive">Destructive</Button>
+        </div>
+      </Card>
+      <Card class="p-6 space-y-4">
+        <h3 class="font-semibold">表单控件</h3>
+        <div class="space-y-3">
+          <Input v-model="demoInput" placeholder="Input" />
+          <Textarea v-model="demoText" placeholder="Textarea" :rows="2" />
+          <Select v-model="demoSelect" :options="statusOptions" placeholder="Select" />
+        </div>
+      </Card>
+    </div>
+  </PageShell>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import ListPageLayout from '@/components/Layout/ListPageLayout.vue'
+import { ref, computed } from 'vue'
+import { Briefcase, Clock, CheckCircle2, AlertTriangle } from 'lucide-vue-next'
+import PageShell from '@/components/Layout/PageShell.vue'
+import StatCard from '@/components/StatCard.vue'
+import {
+  Button,
+  Input,
+  Select,
+  Badge,
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+  Card,
+  Textarea,
+} from '@/components/ui'
+import type { BadgeVariant } from '@/lib/badgeVariants'
 
 const isDev = import.meta.env.DEV
 
 const keyword = ref('')
-const status = ref('')
+const status = ref<string | undefined>()
+const demoInput = ref('')
+const demoText = ref('')
+const demoSelect = ref<string | undefined>()
+
+const statusOptions = [
+  { label: '进行中', value: 'ACTIVE' },
+  { label: '待处理', value: 'PENDING' },
+  { label: '已完成', value: 'DONE' },
+]
 
 const stats = [
-  { label: '进行中', value: 128, icon: '◎', bg: '#EFF6FF', color: '#3B82F6' },
-  { label: '待处理', value: 36, icon: '!', bg: '#FEF3C7', color: '#D97706' },
-  { label: '已完成', value: 512, icon: '✓', bg: '#D1FAE5', color: '#059669' },
-  { label: '高风险', value: 7, icon: '△', bg: '#FEE2E2', color: '#DC2626' },
+  { label: '进行中', value: 128, icon: Briefcase, color: '#4F6BED', trend: 12 },
+  { label: '待处理', value: 36, icon: Clock, color: '#D97706', trend: -4 },
+  { label: '已完成', value: 512, icon: CheckCircle2, color: '#16A34A', trend: 8 },
+  { label: '高风险', value: 7, icon: AlertTriangle, color: '#DC2626', trend: -2 },
 ]
 
-const rows = [
-  { name: '高级前端工程师 - 招聘池', owner: '李想', status: '进行中', statusType: 'success', updatedAt: '2026-06-09 10:12' },
-  { name: 'Java 后端候选人 - 王磊', owner: '赵敏', status: '待处理', statusType: 'warning', updatedAt: '2026-06-09 09:41' },
-  { name: '产品负责人 Offer 审批', owner: '陈晨', status: '已完成', statusType: 'info', updatedAt: '2026-06-08 18:26' },
+const rows: Array<{
+  name: string
+  owner: string
+  status: string
+  badge: BadgeVariant
+  updatedAt: string
+}> = [
+  { name: '高级前端工程师 - 招聘池', owner: '李想', status: '进行中', badge: 'default', updatedAt: '2026-06-09 10:12' },
+  { name: 'Java 后端候选人 - 王磊', owner: '赵敏', status: '待处理', badge: 'outline', updatedAt: '2026-06-09 09:41' },
+  { name: '产品负责人 Offer 审批', owner: '陈晨', status: '已完成', badge: 'secondary', updatedAt: '2026-06-08 18:26' },
 ]
+
+const filteredRows = computed(() => {
+  return rows.filter((r) => {
+    const kw = keyword.value.trim()
+    const matchKw = !kw || r.name.includes(kw) || r.owner.includes(kw)
+    const matchStatus =
+      !status.value ||
+      (status.value === 'ACTIVE' && r.status === '进行中') ||
+      (status.value === 'PENDING' && r.status === '待处理') ||
+      (status.value === 'DONE' && r.status === '已完成')
+    return matchKw && matchStatus
+  })
+})
 
 function resetFilters() {
   keyword.value = ''
-  status.value = ''
+  status.value = undefined
 }
 </script>
-
-<style scoped lang="scss">
-@import '@/assets/styles/variables.scss';
-
-.header-actions { display: flex; gap: $spacing-sm; }
-
-.stat-card {
-  background: $bg-card;
-  border: 1px solid $border-color;
-  border-radius: $border-radius;
-  padding: $spacing-lg $spacing-xl;
-  display: flex;
-  align-items: center;
-  gap: $spacing-md;
-}
-
-.stat-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: $border-radius-sm;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-}
-
-.stat-label { font-size: 12px; color: $text-secondary; }
-.stat-value { font-size: 20px; font-weight: 700; color: $text-primary; }
-</style>

@@ -1,37 +1,40 @@
 <template>
-  <div class="audit-timeline" v-loading="loading">
+  <div class="audit-timeline relative">
+    <div v-if="loading" class="absolute inset-0 z-10 flex items-center justify-center bg-background/60 rounded-lg">
+      <Loader2 class="h-6 w-6 animate-spin text-primary" />
+    </div>
+
     <div v-if="events.length" class="audit-toolbar">
-      <el-button size="small" @click="exportCsv">
-        <el-icon><Download /></el-icon>
+      <Button size="sm" variant="outline" @click="exportCsv">
+        <Download class="mr-2 h-4 w-4" />
         导出 CSV
-      </el-button>
+      </Button>
     </div>
 
     <EmptyStateCta
-      v-if="!events.length"
+      v-if="!events.length && !loading"
       title="暂无变更记录"
       description="确认或更新招人方式、采纳优化建议后，记录会显示在这里。"
     />
 
-    <el-timeline v-else>
-      <el-timeline-item
-        v-for="ev in events"
-        :key="ev.id"
-        :timestamp="formatTime(ev.time)"
-        :type="ev.type"
-        placement="top"
-      >
-        <div class="event-title">{{ ev.title }}</div>
-        <div v-if="ev.detail" class="event-detail">{{ ev.detail }}</div>
-      </el-timeline-item>
-    </el-timeline>
+    <div v-else class="timeline-list">
+      <div v-for="ev in events" :key="ev.id" class="timeline-entry">
+        <div class="timeline-marker" :class="`marker-${ev.type || 'info'}`" />
+        <div class="timeline-body">
+          <div class="timeline-time">{{ formatTime(ev.time) }}</div>
+          <div class="event-title">{{ ev.title }}</div>
+          <div v-if="ev.detail" class="event-detail">{{ ev.detail }}</div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
-import { Download } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+import { Download, Loader2 } from 'lucide-vue-next'
+import { toast } from '@/lib/notify'
+import { Button } from '@/components/ui'
 import EmptyStateCta from '@/components/common/EmptyStateCta.vue'
 import { OBJECTS } from '@/constants/businessLabels'
 import { opsPackHumanSummary, proposalTypeLabel } from '@/utils/opsPackSummary'
@@ -120,7 +123,7 @@ async function load() {
 
 function exportCsv() {
   if (!events.value.length) {
-    ElMessage.warning('暂无记录可导出')
+    toast.error('暂无记录可导出')
     return
   }
   const header = '时间,事件,详情\n'
@@ -137,7 +140,7 @@ function exportCsv() {
   a.download = `job-${props.jobId}-audit-${new Date().toISOString().slice(0, 10)}.csv`
   a.click()
   URL.revokeObjectURL(url)
-  ElMessage.success('变更记录已导出')
+  toast.success('变更记录已导出')
 }
 
 watch(() => props.jobId, load, { immediate: true })
@@ -146,8 +149,49 @@ onMounted(load)
 defineExpose({ reload: load })
 </script>
 
-<style scoped>
+<style scoped lang="scss">
+@import '@/assets/styles/variables.scss';
+
 .audit-toolbar { display: flex; justify-content: flex-end; margin-bottom: 12px; }
+
+.timeline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding-left: 20px;
+  border-left: 2px solid $border-color;
+}
+
+.timeline-entry {
+  display: flex;
+  gap: 16px;
+  padding: 12px 0 12px 8px;
+  position: relative;
+}
+
+.timeline-marker {
+  position: absolute;
+  left: -27px;
+  top: 18px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: $text-secondary;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 2px $border-color;
+
+  &.marker-success { background: $success-color; }
+  &.marker-primary { background: $primary-color; }
+  &.marker-warning { background: $warning-color; }
+  &.marker-danger { background: $danger-color; }
+}
+
+.timeline-time {
+  font-size: 12px;
+  color: $text-secondary;
+  margin-bottom: 4px;
+}
+
 .event-title { font-weight: 600; color: #0f172a; font-size: 14px; }
 .event-detail { font-size: 13px; color: #64748b; margin-top: 4px; line-height: 1.5; }
 </style>

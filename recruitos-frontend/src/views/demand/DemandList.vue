@@ -1,140 +1,163 @@
 <template>
-  <ListPageLayout
+  <PageShell variant="list"
     title="招聘需求"
     subtitle="部门提出的用人申请，审批通过后可创建在招职位"
   >
     <template #actions>
-      <el-button type="primary" @click="handleCreate">
-        <el-icon><Plus /></el-icon>
+      <RButton @click="handleCreate">
+        <Plus class="mr-2 h-4 w-4" />
         创建招聘需求
-      </el-button>
+      </RButton>
     </template>
 
     <template #filters>
-      <el-input
+      <RInput
         v-model="queryParams.title"
         placeholder="搜索招聘需求"
-        :prefix-icon="Search"
-        clearable
-        class="filter-field filter-field--lg"
+        class="w-full sm:w-64"
         @keyup.enter="handleSearch"
       />
-      <el-select v-model="queryParams.orgId" placeholder="所属部门" clearable class="filter-field filter-field--md">
-        <el-option v-for="dept in departmentOptions" :key="dept.value" :label="dept.label" :value="dept.value" />
-      </el-select>
-      <el-select v-model="queryParams.status" placeholder="需求状态" clearable class="filter-field filter-field--sm">
-        <el-option v-for="s in statusOptions" :key="s.value" :label="s.label" :value="s.value" />
-      </el-select>
-      <el-select v-model="queryParams.urgency" placeholder="紧急程度" clearable class="filter-field filter-field--sm">
-        <el-option v-for="u in urgencyOptions" :key="u.value" :label="u.label" :value="u.value" />
-      </el-select>
+      <RSelect
+        v-model="queryParams.orgId"
+        :options="departmentOptions"
+        placeholder="所属部门"
+        clearable
+        class="w-full sm:w-44"
+      />
+      <RSelect
+        v-model="queryParams.status"
+        :options="statusOptions"
+        placeholder="需求状态"
+        clearable
+        class="w-full sm:w-40"
+      />
+      <RSelect
+        v-model="queryParams.urgency"
+        :options="urgencyOptions"
+        placeholder="紧急程度"
+        clearable
+        class="w-full sm:w-40"
+      />
     </template>
+
     <template #filterActions>
-      <el-button type="primary" @click="handleSearch">
-        <el-icon><Search /></el-icon>
+      <RButton @click="handleSearch">
+        <Search class="mr-2 h-4 w-4" />
         搜索
-      </el-button>
-      <el-button @click="handleReset">
-        <el-icon><RefreshRight /></el-icon>
+      </RButton>
+      <RButton variant="outline" @click="handleReset">
+        <RefreshCw class="mr-2 h-4 w-4" />
         重置
-      </el-button>
+      </RButton>
     </template>
 
-    <el-table v-if="demandList.length" :data="demandList" highlight-current-row style="width: 100%">
-        <el-table-column prop="demandNo" label="需求编号" width="140" show-overflow-tooltip />
-        <el-table-column prop="title" label="需求标题" min-width="200" show-overflow-tooltip>
-          <template #default="{ row }">
-            <span class="title-link" @click="handleView(row)">{{ row.title }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="department" label="部门" width="120" />
-        <el-table-column prop="headCount" label="招聘人数" width="100" align="center" />
-        <el-table-column prop="jobLevel" label="级别" width="80" align="center" />
-        <el-table-column label="薪酬范围" width="160" align="center">
-          <template #default="{ row }">
+    <RTable v-if="demandList.length">
+      <RTableHead>
+        <RTableRow>
+          <RTableTh class="w-[140px]">需求编号</RTableTh>
+          <RTableTh class="min-w-[200px]">需求标题</RTableTh>
+          <RTableTh class="w-[120px]">部门</RTableTh>
+          <RTableTh class="w-[100px] text-center">招聘人数</RTableTh>
+          <RTableTh class="w-[80px] text-center">级别</RTableTh>
+          <RTableTh class="w-[160px] text-center">薪酬范围</RTableTh>
+          <RTableTh class="w-[100px] text-center">紧急程度</RTableTh>
+          <RTableTh class="w-[100px] text-center">状态</RTableTh>
+          <RTableTh class="w-[100px]">创建人</RTableTh>
+          <RTableTh class="w-[170px]">创建时间</RTableTh>
+          <RTableTh class="w-[100px] text-center">操作</RTableTh>
+        </RTableRow>
+      </RTableHead>
+      <RTableBody>
+        <RTableRow v-for="row in demandList" :key="row.id">
+          <RTableCell class="font-mono text-xs text-muted-foreground">{{ row.demandNo }}</RTableCell>
+          <RTableCell>
+            <button type="button" class="font-medium text-primary hover:underline" @click="handleView(row)">
+              {{ row.title }}
+            </button>
+          </RTableCell>
+          <RTableCell>{{ row.department }}</RTableCell>
+          <RTableCell class="text-center">{{ row.headCount }}</RTableCell>
+          <RTableCell class="text-center">{{ row.jobLevel }}</RTableCell>
+          <RTableCell class="text-center text-sm">
             {{ formatSalary(row.salaryMin) }}K - {{ formatSalary(row.salaryMax) }}K
-          </template>
-        </el-table-column>
-        <el-table-column prop="urgency" label="紧急程度" width="100" align="center">
-          <template #default="{ row }">
-            <el-tag :type="getUrgencyType(row.urgency)" size="small" disable-transitions>
-              {{ getUrgencyLabel(row.urgency) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="status" label="状态" width="100" align="center">
-          <template #default="{ row }">
-            <el-tag :type="getStatusType(row.status)" size="small" disable-transitions>
-              {{ getStatusLabel(row.status) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="createdBy" label="创建人" width="100" />
-        <el-table-column prop="createdAt" label="创建时间" width="170" />
-        <el-table-column label="操作" width="240" fixed="right">
-          <template #default="{ row }">
-            <el-button type="primary" link size="small" @click="handleView(row)">查看</el-button>
-            <el-button
-              v-if="row.status === 'DRAFT' || row.status === 'REJECTED'"
-              type="primary" link size="small"
-              @click="handleEdit(row)"
-            >编辑</el-button>
-            <el-button
-              v-if="row.status === 'DRAFT' || row.status === 'REJECTED'"
-              type="success" link size="small"
-              @click="handleSubmit(row)"
-            >提交</el-button>
-            <el-button
-              v-if="row.status !== 'CLOSED' && row.status !== 'COMPLETED'"
-              type="danger" link size="small"
-              @click="handleClose(row)"
-            >关闭</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+          </RTableCell>
+          <RTableCell class="text-center">
+            <RBadge :variant="urgencyBadge(row.urgency)">{{ getUrgencyLabel(row.urgency) }}</RBadge>
+          </RTableCell>
+          <RTableCell class="text-center">
+            <RBadge :variant="demandStatusBadge(row.status)">{{ getStatusLabel(row.status) }}</RBadge>
+          </RTableCell>
+          <RTableCell>{{ row.createdBy }}</RTableCell>
+          <RTableCell class="text-muted-foreground">{{ row.createdAt }}</RTableCell>
+          <RTableCell class="text-center">
+            <RowActions :actions="getRowActions(row) as any" @action="(cmd) => handleRowCommand(cmd, row)" />
+          </RTableCell>
+        </RTableRow>
+      </RTableBody>
+    </RTable>
 
-      <EmptyStateCta
-        v-else
-        title="暂无招聘需求"
-        description="创建招聘需求并提交审批后，可据此创建在招职位并开始招聘"
-        :actions="[
-          { label: '创建招聘需求', type: 'primary', onClick: handleCreate },
-          { label: '查看在招职位', type: 'default', onClick: () => router.push('/planning/jobs') },
-        ]"
-      />
+    <EmptyStateCta
+      v-else
+      title="暂无招聘需求"
+      description="创建招聘需求并提交审批后，可据此创建在招职位并开始招聘"
+      :actions="[
+        { label: '创建招聘需求', type: 'primary', onClick: handleCreate },
+        { label: '查看在招职位', type: 'default', onClick: () => router.push('/planning/jobs') },
+      ]"
+    />
 
-    <div v-if="total > 0" class="data-card-footer">
-      <el-pagination
-        v-model:current-page="queryParams.pageNum"
-        v-model:page-size="queryParams.pageSize"
-        :page-sizes="[10, 20, 50, 100]"
-        :total="total"
-        layout="total, sizes, prev, pager, next, jumper"
-        @size-change="handleSearch"
-        @current-change="handleSearch"
-      />
-    </div>
-  </ListPageLayout>
+    <ListPagination
+      v-if="total > 0"
+      v-model:page-num="queryParams.pageNum"
+      v-model:page-size="queryParams.pageSize"
+      :total="total"
+      @change="loadData"
+    />
+
+    <ConfirmDialog
+      v-model:open="confirmState.open"
+      :title="confirmState.title"
+      :message="confirmState.message"
+      :destructive="confirmState.destructive"
+      :confirm-text="confirmState.confirmText"
+      @confirm="confirmState.onConfirm?.()"
+    />
+  </PageShell>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Plus, RefreshRight } from '@element-plus/icons-vue'
-import ListPageLayout from '@/components/Layout/ListPageLayout.vue'
+import { Plus, Search, RefreshCw } from 'lucide-vue-next'
+import RowActions from '@/components/common/RowActions.vue'
+import PageShell from '@/components/Layout/PageShell.vue'
 import EmptyStateCta from '@/components/common/EmptyStateCta.vue'
+import ListPagination from '@/components/common/ListPagination.vue'
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
+import {
+  RButton,
+  RInput,
+  RSelect,
+  RBadge,
+  RTable,
+  RTableHead,
+  RTableBody,
+  RTableRow,
+  RTableTh,
+  RTableCell,
+} from '@/components/ui'
 import { demandStatusLabel } from '@/constants/businessLabels'
+import { demandStatusBadge, urgencyBadge } from '@/lib/badgeVariants'
+import { toast } from '@/lib/notify'
 import { getDemandList, submitDemand, closeDemand } from '@/api/modules/demand'
 
 const router = useRouter()
 
-// 查询参数
 const queryParams = reactive({
   title: '',
-  orgId: '',
-  status: '',
-  urgency: '',
+  orgId: undefined as string | undefined,
+  status: undefined as string | undefined,
+  urgency: undefined as string | undefined,
   pageNum: 1,
   pageSize: 20,
 })
@@ -142,7 +165,15 @@ const queryParams = reactive({
 const total = ref(0)
 const demandList = ref<any[]>([])
 
-// 下拉选项
+const confirmState = reactive({
+  open: false,
+  title: '',
+  message: '',
+  confirmText: '确定',
+  destructive: false,
+  onConfirm: null as null | (() => void),
+})
+
 const departmentOptions = [
   { label: '技术部', value: '技术部' },
   { label: '产品部', value: '产品部' },
@@ -169,40 +200,14 @@ const urgencyOptions = [
   { label: '特急', value: 'CRITICAL' },
 ]
 
-// 格式化薪资
-function formatSalary(val: any): string {
+function formatSalary(val: unknown): string {
   if (val == null) return '-'
   const num = Number(val)
-  return isNaN(num) ? String(val) : num.toFixed(0)
-}
-
-// 状态标签映射
-function getStatusType(status: string) {
-  const map: Record<string, string> = {
-    DRAFT: 'info',
-    PENDING: 'warning',
-    APPROVED: 'success',
-    REJECTED: 'danger',
-    JOB_CREATED: 'primary',
-    RECRUITING: 'warning',
-    COMPLETED: 'success',
-    CLOSED: 'info',
-  }
-  return map[status] || 'info'
+  return Number.isNaN(num) ? String(val) : num.toFixed(0)
 }
 
 function getStatusLabel(status: string) {
   return demandStatusLabel(status)
-}
-
-// 紧急程度标签映射
-function getUrgencyType(level: string) {
-  const map: Record<string, string> = {
-    NORMAL: 'info',
-    URGENT: 'warning',
-    CRITICAL: 'danger',
-  }
-  return map[level] || 'info'
 }
 
 function getUrgencyLabel(level: string) {
@@ -214,7 +219,39 @@ function getUrgencyLabel(level: string) {
   return map[level] || level
 }
 
-// 加载数据
+function openConfirm(
+  title: string,
+  message: string,
+  onConfirm: () => void,
+  opts?: { destructive?: boolean; confirmText?: string }
+) {
+  confirmState.title = title
+  confirmState.message = message
+  confirmState.destructive = opts?.destructive ?? false
+  confirmState.confirmText = opts?.confirmText ?? '确定'
+  confirmState.onConfirm = () => {
+    confirmState.open = false
+    onConfirm()
+  }
+  confirmState.open = true
+}
+
+function getRowActions(_row: unknown) {
+  return [
+    { command: 'view', label: '查看', icon: 'View', type: 'primary', primary: true },
+    { command: 'edit', label: '编辑', icon: 'Edit' },
+    { command: 'submit', label: '提交审批', icon: 'Promotion' },
+    { command: 'close', label: '关闭', icon: 'CircleClose', divided: true },
+  ]
+}
+
+function handleRowCommand(cmd: string, row: any) {
+  if (cmd === 'view') handleView(row)
+  else if (cmd === 'edit') handleEdit(row)
+  else if (cmd === 'submit') handleSubmit(row)
+  else if (cmd === 'close') handleClose(row)
+}
+
 async function loadData() {
   try {
     const res: any = await getDemandList(queryParams)
@@ -233,9 +270,9 @@ function handleSearch() {
 
 function handleReset() {
   queryParams.title = ''
-  queryParams.orgId = ''
-  queryParams.status = ''
-  queryParams.urgency = ''
+  queryParams.orgId = undefined
+  queryParams.status = undefined
+  queryParams.urgency = undefined
   handleSearch()
 }
 
@@ -251,50 +288,21 @@ function handleEdit(row: any) {
   router.push(`/planning/demands/create?id=${row.id}`)
 }
 
-async function handleSubmit(row: any) {
-  try {
-    await ElMessageBox.confirm('确定要提交该需求进行审批吗？', '提交确认', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'info',
-    })
+function handleSubmit(row: any) {
+  openConfirm('提交确认', '确定要提交该需求进行审批吗？', async () => {
     await submitDemand(row.id)
-    ElMessage.success('已提交审批')
+    toast.success('已提交审批')
     loadData()
-  } catch {
-    // 取消操作
-  }
+  })
 }
 
-async function handleClose(row: any) {
-  try {
-    await ElMessageBox.confirm('确定要关闭该需求吗？关闭后不可恢复。', '关闭确认', {
-      confirmButtonText: '确定关闭',
-      cancelButtonText: '取消',
-      type: 'warning',
-    })
+function handleClose(row: any) {
+  openConfirm('关闭确认', '确定要关闭该需求吗？关闭后不可恢复。', async () => {
     await closeDemand(row.id)
-    ElMessage.success('需求已关闭')
+    toast.success('需求已关闭')
     loadData()
-  } catch {
-    // 取消操作
-  }
+  }, { destructive: true, confirmText: '确定关闭' })
 }
 
-onMounted(() => {
-  loadData()
-})
+onMounted(() => loadData())
 </script>
-
-<style lang="scss" scoped>
-@import '@/assets/styles/variables.scss';
-.title-link {
-  color: $primary-color;
-  cursor: pointer;
-  font-weight: 500;
-
-  &:hover {
-    text-decoration: underline;
-  }
-}
-</style>

@@ -4,7 +4,6 @@ import com.recruitos.agent.entity.AgentAccount;
 import com.recruitos.agent.mapper.AgentAccountMapper;
 import com.recruitos.agent.platform.RpaPlatformBridge;
 import com.recruitos.agent.rpa.PlaywrightManager;
-import com.recruitos.agent.rpa.RpaProperties;
 import com.recruitos.agent.rpa.RpaSessionStorage;
 import com.recruitos.common.exception.BizException;
 import com.recruitos.common.tenant.TenantContext;
@@ -23,15 +22,15 @@ public class RpaLoginService {
     @Resource
     private RpaPlatformBridge rpaBridge;
     @Resource
-    private RpaProperties rpaProperties;
+    private RpaSafetyService rpaSafetyService;
     @Resource
     private RpaSessionStorage sessionStorage;
     @Resource
     private PlaywrightManager playwrightManager;
 
     public Map<String, Object> interactiveLogin(Long accountId) {
-        if (!rpaProperties.isEnabled()) {
-            throw new BizException("RPA 未启用，请在配置中设置 recruitos.agent.rpa.enabled=true");
+        if (!rpaSafetyService.isPlatformAccessAllowed()) {
+            throw new BizException(rpaSafetyService.blockedMessage());
         }
         AgentAccount account = requireAccount(accountId);
         rpaBridge.login(account);
@@ -52,8 +51,12 @@ public class RpaLoginService {
         result.put("accountId", accountId);
         result.put("platform", account.getPlatform());
         result.put("sessionExists", sessionStorage.hasSession(account));
-        result.put("rpaEnabled", rpaProperties.isEnabled());
-        if (rpaProperties.isEnabled()) {
+        Map<String, Object> safety = rpaSafetyService.status();
+        result.put("rpaEnabled", safety.get("enabled"));
+        result.put("platformAccessEnabled", safety.get("platformAccessEnabled"));
+        result.put("platformAccessAllowed", safety.get("platformAccessAllowed"));
+        result.put("testingLocked", safety.get("testingLocked"));
+        if (Boolean.TRUE.equals(safety.get("platformAccessAllowed"))) {
             try {
                 rpaBridge.login(account);
                 result.put("loggedIn", true);
@@ -62,6 +65,9 @@ public class RpaLoginService {
                 result.put("loggedIn", false);
                 result.put("message", e.getMessage());
             }
+        } else {
+            result.put("loggedIn", false);
+            result.put("message", "测试模式：未连接真实平台，仅检查本地会话文件");
         }
         return result;
     }
@@ -73,12 +79,7 @@ public class RpaLoginService {
     }
 
     public Map<String, Object> status() {
-        Map<String, Object> m = new HashMap<>();
-        m.put("enabled", rpaProperties.isEnabled());
-        m.put("headless", rpaProperties.isHeadless());
-        m.put("fallbackSimulated", rpaProperties.isFallbackSimulated());
-        m.put("sessionDir", rpaProperties.getSessionDir());
-        return m;
+        return rpaSafetyService.status();
     }
 
     private AgentAccount requireAccount(Long accountId) {

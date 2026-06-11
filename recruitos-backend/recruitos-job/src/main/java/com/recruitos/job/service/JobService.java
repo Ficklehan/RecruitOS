@@ -7,12 +7,17 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.recruitos.common.auth.CurrentUser;
 import com.recruitos.common.exception.BizException;
+import com.recruitos.common.license.LicenseQuotaService;
+import com.recruitos.common.llm.LlmChatRequest;
+import com.recruitos.common.llm.LlmClient;
 import com.recruitos.common.result.PageResult;
 import com.recruitos.common.tenant.TenantContext;
 import com.recruitos.job.dto.*;
 import com.recruitos.job.entity.JobPosition;
 import com.recruitos.job.mapper.JobPositionMapper;
 import com.recruitos.job.mapper.RecruitDemandReadMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -30,6 +35,8 @@ import java.util.concurrent.atomic.AtomicLong;
 @Service
 public class JobService {
 
+    private static final Logger log = LoggerFactory.getLogger(JobService.class);
+
     @Resource
     private JobPositionMapper jobPositionMapper;
 
@@ -38,6 +45,12 @@ public class JobService {
 
     @Resource
     private ObjectMapper objectMapper;
+
+    @Resource
+    private LicenseQuotaService licenseQuotaService;
+
+    @Resource
+    private LlmClient llmClient;
 
     private static final java.util.Set<String> ALLOWED_DEMAND_STATUS = new java.util.HashSet<>(
             java.util.Arrays.asList("APPROVED", "JOB_CREATED", "RECRUITING", "COMPLETED")
@@ -74,6 +87,7 @@ public class JobService {
         }
 
         validateDemandForJob(dto.getDemandId(), tenantId);
+        licenseQuotaService.assertCanCreateJob(tenantId);
 
         JobPosition job = new JobPosition();
         job.setTenantId(tenantId);
@@ -86,6 +100,7 @@ public class JobService {
         job.setStatus("DRAFT");
 
         jobPositionMapper.insert(job);
+        licenseQuotaService.recordJobCreated(tenantId);
 
         return convertToVO(job);
     }
@@ -287,8 +302,8 @@ public class JobService {
             throw new BizException("JD text is empty, cannot parse");
         }
 
-        // Simulate LLM parsing
-        JdParseResultVO result = simulateJdParsing(job.getJdText());
+        // LLM 解析（MiMo），失败时回退规则引擎
+        JdParseResultVO result = parseJdWithLlm(job.getJdText());
 
         // Persist parsed tags to the job
         try {
@@ -353,6 +368,47 @@ public class JobService {
         } catch (JsonProcessingException e) {
             throw new BizException("Failed to parse tags JSON");
         }
+    }
+
+    /**
+     * 使用 MiMo LLM 解析 JD；失败时回退 simulateJdParsing。
+     */
+    private JdParseResultVO parseJdWithLlm(String jdText) {
+        LlmChatRequest req = new LlmChatRequest();
+        req.setScenario("jd_parse");
+        req.setSystemPrompt(
+                "你是招聘 JD 解析专家。从岗位描述中提取技能/要求标签，输出严格 JSON，不要 markdown。"
+                        + "格式: {\"tags\":[{\"tag\":\"Java\",\"matchWeight\":0.9,\"searchWeight\":0.85,"
+                        + "\"decisionWeight\":0.7,\"locked\":false}],"
+                        + "\"entities\":{\"skills\":[\"Java\"],\"skillCount\":1}}。"
+                        + "标签 5-15 个，权重 0-1。");
+        req.setUserPrompt("请解析以下 JD：\n\n" + jdText);
+        String raw = llmClient.chat(req);
+        if (StringUtils.hasText(raw)) {
+            try {
+                String json = extractJson(raw);
+                JdParseResultVO parsed = objectMapper.readValue(json, JdParseResultVO.class);
+                if (parsed.getTags() != null && !parsed.getTags().isEmpty()) {
+                    parsed.setRawText(jdText);
+                    if (parsed.getEntities() == null) {
+                        parsed.setEntities(new HashMap<>());
+                    }
+                    return parsed;
+                }
+            } catch (Exception e) {
+                log.warn("LLM JD parse failed, fallback to rules: {}", e.getMessage());
+            }
+        }
+        return simulateJdParsing(jdText);
+    }
+
+    private String extractJson(String text) {
+        int start = text.indexOf('{');
+        int end = text.lastIndexOf('}');
+        if (start >= 0 && end > start) {
+            return text.substring(start, end + 1);
+        }
+        return text.trim();
     }
 
     /**

@@ -5,7 +5,7 @@ export function getPermissionTree() {
 }
 
 export function getPermissionList(params?: any) {
-  return request.get('/api/permission', { params }) as any
+  return request.get('/api/permission/list', { params }) as any
 }
 
 export function createPermission(data: any) {

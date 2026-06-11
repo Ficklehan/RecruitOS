@@ -1,42 +1,82 @@
 <template>
-  <div class="page-container page-stack">
-    <!-- 页面头部 -->
-    <div class="page-header">
-      <h2 class="page-title">评价管理</h2>
-      <el-button @click="goBack">
-        <el-icon><ArrowLeft /></el-icon>
-        返回
-      </el-button>
-    </div>
-
-    <!-- 面试信息 -->
-    <div class="info-card">
+  <PageShell title="评价管理">
+<div class="info-card">
       <h3 class="section-title">面试信息</h3>
-      <el-descriptions :column="3">
-        <el-descriptions-item label="候选人">{{ interviewInfo.candidateName }}</el-descriptions-item>
-        <el-descriptions-item label="岗位">{{ interviewInfo.jobTitle }}</el-descriptions-item>
-        <el-descriptions-item label="面试轮次">
-          <el-tag
-            :type="interviewInfo.round === 'INITIAL' ? 'primary' : 'success'"
-            size="small"
-            disable-transitions
-          >
+      <div class="info-grid">
+        <div class="info-item">
+          <span class="info-label">候选人</span>
+          <span class="info-value">{{ interviewInfo.candidateName }}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">岗位</span>
+          <span class="info-value">{{ interviewInfo.jobTitle }}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">面试轮次</span>
+          <RBadge :variant="interviewInfo.round === 'INITIAL' ? 'default' : 'secondary'">
             {{ interviewInfo.round === 'INITIAL' ? '初面' : '复试' }}
-          </el-tag>
-        </el-descriptions-item>
-        <el-descriptions-item label="面试官">{{ interviewInfo.interviewerName }}</el-descriptions-item>
-        <el-descriptions-item label="面试时间">{{ interviewInfo.scheduledTime }}</el-descriptions-item>
-        <el-descriptions-item label="面试形式">
-          {{ interviewInfo.format === 'ONLINE' ? '线上' : '线下' }}
-        </el-descriptions-item>
-      </el-descriptions>
+          </RBadge>
+        </div>
+        <div class="info-item">
+          <span class="info-label">面试官</span>
+          <span class="info-value">{{ interviewInfo.interviewerName }}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">面试时间</span>
+          <span class="info-value">{{ interviewInfo.scheduledTime }}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">面试形式</span>
+          <span class="info-value">{{ interviewInfo.format === 'ONLINE' ? '线上' : '线下' }}</span>
+        </div>
+      </div>
     </div>
 
-    <!-- 评价表单 -->
+    <!-- AI 追问建议 -->
+    <div class="info-card">
+      <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center gap-2">
+          <Brain class="h-4 w-4 text-primary" />
+          <h3 class="section-title !mb-0">AI 追问建议</h3>
+          <RBadge variant="outline" class="text-[10px] px-1.5 py-0 h-4">实验性</RBadge>
+        </div>
+        <RButton
+          size="sm"
+          variant="outline"
+          :disabled="aiQuestionsLoading"
+          @click="loadAiQuestions"
+        >
+          <Sparkles v-if="!aiQuestionsLoading" class="mr-1 h-3.5 w-3.5" />
+          <Loader2 v-else class="mr-1 h-3.5 w-3.5 animate-spin" />
+          {{ aiQuestionsLoading ? '生成中...' : aiQuestions.length ? '重新生成' : '生成追问' }}
+        </RButton>
+      </div>
+      <div v-if="aiQuestions.length" class="space-y-3">
+        <div
+          v-for="(q, idx) in aiQuestions"
+          :key="idx"
+          class="flex items-start gap-3 p-3 rounded-lg bg-muted/50"
+        >
+          <span class="text-xs font-bold text-primary shrink-0 mt-0.5">{{ idx + 1 }}</span>
+          <div class="min-w-0 flex-1">
+            <p class="text-sm text-foreground leading-relaxed">{{ q.question || q }}</p>
+            <p v-if="q.dimension" class="text-xs text-muted-foreground mt-1">
+              考察: {{ q.dimension }}
+            </p>
+          </div>
+        </div>
+      </div>
+      <div v-else-if="aiQuestionsError" class="text-sm text-muted-foreground py-2">
+        {{ aiQuestionsError }}
+      </div>
+      <div v-else class="text-sm text-muted-foreground py-2">
+        点击「生成追问」获取 AI 根据候选人简历和岗位要求定制的面试追问
+      </div>
+    </div>
+
     <div class="eval-card">
       <h3 class="section-title">评价内容</h3>
 
-      <!-- 决策选择 -->
       <div class="form-section">
         <label class="form-label">决策</label>
         <div class="decision-group">
@@ -47,35 +87,21 @@
             :class="{ active: form.decision === opt.value, [opt.value.toLowerCase()]: true }"
             @click="form.decision = opt.value"
           >
-            <el-icon :size="20"><component :is="opt.icon" /></el-icon>
+            <component :is="opt.icon" class="h-5 w-5" />
             <span>{{ opt.label }}</span>
           </div>
         </div>
       </div>
 
-      <!-- 总分 -->
       <div class="form-section">
         <label class="form-label">总分</label>
         <div class="score-input-row">
-          <el-input-number
-            v-model="form.totalScore"
-            :min="0"
-            :max="100"
-            :step="5"
-            size="large"
-          />
+          <NumberInput v-model="form.totalScore" :min="0" :max="100" :step="5" class="w-24" />
           <span class="score-hint">/ 100</span>
-          <el-slider
-            v-model="form.totalScore"
-            :min="0"
-            :max="100"
-            :step="1"
-            class="score-slider"
-          />
+          <RangeSlider v-model="form.totalScore" :min="0" :max="100" :step="1" class="score-slider flex-1" />
         </div>
       </div>
 
-      <!-- 评价维度 -->
       <div class="form-section">
         <label class="form-label">评价维度</label>
         <div class="dimensions-grid">
@@ -84,118 +110,117 @@
               <span class="dim-name">{{ dim.label }}</span>
               <span class="dim-score">{{ form.dimensions[dim.key]?.score || 0 }}</span>
             </div>
-            <el-slider
+            <RangeSlider
               v-model="form.dimensions[dim.key].score"
               :min="0"
               :max="100"
               :step="5"
-              :marks="{ 0: '0', 25: '25', 50: '50', 75: '75', 100: '100' }"
             />
-            <el-input
+            <RTextarea
               v-model="form.dimensions[dim.key].comment"
-              type="textarea"
               :rows="2"
               :placeholder="`请输入${dim.label}评语`"
-              class="dim-comment"
+              class="dim-comment mt-2"
             />
           </div>
         </div>
       </div>
 
-      <!-- 进化反馈 -->
       <div class="form-section">
         <label class="form-label">进化反馈 <span class="optional-tag">选填</span></label>
         <div class="evolution-section">
           <div class="evo-group">
             <span class="evo-label">确认标签</span>
             <div class="tag-list">
-              <el-check-tag
+              <button
                 v-for="tag in confirmTags"
                 :key="tag"
-                :checked="form.confirmTags.includes(tag)"
-                @change="toggleTag('confirmTags', tag)"
+                type="button"
+                class="tag-toggle"
+                :class="{ active: form.confirmTags.includes(tag) }"
+                @click="toggleTag('confirmTags', tag)"
               >
                 {{ tag }}
-              </el-check-tag>
+              </button>
             </div>
           </div>
           <div class="evo-group">
             <span class="evo-label">弱化标签</span>
             <div class="tag-list">
-              <el-check-tag
+              <button
                 v-for="tag in weakenTags"
                 :key="tag"
-                :checked="form.weakenTags.includes(tag)"
-                @change="toggleTag('weakenTags', tag)"
+                type="button"
+                class="tag-toggle"
+                :class="{ active: form.weakenTags.includes(tag) }"
+                @click="toggleTag('weakenTags', tag)"
               >
                 {{ tag }}
-              </el-check-tag>
+              </button>
             </div>
           </div>
           <div class="evo-group">
             <span class="evo-label">新增标签</span>
             <div class="new-tags-input">
-              <el-tag
-                v-for="tag in form.newTags"
-                :key="tag"
-                closable
-                @close="removeNewTag(tag)"
-              >
+              <RBadge v-for="tag in form.newTags" :key="tag" variant="secondary" class="gap-1">
                 {{ tag }}
-              </el-tag>
-              <el-input
+                <button type="button" class="ml-1 text-muted-foreground hover:text-foreground" @click="removeNewTag(tag)">×</button>
+              </RBadge>
+              <RInput
                 v-if="newTagInputVisible"
                 ref="newTagInputRef"
                 v-model="newTagValue"
-                size="small"
-                style="width: 120px"
+                class="w-32 h-8"
                 @keyup.enter="addNewTag"
                 @blur="addNewTag"
               />
-              <el-button v-else size="small" @click="showNewTagInput">
+              <RButton v-else size="sm" variant="outline" @click="showNewTagInput">
                 + 添加标签
-              </el-button>
+              </RButton>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- 补充说明 -->
       <div class="form-section">
         <label class="form-label">补充说明</label>
-        <el-input
+        <RTextarea
           v-model="form.remark"
-          type="textarea"
           :rows="4"
           placeholder="请输入补充说明，如候选人亮点、风险点、建议等"
         />
       </div>
 
-      <!-- 底部按钮 -->
       <div class="form-footer">
-        <el-button size="large" @click="handleSaveDraft">
-          <el-icon><Document /></el-icon>
+        <RButton size="lg" variant="outline" @click="handleSaveDraft">
+          <FileText class="mr-2 h-4 w-4" />
           保存草稿
-        </el-button>
-        <el-button type="primary" size="large" @click="handleSubmit" :loading="submitting">
-          <el-icon><Check /></el-icon>
+        </RButton>
+        <RButton size="lg" :disabled="submitting" @click="handleSubmit">
+          <Check class="mr-2 h-4 w-4" />
           提交评价
-        </el-button>
+        </RButton>
       </div>
     </div>
-  </div>
+</PageShell>
 </template>
 
 <script setup lang="ts">
+import PageShell from '@/components/Layout/PageShell.vue'
 import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ArrowLeft, Check, FileText, CircleCheck, Clock, CircleX, Brain, Sparkles, Loader2,
+} from 'lucide-vue-next'
+import { toast } from '@/lib/notify'
+import RangeSlider from '@/components/app/RangeSlider.vue'
+import NumberInput from '@/components/app/NumberInput.vue'
+import { RButton, RBadge, RInput, RTextarea } from '@/components/ui'
 import { getInterviewDetail, submitEvaluation, getEvaluation } from '@/api/modules/interview'
+import request from '@/api/request'
 
 const router = useRouter()
 const route = useRoute()
 
-// 面试信息
 const interviewInfo = reactive({
   id: 0,
   candidateName: '',
@@ -206,14 +231,12 @@ const interviewInfo = reactive({
   format: 'ONLINE',
 })
 
-// 决策选项
 const decisionOptions = [
-  { value: 'PASS', label: '通过', icon: 'CircleCheck' },
-  { value: 'PENDING', label: '待定', icon: 'Clock' },
-  { value: 'REJECT', label: '淘汰', icon: 'CircleClose' },
+  { value: 'PASS', label: '通过', icon: CircleCheck },
+  { value: 'PENDING', label: '待定', icon: Clock },
+  { value: 'REJECT', label: '淘汰', icon: CircleX },
 ]
 
-// 评价维度
 const firstRoundDimensions = [
   { key: 'techDepth', label: '技术深度' },
   { key: 'systemDesign', label: '系统设计' },
@@ -232,11 +255,9 @@ const currentDimensions = computed(() =>
   interviewInfo.round === 'SECOND' ? secondRoundDimensions : firstRoundDimensions
 )
 
-// 标签
 const confirmTags = ['技术扎实', '沟通良好', '逻辑清晰', '学习能力强', '经验丰富', '团队协作']
 const weakenTags = ['技术一般', '沟通欠佳', '逻辑混乱', '经验不足', '缺乏热情']
 
-// 表单
 const form = reactive({
   decision: 'PASS',
   totalScore: 80,
@@ -247,14 +268,12 @@ const form = reactive({
   remark: '',
 })
 
-// 新标签输入
 const newTagInputVisible = ref(false)
 const newTagValue = ref('')
-const newTagInputRef = ref<any>(null)
+const newTagInputRef = ref<InstanceType<typeof RInput> | null>(null)
 
 const submitting = ref(false)
 
-// 初始化维度
 function initDimensions() {
   const dims = interviewInfo.round === 'SECOND' ? secondRoundDimensions : firstRoundDimensions
   dims.forEach((dim) => {
@@ -264,7 +283,6 @@ function initDimensions() {
   })
 }
 
-// 切换标签
 function toggleTag(field: 'confirmTags' | 'weakenTags', tag: string) {
   const idx = form[field].indexOf(tag)
   if (idx >= 0) {
@@ -274,11 +292,11 @@ function toggleTag(field: 'confirmTags' | 'weakenTags', tag: string) {
   }
 }
 
-// 新标签
 function showNewTagInput() {
   newTagInputVisible.value = true
   nextTick(() => {
-    newTagInputRef.value?.focus()
+    const el = newTagInputRef.value?.$el as HTMLInputElement | undefined
+    el?.focus?.()
   })
 }
 
@@ -294,16 +312,14 @@ function removeNewTag(tag: string) {
   form.newTags.splice(form.newTags.indexOf(tag), 1)
 }
 
-// 返回
 function goBack() {
   router.back()
 }
 
-// 加载面试信息
 async function loadInterviewInfo() {
   const interviewId = Number(route.query.interviewId)
   if (!interviewId) {
-    ElMessage.warning('缺少面试ID参数')
+    toast.error('缺少面试ID参数')
     return
   }
 
@@ -320,13 +336,12 @@ async function loadInterviewInfo() {
       format: data.format,
     })
   } catch (err: any) {
-    ElMessage.error(err?.message || '加载面试信息失败')
+    toast.error(err?.message || '加载面试信息失败')
     return
   }
 
   initDimensions()
 
-  // 加载已有评价
   try {
     const evalRes: any = await getEvaluation(interviewId)
     const evalData = evalRes.data || evalRes
@@ -342,19 +357,17 @@ async function loadInterviewInfo() {
       if (evalData.newTags) form.newTags = evalData.newTags
     }
   } catch {
-    // 无已有评价，正常情况
+    // 无已有评价
   }
 }
 
-// 保存草稿
 function handleSaveDraft() {
-  ElMessage.success('草稿已保存')
+  toast.success('草稿已保存')
 }
 
-// 提交评价
 async function handleSubmit() {
   if (!form.decision) {
-    ElMessage.warning('请选择决策')
+    toast.error('请选择决策')
     return
   }
 
@@ -370,12 +383,43 @@ async function handleSubmit() {
       newTags: form.newTags,
       remark: form.remark,
     })
-    ElMessage.success('评价提交成功')
+    toast.success('评价提交成功')
     router.push('/interview/board')
   } catch (err: any) {
-    ElMessage.error(err?.message || '提交失败')
+    toast.error(err?.message || '提交失败')
   } finally {
     submitting.value = false
+  }
+}
+
+// AI questions
+const aiQuestions = ref<any[]>([])
+const aiQuestionsLoading = ref(false)
+const aiQuestionsError = ref('')
+
+async function loadAiQuestions() {
+  if (!interviewInfo.id || aiQuestionsLoading.value) return
+  aiQuestionsLoading.value = true
+  aiQuestionsError.value = ''
+  try {
+    const res = await request.get(`/api/evaluation/interview/${interviewInfo.id}/ai-questions`)
+    const data = res?.data || res
+    const questions = data?.questions
+    if (typeof questions === 'string') {
+      // fallback: split by newlines
+      aiQuestions.value = questions.split('\n').filter((l: string) => l.trim()).map((l: string) => ({ question: l.trim() }))
+    } else if (Array.isArray(questions)) {
+      aiQuestions.value = questions
+    } else {
+      aiQuestions.value = []
+    }
+    if (!aiQuestions.value.length) {
+      aiQuestionsError.value = 'AI暂未生成追问，请稍后重试'
+    }
+  } catch {
+    aiQuestionsError.value = 'AI追问生成失败，请检查LLM服务状态'
+  } finally {
+    aiQuestionsLoading.value = false
   }
 }
 
@@ -404,6 +448,29 @@ onMounted(() => {
   border-bottom: 1px solid $border-color-light;
 }
 
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.info-label {
+  font-size: 12px;
+  color: $text-secondary;
+}
+
+.info-value {
+  font-size: 14px;
+  color: $text-primary;
+  font-weight: 500;
+}
+
 .form-section {
   margin-bottom: 28px;
 }
@@ -423,7 +490,6 @@ onMounted(() => {
   }
 }
 
-// 决策按钮组
 .decision-group {
   display: flex;
   gap: 16px;
@@ -437,7 +503,7 @@ onMounted(() => {
   border: 2px solid $border-color;
   border-radius: 8px;
   cursor: pointer;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 500;
   color: $text-regular;
   transition: all 0.2s;
@@ -465,7 +531,6 @@ onMounted(() => {
   }
 }
 
-// 总分
 .score-input-row {
   display: flex;
   align-items: center;
@@ -478,12 +543,10 @@ onMounted(() => {
   }
 
   .score-slider {
-    flex: 1;
     max-width: 400px;
   }
 }
 
-// 维度网格
 .dimensions-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -517,13 +580,8 @@ onMounted(() => {
       color: $primary-color;
     }
   }
-
-  .dim-comment {
-    margin-top: 8px;
-  }
 }
 
-// 进化反馈
 .evolution-section {
   display: flex;
   flex-direction: column;
@@ -546,6 +604,22 @@ onMounted(() => {
   gap: 8px;
 }
 
+.tag-toggle {
+  padding: 4px 12px;
+  border-radius: 6px;
+  border: none;
+  background: $bg-card;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &.active {
+    border-color: $primary-color;
+    background: rgba($primary-color, 0.1);
+    color: $primary-color;
+  }
+}
+
 .new-tags-input {
   display: flex;
   flex-wrap: wrap;
@@ -553,7 +627,6 @@ onMounted(() => {
   gap: 8px;
 }
 
-// 底部按钮
 .form-footer {
   display: flex;
   justify-content: flex-end;

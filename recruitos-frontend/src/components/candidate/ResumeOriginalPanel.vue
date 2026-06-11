@@ -2,19 +2,19 @@
   <div class="resume-original-panel">
     <div class="toolbar">
       <div class="file-meta">
-        <el-icon><Document /></el-icon>
+        <FileText class="h-4 w-4" />
         <span>{{ resume.fileName || '原始简历' }}</span>
-        <el-tag size="small" type="info">{{ (resume.fileType || 'file').toUpperCase() }}</el-tag>
+        <Badge variant="secondary">{{ (resume.fileType || 'file').toUpperCase() }}</Badge>
       </div>
       <div class="toolbar-actions">
-        <el-button v-if="resume.fileUrl" size="small" @click="openInNewTab">
-          <el-icon><View /></el-icon>
+        <Button v-if="resume.fileUrl" size="sm" variant="outline" @click="openInNewTab">
+          <Eye class="mr-2 h-4 w-4" />
           新窗口打开
-        </el-button>
-        <el-button v-if="resume.fileUrl" size="small" @click="downloadFile">
-          <el-icon><Download /></el-icon>
+        </Button>
+        <Button v-if="resume.fileUrl" size="sm" variant="outline" @click="downloadFile">
+          <Download class="mr-2 h-4 w-4" />
           下载
-        </el-button>
+        </Button>
       </div>
     </div>
 
@@ -22,23 +22,13 @@
       <iframe :src="pdfSrc" class="pdf-frame" title="简历 PDF 预览" @error="pdfLoadFailed = true" />
     </div>
 
-    <el-alert
-      v-else-if="resume.fileUrl && pdfLoadFailed"
-      type="warning"
-      :closable="false"
-      show-icon
-      title="PDF 文件加载失败，请查看下方简历原文"
-      class="mb-12"
-    />
+    <Alert v-else-if="resume.fileUrl && pdfLoadFailed" variant="warning" class="mb-12">
+      <AlertTitle>PDF 文件加载失败，请查看下方简历原文</AlertTitle>
+    </Alert>
 
-    <el-alert
-      v-else-if="resume.fileUrl && !showPdfFrame"
-      type="info"
-      :closable="false"
-      show-icon
-      title="当前环境暂不支持在线 PDF 预览，可查看下方简历原文或下载文件"
-      class="mb-12"
-    />
+    <Alert v-else-if="resume.fileUrl && !showPdfFrame" variant="default" class="mb-12">
+      <AlertTitle>当前环境暂不支持在线 PDF 预览，可查看下方简历原文或下载文件</AlertTitle>
+    </Alert>
 
     <section v-if="resume.rawText" class="raw-section">
       <h4 class="section-title">简历原文</h4>
@@ -56,8 +46,9 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { Document, View, Download } from '@element-plus/icons-vue'
+import { FileText, Eye, Download } from 'lucide-vue-next'
 import EmptyStateCta from '@/components/common/EmptyStateCta.vue'
+import { Alert, AlertTitle, Badge, Button } from '@/components/ui'
 import type { NormalizedResume } from '@/utils/resumeParser'
 import { isPdfResume, resumeFileUrl } from '@/utils/resumeParser'
 
@@ -99,8 +90,7 @@ function downloadFile() {
   flex-wrap: wrap;
   padding: 12px 16px;
   background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  border-radius: 12px;
 }
 
 .file-meta {
@@ -117,10 +107,10 @@ function downloadFile() {
 }
 
 .pdf-frame-wrap {
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  border-radius: 12px;
   overflow: hidden;
   background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .pdf-frame {
@@ -131,9 +121,9 @@ function downloadFile() {
 
 .raw-section {
   background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .section-title {

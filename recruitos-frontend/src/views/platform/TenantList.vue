@@ -1,10 +1,10 @@
 <template>
-  <div class="page page-container">
+  <PageShell>
     <!-- Stats Cards -->
-    <div class="stats-row">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       <div class="stat-card" v-for="s in stats" :key="s.label">
         <div class="stat-icon" :style="{ background: s.bg, color: s.color }">
-          <el-icon :size="20"><component :is="s.icon" /></el-icon>
+          <component :is="s.icon" class="h-5 w-5" />
         </div>
         <div class="stat-body">
           <span class="stat-value">{{ s.value }}</span>
@@ -19,13 +19,13 @@
         <h3>租户列表</h3>
         <div class="table-actions">
           <div class="search-box">
-            <el-icon><Search /></el-icon>
+            <Search class="h-4 w-4 text-muted-foreground shrink-0" />
             <input v-model="keyword" placeholder="搜索租户名称或编码" @keyup.enter="loadData" />
           </div>
-          <button class="btn-primary" @click="showCreate = true">
-            <el-icon><Plus /></el-icon>
-            <span>创建租户</span>
-          </button>
+          <Button @click="showCreate = true">
+            <Plus class="mr-2 h-4 w-4" />
+            创建租户
+          </Button>
         </div>
       </div>
 
@@ -90,7 +90,7 @@
           </tbody>
         </table>
         <div v-if="!tenantList.length && !loading" class="empty-state">
-          <el-icon :size="48" color="#cbd5e1"><OfficeBuilding /></el-icon>
+          <Building2 class="h-12 w-12 text-muted-foreground/40" />
           <p>暂无租户数据</p>
         </div>
       </div>
@@ -105,110 +105,110 @@
       </div>
     </div>
 
-    <!-- Create Dialog -->
-    <Teleport to="body">
-      <div v-if="showCreate" class="modal-overlay" @click.self="showCreate = false">
-        <div class="modal">
-          <div class="modal-header">
-            <h3>创建租户</h3>
-            <el-icon class="modal-close" @click="showCreate = false"><Close /></el-icon>
-          </div>
-          <div class="modal-body">
-            <div class="form-section">
-              <div class="section-title">租户信息</div>
-              <div class="form-grid">
-                <div class="form-item">
-                  <label>租户编码 <span class="req">*</span></label>
-                  <input v-model="createForm.tenantCode" placeholder="如：ACME" />
-                </div>
-                <div class="form-item">
-                  <label>公司名称 <span class="req">*</span></label>
-                  <input v-model="createForm.companyName" placeholder="如：上海某科技有限公司" />
-                </div>
-                <div class="form-item">
-                  <label>信用代码</label>
-                  <input v-model="createForm.creditCode" placeholder="统一社会信用代码（选填）" />
-                </div>
-                <div class="form-item">
-                  <label>套餐 <span class="req">*</span></label>
-                  <select v-model="createForm.plan">
-                    <option value="STARTER">STARTER - 入门版</option>
-                    <option value="BASIC">BASIC - 基础版</option>
-                    <option value="PRO">PRO - 专业版</option>
-                    <option value="ENTERPRISE">ENTERPRISE - 企业版</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-            <div class="form-section">
-              <div class="section-title">管理员账号</div>
-              <div class="form-grid">
-                <div class="form-item">
-                  <label>用户名 <span class="req">*</span></label>
-                  <input v-model="createForm.adminUsername" placeholder="admin" />
-                </div>
-                <div class="form-item">
-                  <label>密码 <span class="req">*</span></label>
-                  <input v-model="createForm.adminPassword" type="password" placeholder="登录密码" />
-                </div>
-                <div class="form-item">
-                  <label>姓名</label>
-                  <input v-model="createForm.adminRealName" placeholder="管理员姓名" />
-                </div>
-                <div class="form-item">
-                  <label>邮箱</label>
-                  <input v-model="createForm.adminEmail" placeholder="admin@example.com" />
-                </div>
-              </div>
+    <Dialog v-model:open="showCreate">
+      <DialogContent class="max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>创建租户</DialogTitle>
+        </DialogHeader>
+        <div class="space-y-6 py-2">
+          <div>
+            <p class="section-title">租户信息</p>
+            <div class="form-grid">
+              <FormField label="租户编码" required>
+                <Input v-model="createForm.tenantCode" placeholder="如：ACME" />
+              </FormField>
+              <FormField label="公司名称" required>
+                <Input v-model="createForm.companyName" placeholder="如：上海某科技有限公司" />
+              </FormField>
+              <FormField label="信用代码">
+                <Input v-model="createForm.creditCode" placeholder="统一社会信用代码（选填）" />
+              </FormField>
+              <FormField label="套餐" required>
+                <Select v-model="createForm.plan" :options="planSelectOptions" />
+              </FormField>
             </div>
           </div>
-          <div class="modal-footer">
-            <button class="btn-cancel" @click="showCreate = false">取消</button>
-            <button class="btn-primary" :disabled="creating" @click="handleCreate">
-              {{ creating ? '创建中...' : '确认创建' }}
-            </button>
+          <div>
+            <p class="section-title">管理员账号</p>
+            <div class="form-grid">
+              <FormField label="用户名" required>
+                <Input v-model="createForm.adminUsername" placeholder="admin" />
+              </FormField>
+              <FormField label="密码" required>
+                <Input v-model="createForm.adminPassword" type="password" placeholder="登录密码" />
+              </FormField>
+              <FormField label="姓名">
+                <Input v-model="createForm.adminRealName" placeholder="管理员姓名" />
+              </FormField>
+              <FormField label="邮箱">
+                <Input v-model="createForm.adminEmail" placeholder="admin@example.com" />
+              </FormField>
+            </div>
           </div>
         </div>
-      </div>
-    </Teleport>
+        <DialogFooter>
+          <Button variant="outline" @click="showCreate = false">取消</Button>
+          <Button :disabled="creating" @click="handleCreate">
+            {{ creating ? '创建中...' : '确认创建' }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
 
-    <!-- Plan Dialog -->
-    <Teleport to="body">
-      <div v-if="showPlan" class="modal-overlay" @click.self="showPlan = false">
-        <div class="modal modal-sm">
-          <div class="modal-header">
-            <h3>变更套餐</h3>
-            <el-icon class="modal-close" @click="showPlan = false"><Close /></el-icon>
-          </div>
-          <div class="modal-body">
-            <p class="current-plan">当前套餐：<span class="plan-tag" :class="'plan-' + editingTenant?.plan?.toLowerCase()">{{ editingTenant?.plan }}</span></p>
-            <div class="plan-options">
-              <label v-for="p in planOptions" :key="p.value" class="plan-option" :class="{ active: newPlan === p.value }">
-                <input type="radio" v-model="newPlan" :value="p.value" />
-                <div class="plan-content">
-                  <span class="plan-name">{{ p.value }}</span>
-                  <span class="plan-desc">{{ p.desc }}</span>
-                </div>
-              </label>
+    <Dialog v-model:open="showPlan">
+      <DialogContent class="max-w-md">
+        <DialogHeader>
+          <DialogTitle>变更套餐</DialogTitle>
+        </DialogHeader>
+        <p class="current-plan text-sm">
+          当前套餐：
+          <span class="plan-tag" :class="'plan-' + editingTenant?.plan?.toLowerCase()">{{ editingTenant?.plan }}</span>
+        </p>
+        <RadioGroup v-model="newPlan" class="plan-options gap-2">
+          <label
+            v-for="p in planOptions"
+            :key="p.value"
+            class="plan-option flex items-center gap-3"
+            :class="{ active: newPlan === p.value }"
+          >
+            <RadioGroupItem :value="p.value" />
+            <div class="plan-content">
+              <span class="plan-name">{{ p.value }}</span>
+              <span class="plan-desc">{{ p.desc }}</span>
             </div>
-          </div>
-          <div class="modal-footer">
-            <button class="btn-cancel" @click="showPlan = false">取消</button>
-            <button class="btn-primary" :disabled="changingPlan" @click="handleChangePlan">
-              {{ changingPlan ? '变更中...' : '确认变更' }}
-            </button>
-          </div>
-        </div>
-      </div>
-    </Teleport>
-  </div>
+          </label>
+        </RadioGroup>
+        <DialogFooter>
+          <Button variant="outline" @click="showPlan = false">取消</Button>
+          <Button :disabled="changingPlan" @click="handleChangePlan">
+            {{ changingPlan ? '变更中...' : '确认变更' }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+</PageShell>
 </template>
 
 <script setup lang="ts">
+import PageShell from '@/components/Layout/PageShell.vue'
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Search, Plus, OfficeBuilding, Close } from '@element-plus/icons-vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { Search, Plus, Building2 } from 'lucide-vue-next'
+import { toast } from '@/lib/notify'
+import { confirm } from '@/lib/confirm'
+import FormField from '@/components/app/FormField.vue'
+import {
+  Button,
+  Input,
+  Select,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  RadioGroup,
+  RadioGroupItem,
+} from '@/components/ui'
 import { getPlatformTenantList, createPlatformTenant, updateTenantStatus, updateTenantPlan } from '@/api/modules/platform'
 
 const router = useRouter()
@@ -220,10 +220,17 @@ const pageSize = ref(10)
 const keyword = ref('')
 
 const stats = computed(() => [
-  { label: '总租户', value: total.value, icon: OfficeBuilding, bg: '#EFF6FF', color: '#2563EB' },
-  { label: '已启用', value: tenantList.value.filter(t => t.status === 1).length, icon: OfficeBuilding, bg: '#D1FAE5', color: '#059669' },
-  { label: '已禁用', value: tenantList.value.filter(t => t.status !== 1).length, icon: OfficeBuilding, bg: '#FEF3C7', color: '#D97706' },
+  { label: '总租户', value: total.value, icon: Building2, bg: '$primary-lighter', color: '$primary-dark' },
+  { label: '已启用', value: tenantList.value.filter(t => t.status === 1).length, icon: Building2, bg: '$success-light', color: '$success-color' },
+  { label: '已禁用', value: tenantList.value.filter(t => t.status !== 1).length, icon: Building2, bg: '$warning-light', color: '$warning-color' },
 ])
+
+const planSelectOptions = [
+  { label: 'STARTER - 入门版', value: 'STARTER' },
+  { label: 'BASIC - 基础版', value: 'BASIC' },
+  { label: 'PRO - 专业版', value: 'PRO' },
+  { label: 'ENTERPRISE - 企业版', value: 'ENTERPRISE' },
+]
 
 const planOptions = [
   { value: 'STARTER', desc: '5 岗位 / 1 Agent' },
@@ -245,7 +252,7 @@ const newPlan = ref('STARTER')
 const changingPlan = ref(false)
 
 function avatarColor(name: string) {
-  const colors = ['#6366f1','#8b5cf6','#ec4899','#f43f5e','#f97316','#eab308','#22c55e','#06b6d4','#3b82f6']
+  const colors = ['$status-new','$status-interviewing','#ec4899','#f43f5e','#f97316','#eab308','#22c55e','#06b6d4','$primary-color']
   let hash = 0
   for (const c of name) hash = c.charCodeAt(0) + ((hash << 5) - hash)
   return colors[Math.abs(hash) % colors.length]
@@ -273,13 +280,13 @@ async function loadData() {
 
 async function handleCreate() {
   if (!createForm.tenantCode || !createForm.companyName) {
-    ElMessage.warning('请填写必填项')
+    toast.error('请填写必填项')
     return
   }
   creating.value = true
   try {
     await createPlatformTenant(createForm)
-    ElMessage.success('租户创建成功')
+    toast.success('租户创建成功')
     showCreate.value = false
     loadData()
   } catch {}
@@ -299,7 +306,7 @@ async function handleChangePlan() {
   changingPlan.value = true
   try {
     await updateTenantPlan(editingTenant.value.id, newPlan.value)
-    ElMessage.success('套餐变更成功')
+    toast.success('套餐变更成功')
     showPlan.value = false
     loadData()
   } catch {}
@@ -309,12 +316,15 @@ async function handleChangePlan() {
 async function toggleStatus(row: any) {
   const newStatus = row.status === 1 ? 0 : 1
   const action = newStatus === 1 ? '启用' : '禁用'
-  try {
-    await ElMessageBox.confirm(`确定要${action}「${row.companyName}」吗？`, '确认操作', { type: 'warning' })
-    await updateTenantStatus(row.id, newStatus)
-    ElMessage.success(`已${action}`)
-    loadData()
-  } catch {}
+  const ok = await confirm({
+    title: '确认操作',
+    message: `确定要${action}「${row.companyName}」吗？`,
+    destructive: newStatus === 0,
+  })
+  if (!ok) return
+  await updateTenantStatus(row.id, newStatus)
+  toast.success(`已${action}`)
+  loadData()
 }
 
 onMounted(() => loadData())
@@ -336,7 +346,7 @@ onMounted(() => loadData())
 
 .stat-card {
   background: $bg-card;
-  border: 1px solid $border-color;
+  border: none;
   border-radius: $border-radius;
   padding: 18px 20px;
   display: flex;
@@ -375,7 +385,7 @@ onMounted(() => loadData())
 
 .table-card {
   background: $bg-card;
-  border: 1px solid $border-color;
+  border: none;
   border-radius: $border-radius;
   overflow: hidden;
 }
@@ -391,7 +401,7 @@ onMounted(() => loadData())
 }
 
 .table-header h3 {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   color: $text-primary;
 }
@@ -407,7 +417,7 @@ onMounted(() => loadData())
   align-items: center;
   gap: 8px;
   background: $bg-card;
-  border: 1px solid $border-color;
+  border: none;
   border-radius: $border-radius-sm;
   padding: 0 12px;
   height: 36px;
@@ -432,7 +442,7 @@ onMounted(() => loadData())
   height: 36px;
   padding: 0 16px;
   background: $primary-color;
-  color: #fff;
+  color: var(--r-bg-card);
   border: none;
   border-radius: $border-radius-sm;
   font-size: 13px;
@@ -448,7 +458,7 @@ onMounted(() => loadData())
   padding: 0 16px;
   background: $bg-card;
   color: $text-regular;
-  border: 1px solid $border-color;
+  border: none;
   border-radius: $border-radius-sm;
   font-size: 13px;
   font-weight: 500;
@@ -490,14 +500,14 @@ th {
   color: $text-secondary;
   letter-spacing: 0.02em;
   background: $bg-muted;
-  border-bottom: 1px solid $border-color-light;
+  border-bottom: 1px solid var(--r-divider);
 }
 
 td {
   padding: 14px 20px;
   font-size: 13px;
   color: $text-regular;
-  border-bottom: 1px solid $border-color-light;
+  border-bottom: 1px solid var(--r-divider);
 }
 
 tr:hover td { background: $primary-lighter; }
@@ -515,7 +525,7 @@ tr:hover td { background: $primary-lighter; }
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: var(--r-bg-card);
   font-size: 14px;
   font-weight: 700;
   flex-shrink: 0;
@@ -528,13 +538,13 @@ tr:hover td { background: $primary-lighter; }
 
 .tenant-name {
   font-weight: 600;
-  color: #0f172a;
+  color: $text-primary;
   font-size: 13px;
 }
 
 .tenant-code {
   font-size: 12px;
-  color: #94a3b8;
+  color: $text-secondary;
   margin-top: 1px;
 }
 
@@ -547,10 +557,10 @@ tr:hover td { background: $primary-lighter; }
   font-weight: 600;
   letter-spacing: 0.5px;
 }
-.plan-starter { background: #f1f5f9; color: #64748b; }
-.plan-basic { background: #eff6ff; color: #3b82f6; }
-.plan-pro { background: #f0fdf4; color: #16a34a; }
-.plan-enterprise { background: #fefce8; color: #ca8a04; }
+.plan-starter { background: $bg-muted; color: $text-secondary; }
+.plan-basic { background: #eff6ff; color: $primary-color; }
+.plan-pro { background: $success-lighter; color: var(--r-success); }
+.plan-enterprise { background: $warning-lighter; color: #ca8a04; }
 
 /* Status */
 .status-dot {
@@ -560,8 +570,8 @@ tr:hover td { background: $primary-lighter; }
   border-radius: 50%;
   margin-right: 6px;
 }
-.status-dot.active { background: #10b981; box-shadow: 0 0 6px rgba(16,185,129,0.4); }
-.status-dot.inactive { background: #94a3b8; }
+.status-dot.active { background: $status-offer; box-shadow: 0 0 6px rgba(16,185,129,0.4); }
+.status-dot.inactive { background: $text-secondary; }
 
 /* Usage Bar */
 .usage-bar {
@@ -573,7 +583,7 @@ tr:hover td { background: $primary-lighter; }
 .usage-track {
   flex: 1;
   height: 6px;
-  background: #f1f5f9;
+  background: $bg-muted;
   border-radius: 3px;
   overflow: hidden;
   min-width: 60px;
@@ -582,19 +592,19 @@ tr:hover td { background: $primary-lighter; }
 .usage-fill {
   height: 100%;
   border-radius: 3px;
-  background: linear-gradient(90deg, #6366f1, #8b5cf6);
+  background: linear-gradient(90deg, $status-new, $status-interviewing);
   transition: width 0.4s ease;
 }
-.usage-fill.agent { background: linear-gradient(90deg, #10b981, #34d399); }
+.usage-fill.agent { background: linear-gradient(90deg, $status-offer, #34d399); }
 
 .usage-text {
   font-size: 12px;
-  color: #64748b;
+  color: $text-secondary;
   white-space: nowrap;
   min-width: 40px;
 }
 
-.text-muted { color: #94a3b8; font-size: 12px; }
+.text-muted { color: $text-secondary; font-size: 12px; }
 
 .row-actions {
   display: flex;
@@ -609,7 +619,7 @@ tr:hover td { background: $primary-lighter; }
   align-items: center;
   gap: 12px;
 }
-.empty-state p { color: #94a3b8; font-size: 14px; }
+.empty-state p { color: $text-secondary; font-size: 14px; }
 
 /* Footer */
 .table-footer {
@@ -617,10 +627,10 @@ tr:hover td { background: $primary-lighter; }
   align-items: center;
   justify-content: space-between;
   padding: 16px 24px;
-  border-top: 1px solid #f1f5f9;
+  border-top: 1px solid var(--r-divider);
 }
 
-.page-info { font-size: 13px; color: #94a3b8; }
+.page-info { font-size: 13px; color: $text-secondary; }
 
 .page-btns {
   display: flex;
@@ -629,20 +639,20 @@ tr:hover td { background: $primary-lighter; }
 }
 .page-btns button {
   padding: 6px 14px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: $bg-warm;
+  border: none;
   border-radius: 6px;
   font-size: 13px;
-  color: #475569;
+  color: $neutral-600;
   cursor: pointer;
   transition: all 0.2s;
 }
-.page-btns button:hover:not(:disabled) { background: #f1f5f9; border-color: #cbd5e1; }
+.page-btns button:hover:not(:disabled) { background: $bg-muted; border-color: $border-color; }
 .page-btns button:disabled { opacity: 0.4; cursor: not-allowed; }
 .page-btns .page-num {
   font-size: 13px;
   font-weight: 600;
-  color: #6366f1;
+  color: $status-new;
   min-width: 24px;
   text-align: center;
 }
@@ -680,11 +690,11 @@ tr:hover td { background: $primary-lighter; }
   align-items: center;
   justify-content: space-between;
   padding: 20px 24px;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--r-divider);
 }
-.modal-header h3 { font-size: 16px; font-weight: 600; color: #0f172a; }
-.modal-close { color: #94a3b8; cursor: pointer; padding: 4px; border-radius: 6px; transition: all 0.2s; }
-.modal-close:hover { color: #475569; background: #f1f5f9; }
+.modal-header h3 { font-size: 16px; font-weight: 600; color: $text-primary; }
+.modal-close { color: $text-secondary; cursor: pointer; padding: 4px; border-radius: 6px; transition: all 0.2s; }
+.modal-close:hover { color: $neutral-600; background: $bg-muted; }
 
 .modal-body { padding: 24px; }
 
@@ -693,7 +703,7 @@ tr:hover td { background: $primary-lighter; }
   justify-content: flex-end;
   gap: 10px;
   padding: 16px 24px;
-  border-top: 1px solid #f1f5f9;
+  border-top: 1px solid var(--r-divider);
 }
 
 /* Form */
@@ -702,12 +712,12 @@ tr:hover td { background: $primary-lighter; }
 .section-title {
   font-size: 13px;
   font-weight: 600;
-  color: #64748b;
+  color: $text-secondary;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-bottom: 16px;
   padding-bottom: 8px;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--r-divider);
 }
 
 .form-grid {
@@ -720,28 +730,28 @@ tr:hover td { background: $primary-lighter; }
 .form-item label {
   font-size: 13px;
   font-weight: 500;
-  color: #475569;
+  color: $neutral-600;
 }
-.req { color: #ef4444; }
+.req { color: $danger-color; }
 
 .form-item input, .form-item select {
   height: 38px;
   padding: 0 12px;
-  border: 1px solid #e2e8f0;
+  border: none;
   border-radius: 8px;
   font-size: 13px;
-  color: #334155;
+  color: $text-regular;
   background: $bg-card;
   transition: border-color 0.2s;
   outline: none;
 }
-.form-item input:focus, .form-item select:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
-.form-item input::placeholder { color: #94a3b8; }
+.form-item input:focus, .form-item select:focus { border-color: $status-new; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+.form-item input::placeholder { color: $text-secondary; }
 
 /* Plan Options */
 .current-plan {
   font-size: 14px;
-  color: #475569;
+  color: $neutral-600;
   margin-bottom: 16px;
 }
 
@@ -756,16 +766,16 @@ tr:hover td { background: $primary-lighter; }
   align-items: center;
   gap: 12px;
   padding: 14px 16px;
-  border: 1px solid #e2e8f0;
+  border: none;
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.2s;
 }
 .plan-option:hover { border-color: #c7d2fe; background: #fafbff; }
-.plan-option.active { border-color: #6366f1; background: #eef2ff; }
+.plan-option.active { border-color: $status-new; background: #eef2ff; }
 .plan-option input { display: none; }
 
 .plan-content { display: flex; flex-direction: column; }
-.plan-name { font-size: 14px; font-weight: 600; color: #0f172a; }
-.plan-desc { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+.plan-name { font-size: 14px; font-weight: 600; color: $text-primary; }
+.plan-desc { font-size: 12px; color: $text-secondary; margin-top: 2px; }
 </style>
