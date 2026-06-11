@@ -225,7 +225,7 @@ async function handleImportPool() {
   }
 }
 
-async function handleStatusChange(val: string | number | undefined) {
+async function handleStatusChange(val: string | number | null) {
   if (!val) return
   const status = String(val)
   try {

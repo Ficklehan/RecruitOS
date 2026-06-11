@@ -46,7 +46,7 @@
           </RTableCell>
           <RTableCell>{{ row.expiresAt }}</RTableCell>
           <RTableCell class="text-center">
-            <RowActions :actions="getRowActions(row)" @action="(cmd) => handleRowCommand(cmd, row)" />
+            <div class="flex items-center gap-1"><RButton size="sm" variant="ghost" class="text-primary" @click="openCopilotForProposal(row)" title="AI 分析此提案"><Sparkles class="h-3.5 w-3.5" /></RButton><RowActions :actions="getRowActions(row)" @action="(cmd) => handleRowCommand(cmd, row)" /></div>
           </RTableCell>
         </RTableRow>
       </RTableBody>
@@ -57,6 +57,35 @@
       title="暂无待处理建议"
       description="系统将根据招人数据自动生成优化建议"
     />
+
+    <!-- AI 策略建议 (M5: Brain 分析人机差异) -->
+    <div v-if="brainProposals.length" class="mt-8">
+      <div class="flex items-center gap-2 mb-3">
+        <Sparkles class="h-4 w-4 text-primary" />
+        <span class="text-sm font-semibold text-foreground">AI 策略建议</span>
+        <RBadge variant="outline" size="sm">Brain</RBadge>
+      </div>
+      <div class="space-y-3">
+        <RCard v-for="bp in brainProposals" :key="bp.id" variant="flat" padding="md" class="!bg-primary-light/5 !border-primary/10">
+          <div class="flex items-start justify-between">
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="text-sm font-semibold text-text-primary">{{ bp.title }}</span>
+                <RBadge variant="outline" size="sm" class="text-[10px]">置信度 {{ ((bp.confidence || 0) * 100).toFixed(0) }}%</RBadge>
+              </div>
+              <p class="text-xs text-text-secondary mb-2">{{ bp.description }}</p>
+              <p class="text-xs text-primary font-medium">→ {{ bp.proposedAction }}</p>
+            </div>
+            <div class="flex items-center gap-2 ml-4 shrink-0">
+              <RButton size="sm" variant="ghost" class="text-primary" @click="openCopilotForBrainProposal(bp)" title="Co-Pilot 分析">
+                <Sparkles class="h-3.5 w-3.5" />
+              </RButton>
+              <RButton size="sm" variant="outline" @click="dismissBrainProposal(bp)">忽略</RButton>
+            </div>
+          </div>
+        </RCard>
+      </div>
+    </div>
 
     <template #below>
       <RDialog v-model:open="detailVisible">
@@ -101,6 +130,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { toast } from '@/lib/notify'
+import { Sparkles } from 'lucide-vue-next'
+import { useRouter } from 'vue-router'
 import { confirm } from '@/lib/confirm'
 import { prompt } from '@/lib/prompt'
 import RowActions from '@/components/common/RowActions.vue'
@@ -130,6 +161,46 @@ import { getEvolutionProposalList, getEvolutionProposal, confirmEvolutionProposa
 import { getJobList } from '@/api/modules/job'
 
 const loading = ref(false)
+const router = useRouter()
+
+const brainProposals = ref<any[]>([])
+
+async function loadBrainProposals() {
+  try {
+    const res: any = await import('@/api/modules/brain').then(m => m.getStrategyProposals())
+    brainProposals.value = (res as any)?.data || (res as any) || []
+  } catch { brainProposals.value = [] }
+}
+
+function openCopilotForBrainProposal(bp: any) {
+  const context = JSON.stringify({
+    type: 'strategy_proposal',
+    title: bp.title,
+    description: bp.description,
+    proposedAction: bp.proposedAction,
+    evidence: bp.evidence,
+    confidence: bp.confidence,
+  })
+  router.push({ path: '/ai/copilot', query: { context } })
+}
+
+function dismissBrainProposal(bp: any) {
+  brainProposals.value = brainProposals.value.filter((p: any) => p.id !== bp.id)
+  toast.info('建议已忽略')
+}
+
+
+function openCopilotForProposal(row: any) {
+  const context = JSON.stringify({
+    title: row.title,
+    proposalType: proposalTypeLabel(row.proposalType),
+    jobTitle: jobTitle(row.jobId),
+    evidence: row.evidence,
+    currentVersion: row.baseOpsPackVersion,
+    diff: diffHumanLines(row.diff),
+  })
+  router.push({ path: '/ai/copilot', query: { context } })
+}
 const proposals = ref<any[]>([])
 const jobOptions = ref<any[]>([])
 const filterJobId = ref<number | undefined>()

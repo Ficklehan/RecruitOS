@@ -161,6 +161,18 @@
         <FormField label="薪资" class="mt-4">
           <RInput v-model="offerForm.salary" placeholder="如：35K · 15薪" />
         </FormField>
+        <div v-if="offerStrategy" class="mt-4 p-3 rounded-lg bg-primary/5 border border-primary/10">
+          <div class="flex items-center gap-2 mb-2">
+            <Sparkles class="h-3.5 w-3.5 text-primary" />
+            <span class="text-[12px] font-semibold text-foreground">AI 薪资建议</span>
+          </div>
+          <div class="flex items-center gap-3 text-[12px]">
+            <span class="text-muted-foreground">{{ (offerStrategy.suggestedRange.min / 10000).toFixed(0) }}万</span>
+            <span class="text-primary font-bold">{{ (offerStrategy.suggestedRange.mid / 10000).toFixed(0) }}万</span>
+            <span class="text-muted-foreground">{{ (offerStrategy.suggestedRange.max / 10000).toFixed(0) }}万</span>
+            <span class="text-[10px] text-muted-foreground ml-auto">置信度 {{ ((offerStrategy.confidence || 0) * 100).toFixed(0) }}%</span>
+          </div>
+        </div>
         <FormField label="备注" class="mt-4">
           <RTextarea v-model="offerForm.remark" :rows="2" />
         </FormField>
@@ -178,7 +190,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, Loader2 } from 'lucide-vue-next'
+import { ArrowLeft, Loader2, Sparkles } from 'lucide-vue-next'
 import { toast } from '@/lib/notify'
 import { confirm } from '@/lib/confirm'
 import { prompt } from '@/lib/prompt'
@@ -203,6 +215,7 @@ import { getCandidate360, advancePipelineStage } from '@/api/modules/pipeline'
 import { getJobList } from '@/api/modules/job'
 import { getResumeDetail } from '@/api/modules/resume'
 import { createOffer, submitOfferApproval } from '@/api/modules/offer'
+import { getOfferStrategy, type OfferStrategy } from '@/api/modules/brain'
 import { getInterviewList } from '@/api/modules/interview'
 
 const props = withDefaults(defineProps<{
@@ -238,6 +251,8 @@ const offerSubmitting = ref(false)
 const feedbackDrawerVisible = ref(false)
 const pendingFeedbackInterview = ref<any | null>(null)
 const offerForm = reactive({ department: '', salary: '', remark: '' })
+const offerStrategy = ref<OfferStrategy | null>(null)
+const offerStrategyLoading = ref(false)
 
 const jobSelectOptions = computed(() =>
   jobs.value.map(j => ({ label: jobTitle(j.jobId), value: j.jobId }))
@@ -363,7 +378,21 @@ async function handleReserve() {
   toast.success('已储备至人才库')
 }
 
-function openOfferDialog() { offerForm.department = ''; offerForm.salary = ''; offerForm.remark = ''; offerDialogVisible.value = true }
+async function openOfferDialog() {
+  offerForm.department = ''; offerForm.salary = ''; offerForm.remark = ''
+  offerStrategy.value = null
+  offerDialogVisible.value = true
+  if (candidate.value?.name && activeJobId.value) {
+    offerStrategyLoading.value = true
+    try {
+      const res = await getOfferStrategy(candidateId.value, activeJobId.value, candidate.value.name, jobTitle(activeJobId.value))
+      offerStrategy.value = res.data
+      if (!offerForm.salary && res.data?.suggestedRange?.mid) {
+        offerForm.salary = (res.data.suggestedRange.mid / 10000).toFixed(0) + '万'
+      }
+    } catch { offerStrategy.value = null } finally { offerStrategyLoading.value = false }
+  }
+}
 
 async function submitOffer() {
   if (!candidate.value || !activeJobId.value) return

@@ -8,7 +8,7 @@ interface Props {
 }
 
 const props = defineProps<Props>()
-const activeTab = inject<import('vue').Ref<string>>('activeTab')
+const activeTab = inject<import('vue').ComputedRef<string>>('activeTab')
 
 const isActive = computed(() => activeTab?.value === props.value)
 
@@ -20,10 +20,16 @@ const classes = computed(() => cn(
     : 'text-text-secondary hover:text-text-primary',
   props.class,
 ))
+
+function setActive() {
+  if (activeTab && 'value' in activeTab) {
+    ;(activeTab as any).value = props.value
+  }
+}
 </script>
 
 <template>
-  <button type="button" :class="classes" @click="activeTab && (activeTab.value = value)">
+  <button type="button" :class="classes" @click="setActive">
     <slot />
   </button>
 </template>

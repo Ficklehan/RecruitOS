@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { cn } from '@/lib/utils'
 import { useUserStore } from '@/stores/user'
-import { topNavMenus, filterMenus } from '@/config/menus'
+import { topNavMenus, filterMenus, findActiveMenu } from '@/config/menus'
 import { resolveActionIcon } from '@/lib/actionIcons'
 import { RScrollArea } from '@/components/ui'
 
@@ -19,12 +19,7 @@ const userStore = useUserStore()
 
 const sidebarMenu = computed(() => {
   const menus = filterMenus(topNavMenus, userStore.permissions)
-  const topKey = route.path.split('/')[1]
-  // First try exact key match
-  const exact = menus.find(m => m.key === topKey)
-  if (exact) return exact
-  // Then try matching by child path prefix
-  return menus.find(m => m.children?.some(c => route.path.startsWith(c.path))) || null
+  return findActiveMenu(menus, route.path)
 })
 
 function isActive(path: string) {

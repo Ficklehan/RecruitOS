@@ -52,6 +52,9 @@
               <div class="info-row" v-if="item.location"><MapPin class="h-3.5 w-3.5 text-muted-foreground" /><span>{{ item.location }}</span></div>
             </div>
             <div class="card-actions" @click.stop>
+              <RButton size="sm" variant="ghost" class="text-primary" @click="openCopilot(item)" title="AI 辅助">
+                <Sparkles class="h-3.5 w-3.5" />
+              </RButton>
               <template v-if="col.status === 'PENDING_ARRANGE'">
                 <RButton size="sm" @click="handleArrangeItem(item)">安排</RButton>
               </template>
@@ -128,6 +131,12 @@
         </DialogFooter>
       </DialogContent>
     </RDialog>
+  <InterviewAssistDrawer
+    :open="copilotOpen"
+    :prep="interviewPrep"
+    :loading="prepLoading"
+    @update:open="copilotOpen = $event"
+  />
 </PageShell>
 </template>
 
@@ -135,16 +144,18 @@
 import PageShell from '@/components/Layout/PageShell.vue'
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Plus, RefreshCw, User, Clock, MapPin, Calendar } from 'lucide-vue-next'
+import { Plus, RefreshCw, User, Clock, MapPin, Calendar, Sparkles } from 'lucide-vue-next'
 import { toast } from '@/lib/notify'
 import { confirm } from '@/lib/confirm'
 import FormField from '@/components/app/FormField.vue'
 import StatCard from '@/components/StatCard.vue'
+import InterviewAssistDrawer from '@/components/ai/InterviewAssistDrawer.vue'
 import {
   RButton, RInput, RSelect, RTextarea, RTabs, RTabsList, RTabsTrigger,
   RDialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
   RadioGroup, RadioGroupItem,
 } from '@/components/ui'
+import { getInterviewPrep, type InterviewPrep } from '@/api/modules/brain'
 import { getInterviewList, arrangeInterview, startInterview, completeInterview, cancelInterview, triggerNextRound } from '@/api/modules/interview'
 import { getCandidateList } from '@/api/modules/candidate'
 import { getJobList } from '@/api/modules/job'
@@ -166,6 +177,22 @@ function getColumnData(status: string) { return interviewList.value.filter((item
 
 const arrangeDialogVisible = ref(false)
 const submitting = ref(false)
+const copilotOpen = ref(false)
+const interviewPrep = ref<InterviewPrep | null>(null)
+const prepLoading = ref(false)
+async function openCopilot(item: any) {
+  copilotOpen.value = true
+  interviewPrep.value = null
+  if (item.status !== 'PENDING_ARRANGE') {
+    prepLoading.value = true
+    try {
+      const res = await getInterviewPrep(item.id)
+      interviewPrep.value = res.data
+    } catch {
+      interviewPrep.value = null
+    } finally { prepLoading.value = false }
+  }
+}
 const arrangeForm = reactive({ candidateId: null as number | null, jobId: null as number | null, round: 'INITIAL', interviewerId: null as number | null, format: 'ONLINE', scheduledTime: '', location: '', remark: '' })
 const candidateSearch = ref('')
 const candidateOptions = ref<any[]>([])

@@ -29,13 +29,17 @@ const paddingClasses = {
 const classes = computed(() => cn(
   'rounded-[var(--r-radius)]',
   variantClasses[props.variant],
-  paddingClasses[props.padding],
   props.class,
 ))
 </script>
 
 <template>
   <div :class="classes">
-    <slot />
+    <div v-if="$slots.header" class="px-5 py-4 border-b border-divider">
+      <slot name="header" />
+    </div>
+    <div :class="paddingClasses[padding]">
+      <slot />
+    </div>
   </div>
 </template>

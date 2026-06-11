@@ -34,6 +34,12 @@ const settingsRoutes: RouteRecordRaw[] = [
         meta: { title: '用户管理', icon: 'UserFilled' },
       },
       {
+        path: 'ai',
+        name: 'SettingsAI',
+        component: () => import('@/views/settings/AISettings.vue'),
+        meta: { title: 'AI 设置', permission: 'settings:tenant', icon: 'Cpu' },
+      },
+      {
         path: 'integration/sso',
         name: 'SettingsSso',
         component: () => import('@/views/settings/SsoConfig.vue'),

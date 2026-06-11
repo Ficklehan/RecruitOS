@@ -9,6 +9,7 @@ import {
   Sparkles, AlertTriangle, TrendingUp, DollarSign, Scale, BarChart3,
   ArrowRight, Inbox, Clock, CheckCircle, Loader2,
 } from 'lucide-vue-next'
+import AiValueDashboard from '@/components/ai/AiValueDashboard.vue'
 
 const router = useRouter()
 const loading = ref(true)
@@ -136,6 +137,30 @@ function severityIcon(s: string) {
         </div>
       </RCard>
 
+      <!-- AI Co-Pilot Banner -->
+      <RCard
+        variant="flat"
+        padding="lg"
+        class="mb-6 !bg-gradient-to-r !from-primary-light/30 !to-info-light/20 !border-primary/10 cursor-pointer"
+        @click="router.push('/ai/copilot')"
+      >
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Sparkles class="h-6 w-6 text-primary" />
+            </div>
+            <div>
+              <h3 class="text-[16px] font-semibold text-text-primary">AI Co-Pilot</h3>
+              <p class="text-[13px] text-text-secondary mt-0.5">世界级 PM + 招聘专家，随时为你分析需求、评估候选人、制定策略</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-1 text-primary">
+            <span class="text-[13px] font-medium">开始对话</span>
+            <ArrowRight class="h-4 w-4" />
+          </div>
+        </div>
+      </RCard>
+
       <!-- AI Tools Grid -->
       <div class="mb-6">
         <h3 class="text-[15px] font-semibold text-text-primary mb-3">AI 工具</h3>
@@ -179,6 +204,11 @@ function severityIcon(s: string) {
           </div>
         </div>
       </RCard>
+
+      <!-- AI 价值看板 -->
+      <div class="mt-6">
+        <AiValueDashboard />
+      </div>
     </template>
   </RPageShell>
 </template>

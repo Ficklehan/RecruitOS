@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { RPageShell, RCard, RBadge } from '@/components/ui'
+import { RPageShell, RCard, RBadge, RButton } from '@/components/ui'
 import { getTalentDensity, type TalentDensity } from '@/api/modules/brain'
 import { toast } from '@/lib/notify'
-import { Loader2 } from 'lucide-vue-next'
+import { Loader2, FileText, Share } from 'lucide-vue-next'
+import { useRouter } from 'vue-router'
 
 const route = useRoute()
+const router = useRouter()
 const data = ref<TalentDensity | null>(null)
 
 onMounted(async () => {
@@ -71,6 +73,15 @@ onMounted(async () => {
           <RBadge v-if="a.critical" variant="danger" size="sm">关键岗位</RBadge>
         </div>
       </RCard>
+
+      <div class="flex flex-wrap gap-2 mt-6">
+        <RButton size="sm" @click="router.push('/planning/demands/create')">
+          <FileText class="mr-1.5 h-3.5 w-3.5" />发起招聘需求
+        </RButton>
+        <RButton size="sm" variant="outline" @click="router.push('/settings/org')">
+          <Share class="mr-1.5 h-3.5 w-3.5" />组织架构
+        </RButton>
+      </div>
     </template>
   </RPageShell>
 </template>

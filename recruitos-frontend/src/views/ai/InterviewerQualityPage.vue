@@ -2,13 +2,30 @@
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { cn } from '@/lib/utils'
-import { RPageShell, RCard, RBadge } from '@/components/ui'
+import { RPageShell, RCard, RBadge, RButton } from '@/components/ui'
 import { getInterviewerQuality, type InterviewerQuality } from '@/api/modules/brain'
 import { toast } from '@/lib/notify'
-import { Sparkles, Loader2 } from 'lucide-vue-next'
+import { Sparkles, Loader2, GraduationCap, Calendar } from 'lucide-vue-next'
+import { useRouter } from 'vue-router'
 
 const route = useRoute()
+const router = useRouter()
 const data = ref<InterviewerQuality | null>(null)
+
+function formatTrendPeriod(period: string): string {
+  if (!period) return ''
+  // period format: "2026-W22" or "2026-06"
+  const parts = period.split('-')
+  if (period.includes('W')) return period.replace('W', '第') + '周'
+  if (parts.length >= 2) return parts[1] + '月'
+  return period
+}
+
+function trendBarColor(score: number): string {
+  if (score >= 80) return '#16a34a'
+  if (score >= 60) return '#2563eb'
+  return '#d97706'
+}
 
 onMounted(async () => {
   try {
@@ -51,6 +68,29 @@ onMounted(async () => {
           </RCard>
         </div>
 
+        <!-- 趋势图 -->
+        <RCard v-if="data.trend?.length" padding="md" class="mb-6">
+          <h3 class="font-semibold text-[15px] text-text-primary mb-4">评分趋势</h3>
+          <div class="trend-chart">
+            <div class="trend-bars">
+              <div v-for="(t, i) in data.trend" :key="t.period" class="trend-bar-group">
+                <div class="trend-ticks">
+                  <div class="trend-bar-wrapper">
+                    <div class="trend-bar" :style="{ height: (t.avgScore / 100 * 100) + '%', background: trendBarColor(t.avgScore) }" />
+                  </div>
+                  <span class="trend-value">{{ t.avgScore?.toFixed(0) }}</span>
+                </div>
+                <span class="trend-label">{{ formatTrendPeriod(t.period) }}</span>
+              </div>
+            </div>
+            <div class="flex items-center gap-4 mt-3 text-[11px] text-text-secondary">
+              <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-sm" :style="{ background: '#16a34a' }" />≥80</span>
+              <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-sm" :style="{ background: '#2563eb' }" />60–79</span>
+              <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-sm" :style="{ background: '#d97706' }" />&lt;60</span>
+            </div>
+          </div>
+        </RCard>
+
         <RCard v-if="data.biasTags?.length" padding="md" class="mb-6">
           <h3 class="font-semibold text-[15px] text-text-primary mb-3">偏差检测</h3>
           <div v-for="b in data.biasTags" :key="b.tag" class="flex items-center gap-3 p-3 rounded-[var(--r-radius)] mb-2" :class="b.severity > 0.3 ? 'bg-danger-light border border-danger/20' : 'bg-warning-light border border-warning/20'">
@@ -64,6 +104,14 @@ onMounted(async () => {
           <ul class="space-y-2">
             <li v-for="(s, i) in data.coachingSuggestions" :key="i" class="flex items-start gap-2 text-[13px] text-text-primary"><span class="text-primary">•</span>{{ s }}</li>
           </ul>
+          <div class="flex flex-wrap gap-2 mt-4">
+            <RButton size="sm" @click="router.push('/pipeline/calendar')">
+              <Calendar class="mr-1.5 h-3.5 w-3.5" />安排 Coaching 陪面
+            </RButton>
+            <RButton size="sm" variant="outline" @click="router.push('/insight/interviewer')">
+              <GraduationCap class="mr-1.5 h-3.5 w-3.5" />查看面试效能
+            </RButton>
+          </div>
         </RCard>
 
         <div v-if="data.needsRecertification" class="p-4 bg-danger-light border border-danger/20 rounded-[var(--r-radius)] text-[13px] text-danger mb-6">

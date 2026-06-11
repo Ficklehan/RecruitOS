@@ -22,7 +22,7 @@ function onConfirm() {
 </script>
 
 <template>
-  <Dialog :open="promptState.open" @update:open="(v) => !v && onCancel()">
+  <Dialog :open="promptState.open" @update:open="(v: boolean) => !v && onCancel()">
     <DialogContent class="max-w-md">
       <DialogHeader>
         <DialogTitle>{{ promptState.options.title }}</DialogTitle>

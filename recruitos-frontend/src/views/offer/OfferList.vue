@@ -61,7 +61,12 @@
           <RTableCell>{{ row.department }}</RTableCell>
           <RTableCell class="text-center">{{ row.salary }}</RTableCell>
           <RTableCell class="text-center">
-            <RBadge :variant="offerStatusBadge(row.status)">{{ getStatusLabel(row.status) }}</RBadge>
+            <div class="flex items-center justify-center gap-1.5">
+              <RBadge :variant="offerStatusBadge(row.status)">{{ getStatusLabel(row.status) }}</RBadge>
+              <button v-if="row.candidateId" type="button" class="text-primary hover:text-primary/70" title="AI Offer 策略" @click="router.push(`/ai/offer-strategy/${row.candidateId}`)">
+                <Sparkles class="h-3.5 w-3.5" />
+              </button>
+            </div>
           </RTableCell>
           <RTableCell class="text-muted-foreground">{{ row.createdAt }}</RTableCell>
           <RTableCell class="text-center">
@@ -115,7 +120,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Plus, Search, RefreshCw } from 'lucide-vue-next'
+import { Plus, Search, RefreshCw, Sparkles } from 'lucide-vue-next'
 import { toast } from '@/lib/notify'
 import { offerStatusBadge } from '@/lib/badgeVariants'
 import RowActions from '@/components/common/RowActions.vue'
@@ -190,16 +195,21 @@ function getStatusLabel(status: string): string {
   return offerStatusLabel(status)
 }
 
-function getRowActions(_row: any) {
-  return [
+function getRowActions(row: any) {
+  const actions = [
     { command: 'view', label: '查看', icon: 'View', primary: true },
     { command: 'edit', label: '编辑', icon: 'Edit' },
   ]
+  if (row.candidateId) {
+    actions.push({ command: 'ai-strategy', label: 'AI 策略', icon: 'Sparkles' })
+  }
+  return actions
 }
 
 function handleRowCommand(cmd: string, row: any) {
   if (cmd === 'view') handleView(row)
   else if (cmd === 'edit') handleEdit(row)
+  else if (cmd === 'ai-strategy') router.push(`/ai/offer-strategy/${row.candidateId}`)
 }
 
 function validateForm(): boolean {

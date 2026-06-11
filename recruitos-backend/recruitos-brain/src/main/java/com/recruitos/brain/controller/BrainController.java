@@ -499,3 +499,11 @@ public class BrainController {
         return a;
     }
 }
+
+    // ===== Strategy Proposals (M5: AI 学习 → 人验证) =====
+    @Resource private StrategyProposalEngine strategyProposalEngine;
+
+    @GetMapping("/strategy-proposals")
+    public R<List<Map<String, Object>>> strategyProposals() {
+        return R.ok(strategyProposalEngine.generateProposals(TenantContext.getTenantId()));
+    }

@@ -15,6 +15,12 @@ const aiRoutes: RouteRecordRaw[] = [
         meta: { title: 'AI 助手', icon: 'Sparkles' },
       },
       {
+        path: 'copilot',
+        name: 'AICoPilot',
+        component: () => import('@/views/ai/AiCoPilot.vue'),
+        meta: { title: 'AI Co-Pilot', icon: 'Sparkles' },
+      },
+      {
         path: 'demand/create',
         name: 'AIDemandCreate',
         component: () => import('@/views/ai/DemandCreateAI.vue'),

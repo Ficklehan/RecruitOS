@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { RPageShell, RCard, RBadge } from '@/components/ui'
+import { RPageShell, RCard, RBadge, RButton } from '@/components/ui'
 import { getOfferStrategy, type OfferStrategy } from '@/api/modules/brain'
 import { toast } from '@/lib/notify'
-import { Sparkles, Loader2 } from 'lucide-vue-next'
+import { Sparkles, Loader2, User, Ticket } from 'lucide-vue-next'
+import { useRouter } from 'vue-router'
 
 const route = useRoute()
+const router = useRouter()
 const cid = Number(route.params.candidateId)
 const data = ref<OfferStrategy | null>(null)
 
@@ -79,6 +81,15 @@ onMounted(async () => {
           </div>
         </div>
       </RCard>
+
+      <div class="flex flex-wrap gap-2 mt-6">
+        <RButton size="sm" @click="router.push(`/pipeline/candidates/${data.candidateId}`)">
+          <User class="mr-1.5 h-3.5 w-3.5" />候选人工作台
+        </RButton>
+        <RButton size="sm" variant="outline" @click="router.push(`/pipeline/offers`)">
+          <Ticket class="mr-1.5 h-3.5 w-3.5" />查看 Offer 列表
+        </RButton>
+      </div>
     </template>
   </RPageShell>
 </template>

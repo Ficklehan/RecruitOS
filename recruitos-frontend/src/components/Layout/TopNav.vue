@@ -3,10 +3,10 @@ import { computed, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { cn } from '@/lib/utils'
 import { useUserStore } from '@/stores/user'
-import { topNavMenus, filterMenus, getDefaultRoute, type MenuItem } from '@/config/menus'
+import { topNavMenus, filterMenus, findActiveMenu, getDefaultRoute, type MenuItem } from '@/config/menus'
 import { getMyNotifications, markNotificationRead } from '@/api/modules/notification'
 import { RButton, RBadge, RSeparator, RDropdown, RAvatar, RScrollArea } from '@/components/ui'
-import { Bell, ChevronDown, LogOut, Menu } from 'lucide-vue-next'
+import { Bell, ChevronDown, LogOut, Menu, Sparkles } from 'lucide-vue-next'
 
 const props = defineProps<{ sidebarCollapsed?: boolean }>()
 const emit = defineEmits<{ 'toggle-sidebar': [] }>()
@@ -40,9 +40,12 @@ const visibleTopMenus = computed(() =>
   filterMenus(topNavMenus, userStore.permissions)
 )
 
+const activeMenu = computed(() =>
+  findActiveMenu(visibleTopMenus.value, route.path)
+)
+
 function isActiveGroup(item: MenuItem) {
-  if (item.children?.some(c => route.path.startsWith(c.path))) return true
-  return route.path.startsWith('/' + item.key)
+  return activeMenu.value?.key === item.key
 }
 
 function goHome() {
@@ -52,6 +55,10 @@ function goHome() {
 
 function handleNavClick(item: MenuItem) {
   router.push(item.path)
+}
+
+function openCopilot() {
+  router.push('/ai/copilot')
 }
 
 async function handleLogout() {
@@ -97,6 +104,17 @@ async function handleLogout() {
     </div>
 
     <div class="flex items-center gap-1">
+      <!-- Co-Pilot quick access -->
+      <RButton
+        variant="ghost"
+        size="sm"
+        class="p-2 mr-1"
+        title="AI Co-Pilot"
+        @click="openCopilot"
+      >
+        <Sparkles class="h-[18px] w-[18px] text-primary" />
+      </RButton>
+
       <!-- Notifications -->
       <RDropdown @open-change="loadNotifications">
         <template #trigger>

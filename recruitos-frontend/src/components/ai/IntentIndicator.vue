@@ -1,5 +1,5 @@
 <template>
-  <span class="intent-dot-wrapper" @mouseenter="show = true" @mouseleave="show = false">
+  <span class="intent-dot-wrapper" :class="{ clickable: !!candidateId }" @mouseenter="show = true" @mouseleave="show = false" @click.stop="candidateId && emit('click', candidateId)">
     <span class="intent-dot" :class="colorClass" />
     <Transition name="tooltip-fade">
       <div v-if="show && intent" class="intent-tooltip">
@@ -20,7 +20,8 @@
 import { ref, computed } from 'vue'
 import type { CandidateIntent } from '@/api/modules/brain'
 
-const props = defineProps<{ intent?: CandidateIntent | null; loading?: boolean }>()
+const props = defineProps<{ intent?: CandidateIntent | null; loading?: boolean; candidateId?: number }>()
+const emit = defineEmits<{ click: [candidateId: number] }>()
 const show = ref(false)
 
 const colorClass = computed(() => {
@@ -61,4 +62,6 @@ const label = computed(() => {
 .tooltip-confidence { font-size: 10px; color: #94a3b8; }
 .tooltip-fade-enter-active, .tooltip-fade-leave-active { transition: opacity .15s; }
 .tooltip-fade-enter-from, .tooltip-fade-leave-to { opacity: 0; }
+.clickable { cursor: pointer; }
+.clickable:hover .intent-dot { transform: scale(1.3); transition: transform .15s; }
 </style>

@@ -290,7 +290,7 @@ async function handleResetPwd(row: any) {
   toast.success('密码重置成功')
 }
 
-async function handleDelete() {
+async function handleDelete(_row?: any) {
   toast.info('删除用户功能暂未开放')
 }
 

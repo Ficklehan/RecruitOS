@@ -37,8 +37,39 @@
       </RCard>
     </div>
 
-    <!-- Step 2 -->
-    <div v-if="step === 2 && analysis" class="max-w-3xl">
+    <!-- Step 2: AI 追问 -->
+    <div v-if="step === 2" class="max-w-2xl">
+      <RCard padding="lg" class="mb-4">
+        <div class="flex items-center gap-2 mb-3">
+          <MessageCircle class="h-5 w-5 text-primary" />
+          <h3 class="text-[16px] font-semibold text-text-primary">AI 需要更多信息</h3>
+        </div>
+        <p class="text-[13px] text-text-secondary mb-4">
+          基于你的业务目标，AI 需要确认以下关键信息以提高诊断精度：
+        </p>
+        <div class="space-y-4">
+          <FormField label="团队目前最大的技术/业务瓶颈是什么？">
+            <RTextarea v-model="followUp.bottleneck" :rows="2" placeholder="例如：代码质量差、迭代速度慢、缺少架构能力..." />
+          </FormField>
+          <FormField label="预期的入职时间？">
+            <RInput v-model="followUp.timeline" placeholder="如：Q4 前到岗、2 个月内..." />
+          </FormField>
+          <FormField label="还有其他补充信息吗？（选填）">
+            <RTextarea v-model="followUp.extra" :rows="2" placeholder="预算限制、团队文化偏好等..." />
+          </FormField>
+        </div>
+        <div class="flex gap-3 mt-6">
+          <RButton :disabled="!followUp.bottleneck.trim()" :loading="loading" @click="handleAnalyzeWithFollowUp">
+            <ArrowRight class="mr-2 h-4 w-4" />
+            确认，继续分析
+          </RButton>
+          <RButton variant="outline" @click="step = 1">返回修改需求</RButton>
+        </div>
+      </RCard>
+    </div>
+
+    <!-- Step 3: 分析结果 -->
+    <div v-if="step === 3 && analysis" class="max-w-3xl">
       <RCard padding="md" class="mb-6">
         <h3 class="text-[16px] font-semibold text-text-primary mb-4">团队能力现状</h3>
         <div class="overflow-x-auto">
@@ -140,8 +171,8 @@
       </RCard>
 
       <div class="flex gap-3">
-        <RButton @click="handleConfirm">确认，生成招聘方案</RButton>
-        <RButton variant="outline" @click="step = 1">调整需求描述</RButton>
+        <RButton @click="handleConfirmFromAnalysis">确认，生成招聘方案</RButton>
+        <RButton variant="outline" @click="step = 2">调整补充信息</RButton>
         <RButton variant="outline" @click="$router.back()">取消</RButton>
       </div>
     </div>
@@ -151,8 +182,8 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
-import { Sparkles, Lightbulb } from 'lucide-vue-next'
-import { RPageShell, RCard, RButton, RBadge, RTextarea, RSelect, RProgress } from '@/components/ui'
+import { Sparkles, Lightbulb, MessageCircle, ArrowRight } from 'lucide-vue-next'
+import { RPageShell, RCard, RButton, RBadge, RTextarea, RSelect, RProgress, RInput } from '@/components/ui'
 import FormField from '@/components/app/FormField.vue'
 import { analyzeTeamGap, type TeamGapAnalysis } from '@/api/modules/brain'
 import { toast } from '@/lib/notify'
@@ -169,15 +200,33 @@ const form = reactive({
 
 const deptOptions = [{ label: '支付研发部', value: 1 }, { label: '增长产品部', value: 2 }, { label: '基础架构部', value: 3 }]
 
+const followUp = reactive({
+  bottleneck: '',
+  timeline: '',
+  extra: '',
+})
+
 async function handleAnalyze() {
+  // First round: validate input, then go to follow-up
+  if (!form.businessObjective.trim()) { toast.error('请描述业务目标'); return }
+  step.value = 2
+}
+
+async function handleAnalyzeWithFollowUp() {
   loading.value = true
   try {
+    const enriched = [
+      form.businessObjective,
+      followUp.bottleneck ? `瓶颈：${followUp.bottleneck}` : '',
+      followUp.timeline ? `时间要求：${followUp.timeline}` : '',
+      followUp.extra ? `补充：${followUp.extra}` : '',
+    ].filter(Boolean).join('。')
     const res = await analyzeTeamGap({
-      businessObjective: form.businessObjective,
+      businessObjective: enriched,
       departmentId: form.departmentId,
     })
     analysis.value = res.data
-    step.value = 2
+    step.value = 3
   } catch (e: any) {
     toast.error(e?.message || '分析失败')
   } finally {
@@ -185,7 +234,7 @@ async function handleAnalyze() {
   }
 }
 
-function handleConfirm() {
+function handleConfirmFromAnalysis() {
   toast.success('招聘方案已生成，正在创建需求...')
   router.push('/planning/demands')
 }

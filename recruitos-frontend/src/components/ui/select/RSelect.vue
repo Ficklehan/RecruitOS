@@ -14,6 +14,9 @@ interface Props {
   placeholder?: string
   disabled?: boolean
   clearable?: boolean
+  filterable?: boolean
+  remote?: boolean
+  loading?: boolean
   class?: string
 }
 
@@ -22,14 +25,26 @@ const props = withDefaults(defineProps<Props>(), {
   placeholder: '请选择',
   disabled: false,
   clearable: false,
+  filterable: false,
+  remote: false,
+  loading: false,
 })
 
 const emit = defineEmits<{
   'update:modelValue': [value: string | number | null]
+  change: [value: string | number | null]
+  'remote-method': [query: string]
 }>()
 
 const open = ref(false)
 const containerRef = ref<HTMLElement | null>(null)
+const searchQuery = ref('')
+
+const filteredOptions = computed(() => {
+  if (!props.filterable || !searchQuery.value) return props.options
+  const q = searchQuery.value.toLowerCase()
+  return props.options.filter(o => o.label.toLowerCase().includes(q))
+})
 
 const selectedLabel = computed(() => {
   const opt = props.options.find(o => o.value === props.modelValue)
@@ -38,12 +53,31 @@ const selectedLabel = computed(() => {
 
 function select(value: string | number | null) {
   emit('update:modelValue', value)
+  emit('change', value)
   open.value = false
+  searchQuery.value = ''
+}
+
+function handleOpen() {
+  if (props.disabled) return
+  open.value = !open.value
+  if (open.value && props.filterable) {
+    searchQuery.value = ''
+  }
+}
+
+function handleSearch(e: Event) {
+  const val = (e.target as HTMLInputElement).value
+  searchQuery.value = val
+  if (props.remote) {
+    emit('remote-method', val)
+  }
 }
 
 function handleClickOutside(e: MouseEvent) {
   if (containerRef.value && !containerRef.value.contains(e.target as Node)) {
     open.value = false
+    searchQuery.value = ''
   }
 }
 
@@ -64,7 +98,7 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
         !selectedLabel && 'text-text-placeholder',
       )"
       :disabled="disabled"
-      @click="open = !open"
+      @click="handleOpen"
     >
       <span class="truncate">{{ selectedLabel || placeholder }}</span>
       <div class="flex items-center gap-1">
@@ -82,20 +116,33 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
       leave-to-class="opacity-0 -translate-y-1"
     >
       <div v-if="open" class="absolute z-[var(--r-z-dropdown)] mt-1 w-full bg-bg-card rounded-[var(--r-radius)] r-shadow-lg max-h-60 overflow-auto">
-        <div
-          v-for="opt in options"
-          :key="opt.value"
-          :class="cn(
-            'px-3 py-2 text-[14px] cursor-pointer flex items-center justify-between',
-            'hover:bg-bg-hover transition-colors duration-150',
-            opt.value === modelValue && 'bg-primary-light text-primary font-medium',
-          )"
-          @click="select(opt.value)"
-        >
-          <span class="truncate">{{ opt.label }}</span>
-          <Check v-if="opt.value === modelValue" class="h-4 w-4 shrink-0" />
+        <div v-if="filterable" class="sticky top-0 bg-bg-card border-b border-divider px-3 py-2">
+          <input
+            type="text"
+            :value="searchQuery"
+            placeholder="搜索..."
+            class="w-full h-8 px-2 text-[13px] bg-bg-muted rounded-[var(--r-radius-sm)] border-none outline-none focus:ring-2 focus:ring-primary/20"
+            @input="handleSearch"
+            @click.stop
+          />
         </div>
-        <div v-if="!options.length" class="px-3 py-4 text-center text-text-placeholder text-[13px]">暂无选项</div>
+        <div v-if="loading" class="px-3 py-4 text-center text-text-placeholder text-[13px]">加载中...</div>
+        <template v-else>
+          <div
+            v-for="opt in filteredOptions"
+            :key="opt.value"
+            :class="cn(
+              'px-3 py-2 text-[14px] cursor-pointer flex items-center justify-between',
+              'hover:bg-bg-hover transition-colors duration-150',
+              opt.value === modelValue && 'bg-primary-light text-primary font-medium',
+            )"
+            @click="select(opt.value)"
+          >
+            <span class="truncate">{{ opt.label }}</span>
+            <Check v-if="opt.value === modelValue" class="h-4 w-4 shrink-0" />
+          </div>
+          <div v-if="!filteredOptions.length" class="px-3 py-4 text-center text-text-placeholder text-[13px]">暂无选项</div>
+        </template>
       </div>
     </Transition>
   </div>

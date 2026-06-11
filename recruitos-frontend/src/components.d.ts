@@ -7,6 +7,7 @@ export {}
 
 declare module 'vue' {
   export interface GlobalComponents {
+    AiCoPilotDrawer: typeof import('./components/ai/AiCoPilotDrawer.vue')['default']
     AiValueDashboard: typeof import('./components/ai/AiValueDashboard.vue')['default']
     AppLayout: typeof import('./components/Layout/AppLayout.vue')['default']
     Breadcrumb: typeof import('./components/Layout/Breadcrumb.vue')['default']

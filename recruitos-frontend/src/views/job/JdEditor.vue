@@ -122,7 +122,7 @@
                       :options="requirementTypeOptions"
                       :disabled="row.locked"
                       class="h-8"
-                      @update:model-value="(v) => { row.requirementType = String(v); onRequirementChange(row) }"
+                      @update:model-value="(v) => { row.requirementType = String(v) as any; onRequirementChange(row) }"
                     />
                   </TableCell>
                   <TableCell>
@@ -131,7 +131,7 @@
                       :options="importanceOptions"
                       :disabled="row.locked"
                       class="h-8"
-                      @update:model-value="(v) => { row.importance = String(v); onRequirementChange(row) }"
+                      @update:model-value="(v) => { row.importance = String(v) as any; onRequirementChange(row) }"
                     />
                   </TableCell>
                   <TableCell class="text-center">
@@ -261,10 +261,6 @@ function onRequirementChange(row: EditableRequirement) {
 
 function addRequirement() {
   requirements.value.push({
-    name: '',
-    requirementType: 'REQUIRED',
-    importance: 'MEDIUM',
-    locked: false,
     ...applyRequirementChange({
       name: '',
       requirementType: 'REQUIRED',

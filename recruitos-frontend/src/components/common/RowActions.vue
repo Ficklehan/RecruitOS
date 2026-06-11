@@ -9,7 +9,7 @@ export interface ActionItem {
   command: string
   label: string
   icon?: string | Component
-  type?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link'
+  type?: string
   divided?: boolean
   primary?: boolean
 }

@@ -1,6 +1,5 @@
 <template>
   <div class="page-container page-stack">
-    <!-- 页面头部 -->
     <div class="page-header">
       <div>
         <h2 class="page-title">招聘需求审批</h2>
@@ -8,40 +7,40 @@
       </div>
     </div>
 
-    <!-- Tab 切换 -->
     <div class="approval-tabs">
-      <el-tabs v-model="activeTab" @tab-change="handleTabChange">
-        <el-tab-pane label="待审批" name="PENDING" />
-        <el-tab-pane label="已审批" name="APPROVED" />
-        <el-tab-pane label="已驳回" name="REJECTED" />
-      </el-tabs>
+      <RTabs v-model="activeTab" @update:model-value="handleTabChange">
+        <RTabsList>
+          <RTabsTrigger value="PENDING">待审批</RTabsTrigger>
+          <RTabsTrigger value="APPROVED">已审批</RTabsTrigger>
+          <RTabsTrigger value="REJECTED">已驳回</RTabsTrigger>
+        </RTabsList>
+      </RTabs>
     </div>
 
-    <!-- 审批卡片列表 -->
     <div class="approval-list">
       <div v-for="item in approvalList" :key="item.id" class="approval-card">
         <div class="card-main">
           <div class="card-header">
             <span class="card-title">{{ item.title }}</span>
-            <el-tag :type="getUrgencyType(item.urgencyLevel)" size="small" disable-transitions>
+            <RBadge :variant="getUrgencyVariant(item.urgencyLevel)" size="sm">
               {{ getUrgencyLabel(item.urgencyLevel) }}
-            </el-tag>
+            </RBadge>
           </div>
           <div class="card-meta">
             <div class="meta-item">
-              <el-icon><User /></el-icon>
+              <User class="h-4 w-4" />
               <span>申请人：{{ item.applicant }}</span>
             </div>
             <div class="meta-item">
-              <el-icon><Clock /></el-icon>
+              <Clock class="h-4 w-4" />
               <span>申请时间：{{ item.applyTime }}</span>
             </div>
             <div class="meta-item">
-              <el-icon><UserFilled /></el-icon>
+              <Users class="h-4 w-4" />
               <span>招聘人数：{{ item.headcount }} 人</span>
             </div>
             <div class="meta-item">
-              <el-icon><OfficeBuilding /></el-icon>
+              <Building2 class="h-4 w-4" />
               <span>部门：{{ item.department }}</span>
             </div>
           </div>
@@ -58,77 +57,69 @@
         </div>
         <div class="card-actions">
           <template v-if="activeTab === 'PENDING'">
-            <el-button type="success" @click="handleApprove(item)">
-              <el-icon><Check /></el-icon>
+            <RButton variant="primary" @click="handleApprove(item)">
+              <Check class="h-4 w-4" />
               通过
-            </el-button>
-            <el-button type="danger" @click="openRejectDialog(item)">
-              <el-icon><Close /></el-icon>
+            </RButton>
+            <RButton variant="danger" @click="openRejectDialog(item)">
+              <X class="h-4 w-4" />
               驳回
-            </el-button>
+            </RButton>
           </template>
-          <el-button @click="handleViewDetail(item)">
-            <el-icon><View /></el-icon>
+          <RButton variant="ghost" @click="handleViewDetail(item)">
+            <Eye class="h-4 w-4" />
             详情
-          </el-button>
+          </RButton>
         </div>
       </div>
 
-      <!-- 空状态 -->
       <div v-if="approvalList.length === 0" class="empty-state">
-        <el-icon :size="64" color="#94A3B8"><Checked /></el-icon>
+        <CheckCircle2 class="h-16 w-16 text-text-placeholder" />
         <h3>{{ emptyText }}</h3>
         <p>{{ emptyDesc }}</p>
       </div>
     </div>
 
-    <!-- 分页 -->
     <div class="pagination-wrapper" v-if="total > 0">
-      <el-pagination
-        v-model:current-page="queryParams.pageNum"
-        v-model:page-size="queryParams.pageSize"
+      <RPagination
+        v-model="queryParams.pageNum"
         :total="total"
-        layout="total, prev, pager, next"
-        @current-change="loadData"
+        :page-size="queryParams.pageSize"
+        @update:model-value="loadData"
       />
     </div>
 
-    <!-- 驳回弹窗 -->
-    <el-dialog
-      v-model="rejectDialogVisible"
-      title="驳回审批"
-      width="480px"
-      :close-on-click-modal="false"
-    >
-      <el-form ref="rejectFormRef" :model="rejectForm" :rules="rejectRules">
-        <el-form-item label="需求标题">
-          <el-input :model-value="rejectTarget?.title" disabled />
-        </el-form-item>
-        <el-form-item label="驳回原因" prop="comment">
-          <el-input
+    <RDialog v-model="rejectDialogVisible" title="驳回审批" width="480px">
+      <div class="reject-form">
+        <div class="form-field">
+          <label class="form-label">需求标题</label>
+          <RInput :model-value="rejectTarget?.title" disabled />
+        </div>
+        <div class="form-field">
+          <label class="form-label">驳回原因 <span class="text-danger">*</span></label>
+          <RInput
             v-model="rejectForm.comment"
             type="textarea"
             :rows="4"
             placeholder="请输入驳回原因（必填）"
-            maxlength="500"
-            show-word-limit
           />
-        </el-form-item>
-      </el-form>
+          <p v-if="rejectError" class="form-error">{{ rejectError }}</p>
+        </div>
+      </div>
       <template #footer>
-        <el-button @click="rejectDialogVisible = false">取消</el-button>
-        <el-button type="danger" :loading="rejecting" @click="handleReject">确认驳回</el-button>
+        <RButton variant="outline" @click="rejectDialogVisible = false">取消</RButton>
+        <RButton variant="danger" :loading="rejecting" @click="handleReject">确认驳回</RButton>
       </template>
-    </el-dialog>
+    </RDialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import type { FormInstance, FormRules } from 'element-plus'
-import { User, Clock, UserFilled, OfficeBuilding, Check, Close, View, Checked } from '@element-plus/icons-vue'
+import { User, Clock, Users, Building2, Check, X, Eye, CheckCircle2 } from 'lucide-vue-next'
+import { RButton, RBadge, RDialog, RInput, RPagination, RTabs, RTabsList, RTabsTrigger } from '@/components/ui'
+import { toast } from '@/lib/toast'
 import { getMyApprovals, approveDemand, rejectDemand } from '@/api/modules/demand'
 
 const router = useRouter()
@@ -143,20 +134,12 @@ const queryParams = reactive({
   pageSize: 20,
 })
 
-// 驳回弹窗
 const rejectDialogVisible = ref(false)
 const rejecting = ref(false)
 const rejectTarget = ref<any>(null)
-const rejectFormRef = ref<FormInstance>()
 const rejectForm = reactive({ comment: '' })
-const rejectRules: FormRules = {
-  comment: [
-    { required: true, message: '请输入驳回原因', trigger: 'blur' },
-    { min: 2, max: 500, message: '驳回原因长度为 2 到 500 个字符', trigger: 'blur' },
-  ],
-}
+const rejectError = ref('')
 
-// 空状态文案
 const emptyText = computed(() => {
   const map: Record<string, string> = {
     PENDING: '暂无待审批需求',
@@ -175,8 +158,8 @@ const emptyDesc = computed(() => {
   return map[activeTab.value] || ''
 })
 
-function getUrgencyType(level: string) {
-  const map: Record<string, string> = { NORMAL: 'info', URGENT: 'warning', CRITICAL: 'danger' }
+function getUrgencyVariant(level: string): 'info' | 'warning' | 'danger' {
+  const map: Record<string, 'info' | 'warning' | 'danger'> = { NORMAL: 'info', URGENT: 'warning', CRITICAL: 'danger' }
   return map[level] || 'info'
 }
 
@@ -185,7 +168,6 @@ function getUrgencyLabel(level: string) {
   return map[level] || level
 }
 
-// 加载数据
 async function loadData() {
   const res: any = await getMyApprovals(queryParams)
   approvalList.value = res.data?.list || res.data?.records || []
@@ -198,32 +180,30 @@ function handleTabChange(tab: string | number) {
   loadData()
 }
 
-// 通过审批
 async function handleApprove(item: any) {
   await approveDemand(item.id)
-  ElMessage.success('审批已通过')
+  toast.success('审批已通过')
   loadData()
 }
 
-// 打开驳回弹窗
 function openRejectDialog(item: any) {
   rejectTarget.value = item
   rejectForm.comment = ''
+  rejectError.value = ''
   rejectDialogVisible.value = true
 }
 
-// 驳回审批
 async function handleReject() {
-  try {
-    await rejectFormRef.value?.validate()
-  } catch {
+  if (!rejectForm.comment || rejectForm.comment.length < 2) {
+    rejectError.value = '请输入至少2个字符的驳回原因'
     return
   }
+  rejectError.value = ''
 
   rejecting.value = true
   try {
     await rejectDemand(rejectTarget.value.id, rejectForm.comment)
-    ElMessage.success('已驳回')
+    toast.success('已驳回')
     rejectDialogVisible.value = false
     loadData()
   } finally {
@@ -231,9 +211,7 @@ async function handleReject() {
   }
 }
 
-// 查看详情
 function handleViewDetail(item: any) {
-  // 尝试通过 demandId 跳转到需求详情
   router.push(`/planning/demands/${item.demandId || item.id}`)
 }
 
@@ -244,20 +222,13 @@ onMounted(() => {
 
 <style lang="scss" scoped>
 @import '@/assets/styles/variables.scss';
+
 .approval-tabs {
-  background: $bg-card;
+  background: var(--r-bg-card);
   border-radius: 8px;
   box-shadow: 0 1px 6px 0 rgba(0, 0, 0, 0.04);
-  padding: 0 24px;
+  padding: 8px 24px;
   margin-bottom: 16px;
-
-  :deep(.el-tabs__header) {
-    margin-bottom: 0;
-  }
-
-  :deep(.el-tabs__nav-wrap::after) {
-    display: none;
-  }
 }
 
 .approval-list {
@@ -267,7 +238,7 @@ onMounted(() => {
 }
 
 .approval-card {
-  background: $bg-card;
+  background: var(--r-bg-card);
   border-radius: 8px;
   box-shadow: 0 1px 6px 0 rgba(0, 0, 0, 0.04);
   padding: 24px;
@@ -292,55 +263,46 @@ onMounted(() => {
   align-items: center;
   gap: 12px;
   margin-bottom: 16px;
-}
 
-.card-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: $text-primary;
+  .card-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--r-text-primary);
+  }
 }
 
 .card-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 20px;
-}
+  gap: 16px;
+  margin-bottom: 12px;
 
-.meta-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  color: $text-secondary;
-
-  .el-icon {
-    font-size: 14px;
+  .meta-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--r-text-secondary);
   }
 }
 
 .card-footer {
-  margin-top: 16px;
   padding-top: 12px;
-  border-top: 1px solid $border-color-light;
-}
+  border-top: 1px solid var(--r-border-divider);
 
-.footer-item {
-  font-size: 13px;
-  color: $text-regular;
-  margin-bottom: 4px;
+  .footer-item {
+    font-size: 13px;
+    color: var(--r-text-secondary);
+    margin-bottom: 4px;
 
-  &:last-child {
-    margin-bottom: 0;
+    .footer-label {
+      color: var(--r-text-placeholder);
+    }
   }
-}
-
-.footer-label {
-  color: $text-secondary;
 }
 
 .card-actions {
   display: flex;
-  flex-direction: column;
   gap: 8px;
   flex-shrink: 0;
 }
@@ -349,44 +311,50 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 80px 20px;
-  text-align: center;
+  padding: 60px 0;
+  gap: 12px;
 
   h3 {
-    margin-top: 16px;
     font-size: 16px;
     font-weight: 600;
-    color: $text-regular;
+    color: var(--r-text-primary);
+    margin: 0;
   }
 
   p {
-    margin-top: 8px;
-    font-size: 14px;
-    color: $text-secondary;
+    font-size: 13px;
+    color: var(--r-text-secondary);
+    margin: 0;
   }
 }
 
 .pagination-wrapper {
   display: flex;
-  justify-content: flex-end;
-  margin-top: 16px;
+  justify-content: center;
+  padding: 16px 0;
 }
 
-// 响应式
-@media (max-width: 768px) {
-  .approval-card {
-    flex-direction: column;
-  }
+.reject-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
 
-  .card-actions {
-    flex-direction: row;
-    width: 100%;
-  }
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
 
-  .card-meta {
-    flex-direction: column;
-    gap: 8px;
-  }
+.form-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--r-text-primary);
+}
+
+.form-error {
+  font-size: 12px;
+  color: var(--r-color-danger);
+  margin: 0;
 }
 </style>

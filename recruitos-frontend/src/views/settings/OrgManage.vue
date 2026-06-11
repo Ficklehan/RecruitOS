@@ -161,7 +161,7 @@ const OrgTreeNode = defineComponent({
           hasChildren()
             ? h(Button, {
                 variant: 'ghost',
-                size: 'icon',
+                size: 'icon' as any,
                 class: 'h-6 w-6 shrink-0',
                 onClick: (e: Event) => { e.stopPropagation(); expanded.value = !expanded.value },
               }, () => expanded.value

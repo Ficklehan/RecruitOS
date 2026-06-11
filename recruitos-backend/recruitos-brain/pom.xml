@@ -15,6 +15,12 @@
     <name>RecruitOS Brain</name>
     <description>AI Brain — diagnosis, strategy, orchestration, insight</description>
 
+    <properties>
+        <java.version>21</java.version>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>com.recruitos</groupId>

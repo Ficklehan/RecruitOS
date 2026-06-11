@@ -145,6 +145,8 @@ import { ref, computed } from 'vue'
 import { runCalibration as runCalibrationApi } from '../../api/modules/brain'
 import type { CalibrationSession as CalSession, EvaluatorComparison } from '../../api/modules/brain'
 import IgnoreReasonDialog from '../../components/ai/IgnoreReasonDialog.vue'
+import { logDecision } from '../../api/modules/brain'
+import { toast } from '@/lib/toast'
 
 const dimensions = ['Product Sense', 'Execution', 'Leadership', 'Culture', 'Craft']
 
@@ -236,7 +238,24 @@ function confirmEdit() {
   editing.value = null
 }
 
-function confirmDecision() { /* persist decision */ }
+async function confirmDecision() {
+  if (!session.value) return
+  try {
+    await logDecision({
+      decisionType: 'CALIBRATION',
+      targetId: session.value.candidateId,
+      targetType: 'candidate',
+      decisionDetail: {
+        hireRecommendation: session.value.hireRecommendation,
+        consensusScore: session.value.consensusScore,
+        dimensions: session.value.dimensions,
+      },
+      confidence: session.value.confidence || 0.85,
+    })
+    toast.success('校准决策已确认，候选人状态已流转')
+    setTimeout(() => { session.value = null }, 500)
+  } catch { toast.error('保存失败，请重试') }
+}
 function rerun() { session.value = null }
 </script>
 

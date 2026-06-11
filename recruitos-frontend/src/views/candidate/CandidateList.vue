@@ -1,7 +1,7 @@
 <template>
   <PageShell variant="list"
     title="候选人列表"
-    subtitle="管理候选人信息；选择在招职位后可查看本职位进展与匹配评估"
+    subtitle="管理候选人信息；选择在招职位后可查看本职位进展与 AI 评估"
   >
     <template #actions>
       <RButton @click="handleCreate">
@@ -11,7 +11,7 @@
     </template>
 
     <template #toolbar>
-      <JobContextBar v-model="queryParams.jobId" @update:model-value="handleSearch" />
+      <JobContextBar v-model="queryParams.jobId" @update:model-value="onJobChange" />
     </template>
 
     <template #filters>
@@ -60,6 +60,12 @@
           <RTableTh v-if="queryParams.jobId" class="w-[100px] text-center">进展</RTableTh>
           <RTableTh v-else class="w-[90px] text-center">状态</RTableTh>
           <RTableTh v-if="queryParams.jobId" class="min-w-[180px]">匹配</RTableTh>
+          <!-- AI 意向列 (仅选职位时显示) -->
+          <RTableTh v-if="queryParams.jobId" class="w-[105px] text-center">
+            <span class="flex items-center justify-center gap-1 whitespace-nowrap">
+              <Sparkles class="h-3 w-3 text-primary shrink-0" />AI 意向
+            </span>
+          </RTableTh>
           <RTableTh class="w-[100px] text-center">操作</RTableTh>
         </RTableRow>
       </RTableHead>
@@ -106,8 +112,29 @@
             />
             <span v-else class="text-sm text-muted-foreground">待评估</span>
           </RTableCell>
+          <!-- AI 意向评分 -->
+          <RTableCell v-if="queryParams.jobId" class="text-center">
+            <div v-if="aiScores[row.id]?.loading" class="flex justify-center">
+              <Loader2 class="h-4 w-4 animate-spin text-text-placeholder" />
+            </div>
+            <div
+              v-else-if="aiScores[row.id]?.intent"
+              class="flex items-center justify-center gap-1.5 cursor-pointer hover:opacity-80 transition-opacity"
+              @click="openAiIntent(row)"
+              :title="`意向 ${aiScores[row.id]!.intent!.intentScore?.toFixed(0)} 分 · 置信度 ${((aiScores[row.id]!.intent!.confidence || 0) * 100).toFixed(0)}%`"
+            >
+              <span class="w-2 h-2 rounded-full shrink-0" :class="aiDotClass(aiScores[row.id]!.intent!.intentScore)" />
+              <span class="text-[13px] font-semibold" :class="aiScoreClass(aiScores[row.id]!.intent!.intentScore)">
+                {{ aiScores[row.id]!.intent!.intentScore?.toFixed(0) }}
+              </span>
+            </div>
+            <span v-else class="text-[11px] text-text-placeholder">—</span>
+          </RTableCell>
           <RTableCell class="text-center">
-            <RowActions :actions="getRowActions(row)" @action="(cmd) => handleRowCommand(cmd, row)" />
+            <RowActions
+              :actions="getVisibleActions(row)"
+              @action="(cmd: string) => handleRowCommand(cmd, row)"
+            />
           </RTableCell>
         </RTableRow>
       </RTableBody>
@@ -118,7 +145,7 @@
       v-model:page-num="queryParams.pageNum"
       v-model:page-size="queryParams.pageSize"
       :total="total"
-      @change="loadData"
+      @change="onPageChange"
     />
 
     <template #below>
@@ -192,11 +219,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Search, Plus } from 'lucide-vue-next'
+import { Search, Plus, Sparkles, Loader2 } from 'lucide-vue-next'
 import { toast } from '@/lib/notify'
 import { elTagTypeToBadge } from '@/lib/badgeVariants'
+import { getCandidateIntent, batchGetIntent, type CandidateIntent } from '@/api/modules/brain'
 import PageShell from '@/components/Layout/PageShell.vue'
 import ListPagination from '@/components/common/ListPagination.vue'
 import FormField from '@/components/app/FormField.vue'
@@ -204,23 +232,11 @@ import NumberInput from '@/components/app/NumberInput.vue'
 import MatchVerdict from '@/components/match/MatchVerdict.vue'
 import JobContextBar from '@/components/common/JobContextBar.vue'
 import RowActions from '@/components/common/RowActions.vue'
+import type { ActionItem } from '@/components/common/RowActions.vue'
 import {
-  RButton,
-  RInput,
-  RSelect,
-  RBadge,
-  RTable,
-  RTableHead,
-  RTableBody,
-  RTableRow,
-  RTableTh,
-  RTableCell,
-  RCheckbox,
-  RDialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
+  RButton, RInput, RSelect, RBadge,
+  RTable, RTableHead, RTableBody, RTableRow, RTableTh, RTableCell, RCheckbox,
+  RDialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui'
 import { candidateStatusLabel, pipelineStageLabel, sourceLabel } from '@/constants/businessLabels'
 import { getCandidateList, addToJob, createCandidate, updateCandidate } from '@/api/modules/candidate'
@@ -233,19 +249,38 @@ const queryParams = reactive({ name: '', status: '' as string | undefined, sourc
 const total = ref(0)
 const candidateList = ref<any[]>([])
 const selectedIds = ref<number[]>([])
-const selectedRows = computed(() => candidateList.value.filter((r) => selectedIds.value.includes(r.id)))
-const linkJobVisible = ref(false)
-const linkJobLoading = ref(false)
-const currentCandidate = ref<any>(null)
-const selectedJobId = ref<number | null>(null)
+const selectedRows = computed(() => candidateList.value.filter(r => selectedIds.value.includes(r.id)))
+const linkJobVisible = ref(false); const linkJobLoading = ref(false)
+const currentCandidate = ref<any>(null); const selectedJobId = ref<number | null>(null)
 const jobOptions = ref<any[]>([])
-const jobSelectOptions = computed(() => jobOptions.value.map((j) => ({ label: j.title, value: j.id })))
-const formVisible = ref(false)
-const formLoading = ref(false)
-const isEditing = ref(false)
-const editingId = ref<number | null>(null)
+const jobSelectOptions = computed(() => jobOptions.value.map(j => ({ label: j.title, value: j.id })))
+const formVisible = ref(false); const formLoading = ref(false)
+const isEditing = ref(false); const editingId = ref<number | null>(null)
 const candidateForm = reactive({ name: '', phone: '', email: '', currentCompany: '', currentTitle: '', workYears: 0, education: '', expectedSalary: undefined as number | undefined | null, source: 'DIRECT' })
 const formErrors = reactive({ name: '', phone: '' })
+
+// ===== AI 意向评分 =====
+const aiScores = ref<Record<number, { intent?: CandidateIntent | null; loading?: boolean }>>({})
+
+function aiDotClass(score: number) {
+  if (score >= 70) return 'bg-success shadow-[0_0_4px_rgba(22,163,74,0.4)]'
+  if (score >= 40) return 'bg-warning shadow-[0_0_4px_rgba(245,158,11,0.4)]'
+  return 'bg-danger shadow-[0_0_4px_rgba(239,68,68,0.4)]'
+}
+function aiScoreClass(score: number) {
+  if (score >= 70) return 'text-success'
+  if (score >= 40) return 'text-warning'
+  return 'text-danger'
+}
+function openAiIntent(row: any) {
+  const intent = aiScores.value[row.id]?.intent
+  if (!intent || !queryParams.jobId) return
+  router.push({
+    path: `/ai/intent/${row.id}`,
+    query: { jobId: String(queryParams.jobId), candidateName: row.name, jobTitle: '' },
+  })
+}
+// =====
 
 const statusOptions = [
   { label: '新简历', value: 'NEW' }, { label: '筛选中', value: 'SCREENING' }, { label: '面试中', value: 'INTERVIEWING' },
@@ -278,40 +313,38 @@ function rowClassName({ row }: { row: any }) {
 }
 
 function toggleSelect(id: number, checked: boolean) {
-  if (checked) {
-    if (!selectedIds.value.includes(id)) selectedIds.value.push(id)
-  } else {
-    selectedIds.value = selectedIds.value.filter((i) => i !== id)
-  }
+  if (checked) { if (!selectedIds.value.includes(id)) selectedIds.value.push(id) }
+  else { selectedIds.value = selectedIds.value.filter(i => i !== id) }
 }
 
-function getRowActions(_row: any) {
-  return [
+function getVisibleActions(_row: any) {
+  const base: ActionItem[] = [
     { command: 'view', label: '查看详情', icon: 'View', primary: true },
     { command: 'edit', label: '编辑', icon: 'Edit' },
-    { command: 'link', label: '关联职位', icon: 'Connection' },
-    { command: 'match', label: '查看匹配', icon: 'DataAnalysis' },
   ]
+  if (!queryParams.jobId) base.push({ command: 'link', label: '关联职位', icon: 'Connection' })
+  if (queryParams.jobId) base.push({ command: 'ai-intent', label: 'AI 评估', icon: 'Sparkles' })
+  base.push({ command: 'match', label: '查看匹配', icon: 'DataAnalysis' })
+  return base
 }
 
 function handleRowCommand(cmd: string, row: any) {
   if (cmd === 'view') handleView(row)
   else if (cmd === 'edit') handleEdit(row)
   else if (cmd === 'link') handleLinkJob(row)
+  else if (cmd === 'ai-intent') openAiIntent(row)
   else if (cmd === 'match') handleScreening(row)
 }
 
-function validateForm(): boolean {
-  formErrors.name = candidateForm.name ? '' : '请输入姓名'
-  formErrors.phone = candidateForm.phone ? '' : '请输入电话'
-  return !Object.values(formErrors).some(Boolean)
-}
+function validateForm(): boolean { formErrors.name = candidateForm.name ? '' : '请输入姓名'; formErrors.phone = candidateForm.phone ? '' : '请输入电话'; return !Object.values(formErrors).some(Boolean) }
 
 async function loadData() {
   try { const res: any = await getCandidateList(queryParams); candidateList.value = res.data?.list || res.data?.records || []; total.value = res.data?.total || 0 } catch { candidateList.value = []; total.value = 0 }
 }
-function handleSearch() { queryParams.pageNum = 1; loadData() }
-function handleReset() { queryParams.name = ''; queryParams.status = undefined; queryParams.source = undefined; queryParams.jobId = null; handleSearch() }
+async function handleSearch() { queryParams.pageNum = 1; await loadData(); if (queryParams.jobId) loadAiScores() }
+function handleReset() { queryParams.name = ''; queryParams.status = undefined; queryParams.source = undefined; queryParams.jobId = null; aiScores.value = {}; handleSearch() }
+async function onJobChange() { await handleSearch() }
+async function onPageChange() { await loadData(); if (queryParams.jobId) loadAiScores() }
 function resetCandidateForm() { Object.assign(candidateForm, { name: '', phone: '', email: '', currentCompany: '', currentTitle: '', workYears: 0, education: '', expectedSalary: undefined, source: 'DIRECT' }); formErrors.name = ''; formErrors.phone = '' }
 function handleCreate() { isEditing.value = false; editingId.value = null; resetCandidateForm(); formVisible.value = true }
 function handleView(row: any) { router.push({ path: `/pipeline/candidates/${row.id}`, query: queryParams.jobId ? { jobId: String(queryParams.jobId) } : {} }) }
@@ -320,27 +353,55 @@ function handleEdit(row: any) {
   Object.assign(candidateForm, { name: row.name || '', phone: row.phone || '', email: row.email || '', currentCompany: row.currentCompany || row.company || '', currentTitle: row.currentTitle || row.position || '', workYears: row.workYears || 0, education: row.education || '', expectedSalary: row.expectedSalary, source: row.source || 'DIRECT' })
   formVisible.value = true
 }
-
 async function submitCandidateForm() {
-  if (!validateForm()) return
-  formLoading.value = true
+  if (!validateForm()) return; formLoading.value = true
   try {
     if (isEditing.value && editingId.value) { await updateCandidate(editingId.value, { ...candidateForm }); toast.success('候选人已更新') }
     else { await createCandidate({ ...candidateForm }); toast.success('候选人已添加') }
-    formVisible.value = false; loadData()
+    formVisible.value = false; handleSearch()
   } catch { toast.error('保存失败') } finally { formLoading.value = false }
 }
+async function handleLinkJob(row: any) { currentCandidate.value = row; selectedJobId.value = null; linkJobVisible.value = true; try { const res: any = await getJobList({ pageNum: 1, pageSize: 100 }); jobOptions.value = res.data?.list || res.data?.records || [] } catch { jobOptions.value = [] } }
+async function confirmLinkJob() { if (!selectedJobId.value || !currentCandidate.value) return; linkJobLoading.value = true; try { await addToJob(currentCandidate.value.id, selectedJobId.value); toast.success('已关联在招职位'); linkJobVisible.value = false; handleSearch() } catch {} finally { linkJobLoading.value = false } }
 
-async function handleLinkJob(row: any) {
-  currentCandidate.value = row; selectedJobId.value = null; linkJobVisible.value = true
-  try { const res: any = await getJobList({ pageNum: 1, pageSize: 100 }); jobOptions.value = res.data?.list || res.data?.records || [] } catch { jobOptions.value = [] }
+// ===== AI 意向批量加载 =====
+async function loadAiScores() {
+  if (!queryParams.jobId || candidateList.value.length === 0) return
+  const jobId = queryParams.jobId
+  const ids = candidateList.value.map(r => r.id).filter(Boolean) as number[]
+  if (ids.length === 0) return
+  // Mark all as loading
+  ids.forEach(id => { aiScores.value[id] = { loading: true } })
+  try {
+    const res: any = await batchGetIntent(ids, jobId)
+    const results = res?.data?.results || (res as any)?.results || {}
+    ids.forEach(id => {
+      const entry = results[String(id)]
+      if (entry) {
+        aiScores.value[id] = {
+          intent: {
+            candidateId: id,
+            candidateName: '',
+            jobId,
+            jobTitle: '',
+            intentScore: entry.intentScore,
+            intentLevel: entry.intentLevel,
+            confidence: entry.confidence,
+            riskFactors: entry.riskFactors || [],
+            interventionSuggestions: entry.interventionSuggestions || [],
+            updatedAt: entry.updatedAt || '',
+          },
+          loading: false,
+        }
+      } else {
+        aiScores.value[id] = { intent: null, loading: false }
+      }
+    })
+  } catch {
+    ids.forEach(id => { aiScores.value[id] = { intent: null, loading: false } })
+  }
 }
-
-async function confirmLinkJob() {
-  if (!selectedJobId.value || !currentCandidate.value) return
-  linkJobLoading.value = true
-  try { await addToJob(currentCandidate.value.id, selectedJobId.value); toast.success('已关联在招职位'); linkJobVisible.value = false; loadData() } catch {} finally { linkJobLoading.value = false }
-}
+// =====
 
 function handleScreening(row: any) {
   const jobId = queryParams.jobId || row.jobId
@@ -349,12 +410,12 @@ function handleScreening(row: any) {
   if (!jobOptions.value.length) getJobList({ pageNum: 1, pageSize: 100 }).then((res: any) => { jobOptions.value = res.data?.list || res.data?.records || [] })
   toast.info('请先选择在招职位')
 }
-
 function handleBatchAdvance() { toast.info(`批量推进 ${selectedRows.value.length} 位候选人（功能开发中）`) }
 
 onMounted(async () => {
   const qJob = Number(route.query.jobId); if (qJob) queryParams.jobId = qJob
   try { const res: any = await getJobList({ pageNum: 1, pageSize: 100, status: 'ACTIVE' }); jobOptions.value = res.data?.list || res.data?.records || [] } catch {}
-  loadData()
+  await loadData()
+  if (queryParams.jobId) loadAiScores()
 })
 </script>

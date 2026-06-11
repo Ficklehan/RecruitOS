@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { RPageShell, RCard, RBadge } from '@/components/ui'
+import { RPageShell, RCard, RBadge, RButton } from '@/components/ui'
+import { cn } from '@/lib/utils'
 import { getCyclePrediction, type CyclePrediction } from '@/api/modules/brain'
 import { toast } from '@/lib/notify'
-import { Sparkles, Loader2 } from 'lucide-vue-next'
+import { Sparkles, Loader2, ArrowRight, Briefcase } from 'lucide-vue-next'
+import { useRouter } from 'vue-router'
 
 const route = useRoute()
+const router = useRouter()
 const jobId = Number(route.params.jobId)
 const data = ref<CyclePrediction | null>(null)
 
@@ -67,6 +70,14 @@ onMounted(async () => {
               <p class="text-[12px] text-text-secondary">{{ iv.expectedEffect }} · 预计 {{ iv.effortDays }} 天内见效</p>
             </div>
           </div>
+        </div>
+        <div class="flex flex-wrap gap-2 mt-4">
+          <RButton size="sm" @click="router.push(`/planning/jobs/${data.jobId}`)">
+            <Briefcase class="mr-1.5 h-3.5 w-3.5" />岗位工作台
+          </RButton>
+          <RButton size="sm" variant="outline" @click="router.push(`/pipeline/board?jobId=${data.jobId}`)">
+            <ArrowRight class="mr-1.5 h-3.5 w-3.5" />查看管道
+          </RButton>
         </div>
       </RCard>
     </template>

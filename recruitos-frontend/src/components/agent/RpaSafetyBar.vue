@@ -42,7 +42,7 @@ const status = ref<Record<string, unknown>>({})
 const simulatedMode = computed(() => status.value.simulatedMode !== false)
 const testingLocked = computed(() => status.value.testingLocked === true)
 
-const alertVariant = computed(() => (simulatedMode.value ? 'warning' : 'destructive'))
+const alertVariant = computed(() => (simulatedMode.value ? 'warning' : 'danger'))
 
 const title = computed(() => {
   if (testingLocked.value) return '已锁定：测试模式（不访问 Boss/猎聘）'

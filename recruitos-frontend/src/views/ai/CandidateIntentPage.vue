@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { RPageShell, RCard, RBadge } from '@/components/ui'
+import { RPageShell, RCard, RBadge, RButton } from '@/components/ui'
 import { getCandidateIntent, type CandidateIntent } from '@/api/modules/brain'
 import { toast } from '@/lib/notify'
-import { Sparkles, Loader2 } from 'lucide-vue-next'
+import { Sparkles, Loader2, Calendar, MessageCircle, User } from 'lucide-vue-next'
+import { useRouter } from 'vue-router'
 
 const route = useRoute()
+const router = useRouter()
 const data = ref<CandidateIntent | null>(null)
 
 onMounted(async () => {
@@ -63,6 +65,17 @@ onMounted(async () => {
         <ul class="space-y-2">
           <li v-for="(s, i) in data.interventionSuggestions" :key="i" class="flex items-start gap-2 text-[13px] text-text-primary"><span class="text-primary">•</span>{{ s }}</li>
         </ul>
+        <div class="flex flex-wrap gap-2 mt-4">
+          <RButton size="sm" @click="router.push(`/pipeline/candidates/${data.candidateId}`)">
+            <User class="mr-1.5 h-3.5 w-3.5" />候选人工作台
+          </RButton>
+          <RButton size="sm" variant="outline" @click="router.push(`/pipeline/calendar`)">
+            <Calendar class="mr-1.5 h-3.5 w-3.5" />安排沟通
+          </RButton>
+          <RButton size="sm" variant="outline" @click="router.push(`/talent/conversations`)">
+            <MessageCircle class="mr-1.5 h-3.5 w-3.5" />发送跟进
+          </RButton>
+        </div>
       </RCard>
     </template>
   </RPageShell>

@@ -15,6 +15,7 @@ export interface BrainDashboard {
 export interface UrgentItem {
   id: string; type: string; title: string; description: string
   candidateName?: string; jobTitle?: string; severity: string; action: string; actionPath: string; aiReasoning: string
+  confidence?: number
 }
 
 export interface AIInsight {
@@ -209,3 +210,30 @@ export function logIgnoreReason(data: {
   reason: string; note?: string; userId?: number
 }) { return request.post('/api/brain/ignore-reason', data) as Promise<ApiResult<void>> }
 
+
+
+
+// ===== Batch APIs =====
+export interface BatchIntentResult {
+  results: Record<string, { intentScore: number; intentLevel: string; confidence: number; riskFactors?: any[]; interventionSuggestions?: string[]; updatedAt?: string }>
+  jobId: number; count: number
+}
+export function batchGetIntent(candidateIds: number[], jobId: number) {
+  return request.post('/api/brain/batch/intent', { candidateIds, jobId }) as Promise<ApiResult<BatchIntentResult>>
+}
+// Decision logging
+export function logDecision(data: {
+  decisionType: string; targetId?: number; targetType?: string
+  decisionDetail?: Record<string, any>; confidence?: number
+  confirmedBy?: number
+}) { return request.post('/api/brain/decision-log', data) as Promise<ApiResult<void>> }
+
+// Strategy Proposals (M5)
+export interface StrategyProposal {
+  id: string; type: string; title: string; description: string
+  proposedAction: string; evidence?: Record<string, any>
+  confidence: number; createdAt: string
+}
+export function getStrategyProposals() {
+  return request.get('/api/brain/strategy-proposals') as Promise<ApiResult<StrategyProposal[]>>
+}

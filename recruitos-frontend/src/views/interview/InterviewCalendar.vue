@@ -214,7 +214,7 @@ function getEventTop(event: any) {
   return `${(h - 8) * 52}px`
 }
 
-function getEventHeight() {
+function getEventHeight(_event?: any) {
   return '48px'
 }
 

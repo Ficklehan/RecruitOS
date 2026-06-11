@@ -74,6 +74,40 @@
             </div>
 
             <div class="rounded-xl bg-card text-card-foreground shadow-soft p-6">
+              <div class="flex items-center gap-2 mb-3">
+                <Clock class="h-4 w-4" :class="cycleRiskIconColor" />
+                <h4>招聘周期预测</h4>
+              </div>
+              <div v-if="cycleLoading" class="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 class="h-4 w-4 animate-spin" />加载中...
+              </div>
+              <template v-else-if="cyclePrediction">
+                <div class="flex items-baseline gap-2 mb-2">
+                  <span class="text-[28px] font-bold" :class="cycleRiskTextColor">{{ cyclePrediction.estimatedDays }}</span>
+                  <span class="text-sm text-muted-foreground">天预计到岗</span>
+                </div>
+                <p class="text-xs text-muted-foreground mb-3">80%置信区间：{{ cyclePrediction.minDays }}–{{ cyclePrediction.maxDays }} 天</p>
+                <div v-if="cyclePrediction.bottlenecks?.length" class="space-y-1.5 mb-3">
+                  <p class="text-[11px] font-semibold text-muted-foreground">瓶颈识别</p>
+                  <div v-for="b in cyclePrediction.bottlenecks.slice(0, 2)" :key="b.stage" class="flex items-center gap-2 text-[12px]">
+                    <span class="w-14 text-muted-foreground">{{ b.stage }}</span>
+                    <span class="text-foreground">{{ b.issue }}</span>
+                    <span class="text-warning ml-auto">+{{ b.impact }}天</span>
+                  </div>
+                </div>
+                <RButton variant="link" size="sm" class="p-0 h-auto text-xs" @click="router.push(`/ai/cycle-prediction/${job.id}`)">
+                  <Sparkles class="mr-1 h-3 w-3" />查看完整预测
+                </RButton>
+              </template>
+              <div v-else class="text-center py-4">
+                <p class="text-sm text-muted-foreground mb-2">暂无周期预测数据</p>
+                <RButton variant="outline" size="sm" @click="loadCyclePrediction">
+                  <Sparkles class="mr-1 h-3 w-3" />生成预测
+                </RButton>
+              </div>
+            </div>
+
+            <div class="rounded-xl bg-card text-card-foreground shadow-soft p-6">
               <h4>{{ OBJECTS.jobDescription }}</h4>
               <p class="jd-snippet">{{ displayJdText }}</p>
             </div>
@@ -86,6 +120,22 @@
                 <RBadge :variant="elTagTypeToBadge(row.type)">{{ row.count }}</RBadge>
               </div>
               <EmptyStateCta v-if="!matchDistribution.length" :image-size="48" description="本职位尚无在招候选人" :actions="[{ label: ACTIONS.startPlatformTask, type: 'primary', onClick: () => activeTab = 'sourcing' }]" />
+            </div>
+
+            <div class="rounded-xl bg-card text-card-foreground shadow-soft p-6">
+              <h4>AI 洞察</h4>
+              <p class="hint">与本职位相关的 AI 分析</p>
+              <div class="space-y-1.5 mt-3">
+                <RButton variant="link" size="sm" class="p-0 h-auto text-xs justify-start w-full" @click="router.push(`/ai/cycle-prediction/${job.id}`)">
+                  <Clock class="mr-1.5 h-3.5 w-3.5" />招聘周期预测
+                </RButton>
+                <RButton variant="link" size="sm" class="p-0 h-auto text-xs justify-start w-full" @click="router.push('/ai/demand/create')">
+                  <Sparkles class="mr-1.5 h-3.5 w-3.5" />需求诊断
+                </RButton>
+                <RButton variant="link" size="sm" class="p-0 h-auto text-xs justify-start w-full" @click="router.push('/ai/calibration')">
+                  <ScaleIcon class="mr-1.5 h-3.5 w-3.5" />校准会
+                </RButton>
+              </div>
             </div>
           </div>
         </RTabsContent>
@@ -158,7 +208,7 @@ import PageShell from '@/components/Layout/PageShell.vue'
 import ObjectHeader from '@/components/Layout/ObjectHeader.vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, Loader2 } from 'lucide-vue-next'
+import { ArrowLeft, Loader2, Clock, Sparkles } from 'lucide-vue-next'
 import { toast } from '@/lib/notify'
 import { confirm } from '@/lib/confirm'
 import { elTagTypeToBadge } from '@/lib/badgeVariants'
@@ -181,6 +231,7 @@ import { ACTIONS, JOB_WORKSPACE_TABS, OBJECTS, jobStatusLabel, pipelineStageLabe
 import { type RequirementItem, fromApiTag, IMPORTANCE_LABEL, REQUIREMENT_TYPE_LABEL } from '@/utils/jdRequirements'
 import { parseMatchDetail, tierTagType } from '@/utils/matchVerdict'
 import { activateJob, closeJob, getJobDetail, getTags, pauseJob } from '@/api/modules/job'
+import { getCyclePrediction, type CyclePrediction } from '@/api/modules/brain'
 import { getPipelineBoard } from '@/api/modules/pipeline'
 import { getWorkflowDetail, getWorkflowList } from '@/api/modules/agent'
 
@@ -189,6 +240,8 @@ const router = useRouter()
 
 const loading = ref(false)
 const job = ref<any>(null)
+const cyclePrediction = ref<CyclePrediction | null>(null)
+const cycleLoading = ref(false)
 const activeTab = ref('overview')
 const sourcingSub = ref('task')
 const candidatesSub = ref('kanban')
@@ -198,6 +251,31 @@ const boardItems = ref<any[]>([])
 const sourcedCount = ref(0)
 const requirements = ref<RequirementItem[]>([])
 const closeDialogVisible = ref(false)
+
+// Cycle prediction computed
+const cycleRiskIconColor = computed(() => {
+  const d = cyclePrediction.value?.estimatedDays || 0
+  if (!d) return 'text-muted-foreground'
+  if (d <= 30) return 'text-success'
+  if (d <= 45) return 'text-warning'
+  return 'text-destructive'
+})
+const cycleRiskTextColor = computed(() => {
+  const d = cyclePrediction.value?.estimatedDays || 0
+  if (!d) return 'text-foreground'
+  if (d <= 30) return 'text-success'
+  if (d <= 45) return 'text-warning'
+  return 'text-destructive'
+})
+
+async function loadCyclePrediction() {
+  if (!job.value?.id) return
+  cycleLoading.value = true
+  try {
+    const res = await getCyclePrediction(job.value.id)
+    cyclePrediction.value = res.data
+  } catch { cyclePrediction.value = null } finally { cycleLoading.value = false }
+}
 const closeReason = ref('')
 const kanbanRef = ref<InstanceType<typeof PipelineKanban> | null>(null)
 const campaignStats = ref<Record<string, number> | null>(null)
@@ -280,7 +358,7 @@ async function loadJob(jobId: number) {
     const { data } = await getJobDetail(jobId); job.value = data
     try { const tagRes: any = await getTags(jobId); const raw = tagRes.data ?? tagRes; requirements.value = (Array.isArray(raw) ? raw : []).map((t: Record<string, unknown>) => fromApiTag(t)) } catch { requirements.value = [] }
     if (!requirements.value.length) requirements.value = parseTagsFromJobField(data?.tags)
-    await loadBoardOnly(); await loadCampaignStats(jobId)
+    await loadBoardOnly(); await loadCampaignStats(jobId); loadCyclePrediction()
   } finally { loading.value = false }
 }
 

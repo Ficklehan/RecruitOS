@@ -10,11 +10,9 @@
     "check:terms": "node scripts/check-forbidden-ui-terms.mjs"
   },
   "dependencies": {
-    "@element-plus/icons-vue": "^2.3.2",
     "axios": "^1.6.5",
     "dayjs": "^1.11.10",
     "echarts": "^5.4.3",
-    "element-plus": "^2.14.1",
     "pinia": "^2.1.7",
     "vue": "^3.4.0",
     "vue-router": "^4.2.5"

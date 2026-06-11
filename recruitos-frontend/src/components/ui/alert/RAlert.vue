@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils'
 import { CheckCircle, XCircle, AlertTriangle, Info } from 'lucide-vue-next'
 
 interface Props {
-  variant?: 'success' | 'warning' | 'danger' | 'info'
+  variant?: 'success' | 'warning' | 'danger' | 'info' | 'default'
   title?: string
   class?: string
 }
@@ -13,12 +13,13 @@ const props = withDefaults(defineProps<Props>(), {
   variant: 'info',
 })
 
-const icons = { success: CheckCircle, warning: AlertTriangle, danger: XCircle, info: Info }
+const icons = { success: CheckCircle, warning: AlertTriangle, danger: XCircle, info: Info, default: Info }
 const colors = {
   success: 'bg-success-light text-success border-success/20',
   warning: 'bg-warning-light text-warning border-warning/20',
   danger: 'bg-danger-light text-danger border-danger/20',
   info: 'bg-info-light text-info border-info/20',
+  default: 'bg-info-light text-info border-info/20',
 }
 </script>
 
