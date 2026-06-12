@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { cn } from '@/lib/utils'
 
 interface Props {
-  variant?: 'default' | 'success' | 'warning' | 'danger' | 'info' | 'outline' | 'destructive' | 'secondary'
+  variant?: 'default' | 'success' | 'warning' | 'danger' | 'info' | 'outline' | 'secondary' | 'destructive'
   size?: 'sm' | 'md'
   class?: string
 }
@@ -18,10 +18,10 @@ const variantClasses = {
   success: 'bg-success/10 text-success',
   warning: 'bg-warning/10 text-warning',
   danger: 'bg-danger/10 text-danger',
-  destructive: 'bg-danger/10 text-danger',
   info: 'bg-info/10 text-info',
   outline: 'bg-transparent border border-border text-text-secondary',
-  secondary: 'bg-bg-muted text-text-regular',
+  secondary: 'bg-bg-muted text-text-secondary',
+  destructive: 'bg-danger/10 text-danger',
 }
 
 const sizeClasses = {

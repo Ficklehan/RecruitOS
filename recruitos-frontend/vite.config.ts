@@ -22,6 +22,24 @@ export default defineConfig({
       '@': resolve(__dirname, 'src'),
     },
   },
+  css: {
+    preprocessorOptions: {
+      scss: {
+        additionalData: `@import "@/assets/styles/variables.scss";`,
+      },
+    },
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-vue': ['vue', 'vue-router', 'pinia'],
+          'vendor-echarts': ['echarts'],
+          'vendor-lucide': ['lucide-vue-next'],
+        },
+      },
+    },
+  },
   server: {
     port: 5001,
     proxy: {
@@ -126,6 +144,18 @@ export default defineConfig({
         changeOrigin: true,
       },
       '/api/brain': {
+        target: 'http://localhost:8100',
+        changeOrigin: true,
+      },
+      '/api/cognitive': {
+        target: 'http://localhost:8100',
+        changeOrigin: true,
+      },
+      '/api/compliance': {
+        target: 'http://localhost:8100',
+        changeOrigin: true,
+      },
+      '/api/integration': {
         target: 'http://localhost:8100',
         changeOrigin: true,
       },

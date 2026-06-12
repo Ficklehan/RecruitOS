@@ -25,9 +25,7 @@ export function getConversationDetail(id: number) {
 }
 
 export function sendMessage(conversationId: number, data: { content: string; templateId?: number }) {
-  return request.post(`/api/communication/conversation/${conversationId}/send`, null, {
-    params: { content: data.content, templateId: data.templateId },
-  })
+  return request.post(`/api/communication/conversation/${conversationId}/send`, data)
 }
 
 export function getSafetyStats() {

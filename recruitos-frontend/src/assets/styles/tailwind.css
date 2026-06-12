@@ -65,6 +65,15 @@
   }
 }
 
+/* ═══ 兼容 shadcn/v0 命名的语义色 utility ═══ */
+
+@utility text-foreground { color: var(--r-text-primary); }
+@utility text-muted-foreground { color: var(--r-text-secondary); }
+@utility text-destructive { color: var(--r-danger); }
+@utility bg-muted { background-color: var(--r-bg-muted); }
+@utility bg-destructive { background-color: var(--r-danger); }
+@utility border-border { border-color: var(--r-border); }
+
 /* ═══ Utility Classes ═══ */
 
 @layer utilities {
@@ -72,6 +81,7 @@
   .r-shadow-md { box-shadow: var(--r-shadow-md); }
   .r-shadow-lg { box-shadow: var(--r-shadow-lg); }
   .r-shadow-xl { box-shadow: var(--r-shadow-xl); }
+  .shadow-soft { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04); }
 
   .r-transition-fast { transition: all var(--r-transition-fast); }
   .r-transition-base { transition: all var(--r-transition-base); }

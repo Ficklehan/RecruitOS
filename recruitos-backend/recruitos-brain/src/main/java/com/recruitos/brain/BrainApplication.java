@@ -5,9 +5,11 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.scheduling.annotation.EnableAsync;
 
 @SpringBootApplication
 @EnableScheduling
+@EnableAsync
 @MapperScan("com.recruitos.brain.mapper")
 @ComponentScan(basePackages = {"com.recruitos.brain", "com.recruitos.common"})
 public class BrainApplication {

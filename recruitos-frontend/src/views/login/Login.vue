@@ -40,7 +40,7 @@
       <div class="login-form-wrapper">
         <div class="mobile-logo">
           <svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect width="36" height="36" rx="10" fill="$primary-color"/>
+            <rect width="36" height="36" rx="10" fill="#4F6BED"/>
             <path d="M11 13h14M11 18.5h10M11 24h6" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
             <circle cx="27" cy="24" r="3.5" fill="white" opacity="0.9"/>
           </svg>
@@ -210,7 +210,8 @@ async function handleLogin() {
         localStorage.setItem('rememberedUser', loginForm.username)
       }
       toast.success('登录成功')
-      router.push('/')
+      const redirect = router.currentRoute.value.query.redirect as string
+      router.push(redirect || '/')
     }
   } catch {
     // errors handled in store

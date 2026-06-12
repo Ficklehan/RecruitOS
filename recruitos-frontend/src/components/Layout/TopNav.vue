@@ -3,10 +3,11 @@ import { computed, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { cn } from '@/lib/utils'
 import { useUserStore } from '@/stores/user'
-import { topNavMenus, filterMenus, findActiveMenu, getDefaultRoute, type MenuItem } from '@/config/menus'
+import { topNavMenus, filterMenus, getDefaultRoute, type MenuItem } from '@/config/menus'
 import { getMyNotifications, markNotificationRead } from '@/api/modules/notification'
+import { useMenuAiStatus } from '@/composables/useMenuAiStatus'
 import { RButton, RBadge, RSeparator, RDropdown, RAvatar, RScrollArea } from '@/components/ui'
-import { Bell, ChevronDown, LogOut, Menu, Sparkles } from 'lucide-vue-next'
+import { Bell, ChevronDown, LogOut, Menu } from 'lucide-vue-next'
 
 const props = defineProps<{ sidebarCollapsed?: boolean }>()
 const emit = defineEmits<{ 'toggle-sidebar': [] }>()
@@ -14,6 +15,7 @@ const emit = defineEmits<{ 'toggle-sidebar': [] }>()
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
+const { insightAlerts, insightAttention, totalPending } = useMenuAiStatus()
 
 const userName = computed(() => userStore.userInfo?.realName || '管理员')
 const notifications = ref<any[]>([])
@@ -23,9 +25,7 @@ async function loadNotifications() {
   try {
     const res = await getMyNotifications(10)
     notifications.value = res.data || []
-  } catch {
-    notifications.value = []
-  }
+  } catch { notifications.value = [] }
 }
 
 async function openNotification(n: any) {
@@ -36,16 +36,21 @@ async function openNotification(n: any) {
   router.push('/workspace/inbox')
 }
 
-const visibleTopMenus = computed(() =>
-  filterMenus(topNavMenus, userStore.permissions)
-)
-
-const activeMenu = computed(() =>
-  findActiveMenu(visibleTopMenus.value, route.path)
-)
+const visibleTopMenus = computed(() => filterMenus(topNavMenus, userStore.permissions))
 
 function isActiveGroup(item: MenuItem) {
-  return activeMenu.value?.key === item.key
+  if (item.children?.some(c => route.path.startsWith(c.path))) return true
+  return route.path.startsWith('/' + item.key)
+}
+
+function getMenuBadge(item: MenuItem): { count: number; variant: string } | null {
+  if (item.key === 'insight' && totalPending.value > 0) {
+    return {
+      count: totalPending.value,
+      variant: insightAlerts.value > 0 ? 'danger' : 'warning',
+    }
+  }
+  return null
 }
 
 function goHome() {
@@ -53,13 +58,7 @@ function goHome() {
   router.push(getDefaultRoute(roleCodes))
 }
 
-function handleNavClick(item: MenuItem) {
-  router.push(item.path)
-}
-
-function openCopilot() {
-  router.push('/ai/copilot')
-}
+function handleNavClick(item: MenuItem) { router.push(item.path) }
 
 async function handleLogout() {
   await userStore.logout()
@@ -70,12 +69,10 @@ async function handleLogout() {
 <template>
   <nav class="fixed top-0 left-0 right-0 h-[var(--r-header-height)] bg-bg-card z-[var(--r-z-header)] flex items-center justify-between px-5 border-b border-divider">
     <div class="flex items-center gap-6">
-      <!-- Mobile menu toggle -->
       <RButton variant="ghost" size="sm" class="md:hidden p-1.5" @click="emit('toggle-sidebar')">
         <Menu class="h-5 w-5" />
       </RButton>
 
-      <!-- Logo -->
       <div class="flex items-center gap-2.5 cursor-pointer" @click="goHome">
         <svg viewBox="0 0 32 32" fill="none" class="w-7 h-7">
           <rect width="32" height="32" rx="8" fill="#4F6BED"/>
@@ -85,13 +82,12 @@ async function handleLogout() {
         <span class="text-[15px] font-bold text-text-primary hidden sm:block">RecruitOS</span>
       </div>
 
-      <!-- Nav items -->
       <div class="hidden md:flex items-center gap-0.5">
         <div
           v-for="item in visibleTopMenus"
           :key="item.key"
           :class="cn(
-            'px-3.5 py-1.5 rounded-[var(--r-radius-sm)] text-[13px] font-medium cursor-pointer transition-all duration-200',
+            'relative px-3.5 py-1.5 rounded-[var(--r-radius-sm)] text-[13px] font-medium cursor-pointer transition-all duration-200',
             isActiveGroup(item)
               ? 'bg-primary-light text-primary'
               : 'text-text-secondary hover:text-text-primary hover:bg-bg-hover',
@@ -99,23 +95,21 @@ async function handleLogout() {
           @click="handleNavClick(item)"
         >
           {{ item.label }}
+          <!-- AI 状态徽标 -->
+          <span
+            v-if="getMenuBadge(item)"
+            :class="cn(
+              'absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full text-[10px] font-bold text-white',
+              getMenuBadge(item)?.variant === 'danger' ? 'bg-red-500' : 'bg-amber-500'
+            )"
+          >
+            {{ getMenuBadge(item)?.count }}
+          </span>
         </div>
       </div>
     </div>
 
     <div class="flex items-center gap-1">
-      <!-- Co-Pilot quick access -->
-      <RButton
-        variant="ghost"
-        size="sm"
-        class="p-2 mr-1"
-        title="AI Co-Pilot"
-        @click="openCopilot"
-      >
-        <Sparkles class="h-[18px] w-[18px] text-primary" />
-      </RButton>
-
-      <!-- Notifications -->
       <RDropdown @open-change="loadNotifications">
         <template #trigger>
           <RButton variant="ghost" size="sm" class="relative p-2">
@@ -149,7 +143,6 @@ async function handleLogout() {
 
       <RSeparator direction="vertical" class="h-5 mx-1" />
 
-      <!-- User menu -->
       <RDropdown>
         <template #trigger>
           <RButton variant="ghost" class="h-9 px-2 gap-2">

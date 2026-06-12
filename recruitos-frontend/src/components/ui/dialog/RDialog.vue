@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted } from 'vue'
 import { cn } from '@/lib/utils'
 import { X } from 'lucide-vue-next'
 
 interface Props {
   modelValue?: boolean
+  open?: boolean
   title?: string
   description?: string
   width?: string
@@ -15,11 +16,17 @@ const props = withDefaults(defineProps<Props>(), {
   width: '480px',
 })
 
+const isOpen = computed(() => props.open ?? props.modelValue ?? false)
+
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
+  'update:open': [value: boolean]
 }>()
 
-function close() { emit('update:modelValue', false) }
+function close() {
+  emit('update:modelValue', false)
+  emit('update:open', false)
+}
 
 function handleKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape') close()
@@ -39,21 +46,12 @@ onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
       leave-from-class="opacity-100"
       leave-to-class="opacity-0"
     >
-      <div v-if="modelValue" class="fixed inset-0 z-[var(--r-z-modal)] flex items-center justify-center p-4">
+      <div v-if="isOpen" class="fixed inset-0 z-[var(--r-z-modal)] flex items-center justify-center p-4">
         <div class="absolute inset-0 bg-black/40" @click="close" />
-        <Transition
-          enter-active-class="transition-all duration-200"
-          enter-from-class="opacity-0 scale-95"
-          enter-to-class="opacity-100 scale-100"
-          leave-active-class="transition-all duration-150"
-          leave-from-class="opacity-100 scale-100"
-          leave-to-class="opacity-0 scale-95"
+        <div
+          :class="cn('relative bg-bg-card rounded-[var(--r-radius-lg)] r-shadow-xl w-full max-h-[85vh] overflow-auto', props.class)"
+          :style="{ maxWidth: width }"
         >
-          <div
-            v-if="modelValue"
-            :class="cn('relative bg-bg-card rounded-[var(--r-radius-lg)] r-shadow-xl w-full max-h-[85vh] overflow-auto', props.class)"
-            :style="{ maxWidth: width }"
-          >
             <div v-if="title" class="flex items-center justify-between px-6 py-4 border-b border-divider">
               <div>
                 <h2 class="text-[16px] font-semibold text-text-primary">{{ title }}</h2>
@@ -70,7 +68,6 @@ onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
               <slot name="footer" />
             </div>
           </div>
-        </Transition>
       </div>
     </Transition>
   </Teleport>

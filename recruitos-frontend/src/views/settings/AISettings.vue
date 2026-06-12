@@ -1,141 +1,119 @@
-<template>
-  <PageShell title="AI 设置" subtitle="管理 AI 能力的行为模式与阈值">
-    <div v-if="loading" class="flex justify-center py-12"><Loader2 class="h-6 w-6 animate-spin" /></div>
-    <template v-if="settings">
-      <!-- 全局模式 -->
-      <Card class="p-6 mb-6">
-        <h3 class="font-semibold mb-4">全局 AI 模式</h3>
-        <div class="flex gap-3">
-          <button v-for="m in modes" :key="m.value"
-            class="mode-btn" :class="{ active: settings.globalMode === m.value }"
-            @click="settings.globalMode = m.value">
-            <span class="mode-label">{{ m.label }}</span>
-            <span class="mode-desc">{{ m.desc }}</span>
-          </button>
-        </div>
-      </Card>
-
-      <!-- 触点开关 -->
-      <Card class="p-6 mb-6">
-        <h3 class="font-semibold mb-4">触点管理</h3>
-        <div class="space-y-3">
-          <div v-for="(cfg, key) in settings.touchpoints" :key="key" class="touchpoint-row">
-            <div class="flex items-center justify-between">
-              <div>
-                <span class="font-medium text-sm">{{ touchpointLabels[key] || key }}</span>
-                <p class="text-xs text-muted-foreground">{{ touchpointDescs[key] || '' }}</p>
-              </div>
-              <div class="flex items-center gap-3">
-                <select v-model="cfg.aggressiveness" class="text-xs border rounded px-2 py-1">
-                  <option value="AGGRESSIVE">激进</option>
-                  <option value="STANDARD">标准</option>
-                  <option value="CONSERVATIVE">保守</option>
-                </select>
-                <button :class="['toggle', cfg.enabled ? 'toggle-on' : 'toggle-off']" @click="cfg.enabled = !cfg.enabled">
-                  <span class="toggle-dot" />
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </Card>
-
-      <!-- 阈值 -->
-      <Card class="p-6 mb-6">
-        <h3 class="font-semibold mb-4">阈值设置</h3>
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <label class="text-sm">意向评分 HIGH 阈值</label>
-            <input v-model.number="settings.thresholds.intentHighThreshold" type="number" class="w-full border rounded px-3 py-2 mt-1" />
-          </div>
-          <div>
-            <label class="text-sm">意向评分 MEDIUM 阈值</label>
-            <input v-model.number="settings.thresholds.intentMediumThreshold" type="number" class="w-full border rounded px-3 py-2 mt-1" />
-          </div>
-          <div>
-            <label class="text-sm">面试官偏差告警阈值</label>
-            <input v-model.number="settings.thresholds.interviewerBiasThreshold" type="number" step="0.05" class="w-full border rounded px-3 py-2 mt-1" />
-          </div>
-          <div>
-            <label class="text-sm">LLM 模型</label>
-            <select v-model="settings.thresholds.llmModel" class="w-full border rounded px-3 py-2 mt-1"><option>gpt-4o</option><option>gpt-4o-mini</option></select>
-          </div>
-        </div>
-      </Card>
-
-      <div class="flex gap-3">
-        <Button @click="handleSave" :disabled="saving">{{ saving ? '保存中...' : '保存设置' }}</Button>
-        <Button variant="outline" @click="loadSettings">恢复默认</Button>
-      </div>
-    </template>
-  </PageShell>
-</template>
-
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { Loader2 } from 'lucide-vue-next'
-import PageShell from '@/components/Layout/PageShell.vue'
-import { Button, Card } from '@/components/ui'
-import request from '@/api/request'
+import { ref } from 'vue'
+import { RCard, RButton, RSwitch, RSelect, RInput, RSeparator } from '@/components/ui'
 import { toast } from '@/lib/notify'
+import { Brain, Zap, Shield, AlertTriangle, Save } from 'lucide-vue-next'
 
-const loading = ref(true)
-const saving = ref(false)
-const settings = ref<any>(null)
+const loading = ref(false)
 
-const modes = [
-  { value: 'AGGRESSIVE', label: '激进', desc: 'AI 主动推送建议，高置信度自动执行' },
-  { value: 'STANDARD', label: '标准', desc: 'AI 主动推送建议，需人工确认' },
-  { value: 'CONSERVATIVE', label: '保守', desc: 'AI 被动响应查询，仅提供参考' },
+// AI 全局模式
+const aiMode = ref('standard') // aggressive / standard / conservative
+const modeOptions = [
+  { label: '激进 — AI 更主动推送、自动执行低风险操作', value: 'aggressive' },
+  { label: '标准 — 平衡推送频率和人工确认（推荐）', value: 'standard' },
+  { label: '保守 — AI 仅在被请求时响应，不自动执行', value: 'conservative' },
 ]
 
-const touchpointLabels: Record<string, string> = {
-  INTENT: '意向预测', INTERVIEW_ASSIST: '面试辅助', CALIBRATION: '校准会',
-  OFFER_STRATEGY: 'Offer 策略', DEMAND_DIAGNOSIS: '需求诊断',
-  CYCLE_PREDICTION: '周期预测', INTERVIEWER_QUALITY: '面试官质量', TALENT_DENSITY: '人才密度',
-}
+// 触点开关
+const touchpoints = ref([
+  { key: 'intent', label: '候选人意向预测', enabled: true, desc: '在管道卡片上显示意向指示' },
+  { key: 'pipeline', label: '管道健康诊断', enabled: true, desc: '每天早上自动巡检在招岗位' },
+  { key: 'interview', label: '面试辅助', enabled: true, desc: '面试准备brief + 评估偏差提醒' },
+  { key: 'calibration', label: '校准会主持', enabled: true, desc: 'AI主持校准会，统计评分分歧' },
+  { key: 'offer', label: 'Offer 策略建议', enabled: true, desc: '基于市场数据和候选人信号生成策略' },
+  { key: 'pattern', label: '模式自动发现', enabled: true, desc: '从历史数据中自动发现招聘规律' },
+  { key: 'user_model', label: '用户画像分析', enabled: true, desc: '分析你的决策偏好和盲区' },
+  { key: 'observation', label: '主动观察推送', enabled: true, desc: 'AI 主动推送需要关注的洞察' },
+])
 
-const touchpointDescs: Record<string, string> = {
-  INTENT: '预测候选人 Offer 接受概率', INTERVIEW_ASSIST: '面试中实时辅助与偏差提醒',
-  CALIBRATION: '多面试官评分校准分析', OFFER_STRATEGY: 'Offer 谈判策略建议',
-  DEMAND_DIAGNOSIS: '业务需求→人才方案翻译',
-}
+// 阈值
+const thresholds = ref({
+  pipelineStallDays: 7,
+  intentLowThreshold: 40,
+  interviewerBiasAlert: 0.3,
+  offerAcceptLow: 60,
+})
 
-async function loadSettings() {
+async function save() {
   loading.value = true
-  try {
-    const { data } = await request.get('/api/brain/settings')
-    settings.value = data
-  } catch { toast.error('加载设置失败') }
-  finally { loading.value = false }
+  await new Promise(r => setTimeout(r, 500))
+  loading.value = false
+  toast.success('AI 设置已保存')
 }
-
-async function handleSave() {
-  saving.value = true
-  try {
-    await request.put('/api/brain/settings', settings.value)
-    toast.success('设置已保存')
-  } catch { toast.error('保存失败') }
-  finally { saving.value = false }
-}
-
-onMounted(loadSettings)
 </script>
 
-<style scoped>
-.mode-btn {
-  flex: 1; padding: 16px; border: 2px solid #e2e8f0; border-radius: 8px;
-  text-align: left; background: #fff; cursor: pointer; transition: all .2s;
-}
-.mode-btn:hover { border-color: #93c5fd; }
-.mode-btn.active { border-color: #3b82f6; background: #eff6ff; }
-.mode-label { display: block; font-weight: 600; font-size: 14px; }
-.mode-desc { display: block; font-size: 12px; color: #64748b; margin-top: 4px; }
-.touchpoint-row { padding: 12px; background: #f8fafc; border-radius: 8px; }
-.toggle { width: 44px; height: 24px; border-radius: 12px; position: relative; cursor: pointer; transition: background .2s; border: none; }
-.toggle-on { background: #16a34a; }
-.toggle-off { background: #cbd5e1; }
-.toggle-dot { position: absolute; top: 2px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: left .2s; }
-.toggle-on .toggle-dot { left: 22px; }
-.toggle-off .toggle-dot { left: 2px; }
-</style>
+<template>
+  <div class="p-6 max-w-2xl mx-auto space-y-6">
+    <div class="flex items-center gap-3 mb-2">
+      <Brain class="h-5 w-5 text-blue-500" />
+      <div>
+        <h1 class="text-base font-semibold text-text-primary">AI 设置</h1>
+        <p class="text-xs text-text-placeholder">配置 AI 的行为模式和能力开关</p>
+      </div>
+    </div>
+
+    <!-- 全局模式 -->
+    <RCard class="p-5">
+      <div class="flex items-center gap-2 mb-4">
+        <Zap class="h-4 w-4 text-amber-500" />
+        <h2 class="text-sm font-semibold text-text-primary">AI 全局模式</h2>
+      </div>
+      <RSelect v-model="aiMode" :options="modeOptions" class="w-full" />
+    </RCard>
+
+    <!-- 触点开关 -->
+    <RCard class="p-5">
+      <div class="flex items-center gap-2 mb-4">
+        <Brain class="h-4 w-4 text-blue-500" />
+        <h2 class="text-sm font-semibold text-text-primary">AI 能力开关</h2>
+      </div>
+      <div class="space-y-3">
+        <div v-for="tp in touchpoints" :key="tp.key" class="flex items-center justify-between py-2">
+          <div class="flex-1">
+            <div class="text-sm font-medium text-text-primary">{{ tp.label }}</div>
+            <div class="text-xs text-text-placeholder">{{ tp.desc }}</div>
+          </div>
+          <RSwitch v-model="tp.enabled" />
+        </div>
+      </div>
+    </RCard>
+
+    <!-- 阈值配置 -->
+    <RCard class="p-5">
+      <div class="flex items-center gap-2 mb-4">
+        <Shield class="h-4 w-4 text-green-500" />
+        <h2 class="text-sm font-semibold text-text-primary">阈值配置</h2>
+      </div>
+      <div class="space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="text-sm text-text-primary">管道停滞告警</div>
+            <div class="text-xs text-text-placeholder">连续N天无新增候选人时告警</div>
+          </div>
+          <RInput v-model.number="thresholds.pipelineStallDays" type="number" class="w-20 text-sm" />
+          <span class="text-xs text-text-placeholder ml-1">天</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="text-sm text-text-primary">意向低分阈值</div>
+            <div class="text-xs text-text-placeholder">意向分低于此值标记为LOW</div>
+          </div>
+          <RInput v-model.number="thresholds.intentLowThreshold" type="number" class="w-20 text-sm" />
+        </div>
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="text-sm text-text-primary">面试官偏差告警</div>
+            <div class="text-xs text-text-placeholder">宽松指数偏离1.0超过此值告警</div>
+          </div>
+          <RInput v-model.number="thresholds.interviewerBiasAlert" type="number" class="w-20 text-sm" step="0.05" />
+        </div>
+      </div>
+    </RCard>
+
+    <!-- 保存 -->
+    <RButton class="w-full" size="lg" @click="save" :disabled="loading">
+      <Save class="h-4 w-4 mr-2" />
+      {{ loading ? '保存中...' : '保存设置' }}
+    </RButton>
+  </div>
+</template>

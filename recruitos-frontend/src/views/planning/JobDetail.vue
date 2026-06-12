@@ -46,6 +46,7 @@
           <RTabsTrigger value="sourcing">{{ JOB_WORKSPACE_TABS.sourcing }}</RTabsTrigger>
           <RTabsTrigger value="candidates">{{ JOB_WORKSPACE_TABS.candidates }}</RTabsTrigger>
           <RTabsTrigger value="rules">{{ JOB_WORKSPACE_TABS.rules }}</RTabsTrigger>
+          <RTabsTrigger value="ai">{{ JOB_WORKSPACE_TABS.ai }}</RTabsTrigger>
         </RTabsList>
 
         <RTabsContent value="overview">
@@ -74,40 +75,6 @@
             </div>
 
             <div class="rounded-xl bg-card text-card-foreground shadow-soft p-6">
-              <div class="flex items-center gap-2 mb-3">
-                <Clock class="h-4 w-4" :class="cycleRiskIconColor" />
-                <h4>招聘周期预测</h4>
-              </div>
-              <div v-if="cycleLoading" class="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 class="h-4 w-4 animate-spin" />加载中...
-              </div>
-              <template v-else-if="cyclePrediction">
-                <div class="flex items-baseline gap-2 mb-2">
-                  <span class="text-[28px] font-bold" :class="cycleRiskTextColor">{{ cyclePrediction.estimatedDays }}</span>
-                  <span class="text-sm text-muted-foreground">天预计到岗</span>
-                </div>
-                <p class="text-xs text-muted-foreground mb-3">80%置信区间：{{ cyclePrediction.minDays }}–{{ cyclePrediction.maxDays }} 天</p>
-                <div v-if="cyclePrediction.bottlenecks?.length" class="space-y-1.5 mb-3">
-                  <p class="text-[11px] font-semibold text-muted-foreground">瓶颈识别</p>
-                  <div v-for="b in cyclePrediction.bottlenecks.slice(0, 2)" :key="b.stage" class="flex items-center gap-2 text-[12px]">
-                    <span class="w-14 text-muted-foreground">{{ b.stage }}</span>
-                    <span class="text-foreground">{{ b.issue }}</span>
-                    <span class="text-warning ml-auto">+{{ b.impact }}天</span>
-                  </div>
-                </div>
-                <RButton variant="link" size="sm" class="p-0 h-auto text-xs" @click="router.push(`/ai/cycle-prediction/${job.id}`)">
-                  <Sparkles class="mr-1 h-3 w-3" />查看完整预测
-                </RButton>
-              </template>
-              <div v-else class="text-center py-4">
-                <p class="text-sm text-muted-foreground mb-2">暂无周期预测数据</p>
-                <RButton variant="outline" size="sm" @click="loadCyclePrediction">
-                  <Sparkles class="mr-1 h-3 w-3" />生成预测
-                </RButton>
-              </div>
-            </div>
-
-            <div class="rounded-xl bg-card text-card-foreground shadow-soft p-6">
               <h4>{{ OBJECTS.jobDescription }}</h4>
               <p class="jd-snippet">{{ displayJdText }}</p>
             </div>
@@ -120,22 +87,6 @@
                 <RBadge :variant="elTagTypeToBadge(row.type)">{{ row.count }}</RBadge>
               </div>
               <EmptyStateCta v-if="!matchDistribution.length" :image-size="48" description="本职位尚无在招候选人" :actions="[{ label: ACTIONS.startPlatformTask, type: 'primary', onClick: () => activeTab = 'sourcing' }]" />
-            </div>
-
-            <div class="rounded-xl bg-card text-card-foreground shadow-soft p-6">
-              <h4>AI 洞察</h4>
-              <p class="hint">与本职位相关的 AI 分析</p>
-              <div class="space-y-1.5 mt-3">
-                <RButton variant="link" size="sm" class="p-0 h-auto text-xs justify-start w-full" @click="router.push(`/ai/cycle-prediction/${job.id}`)">
-                  <Clock class="mr-1.5 h-3.5 w-3.5" />招聘周期预测
-                </RButton>
-                <RButton variant="link" size="sm" class="p-0 h-auto text-xs justify-start w-full" @click="router.push('/ai/demand/create')">
-                  <Sparkles class="mr-1.5 h-3.5 w-3.5" />需求诊断
-                </RButton>
-                <RButton variant="link" size="sm" class="p-0 h-auto text-xs justify-start w-full" @click="router.push('/ai/calibration')">
-                  <ScaleIcon class="mr-1.5 h-3.5 w-3.5" />校准会
-                </RButton>
-              </div>
             </div>
           </div>
         </RTabsContent>
@@ -185,20 +136,49 @@
           <div v-else-if="rulesSub === 'method'" class="content-card"><SourcingMethodWizard :job-id="job.id" @confirmed="onSourcingMethodConfirmed" /></div>
           <div v-else class="content-card"><JobAuditTimeline :job-id="job.id" /></div>
         </RTabsContent>
+        <RTabsContent value="ai">
+          <div class="ai-insight-grid">
+            <div v-if="aiJudgment" class="rounded-xl bg-card text-card-foreground shadow-soft p-6 border-l-4" :class="aiHealthBorder">
+              <div class="flex items-center gap-2 mb-3">
+                <Sparkles class="h-4 w-4 text-primary" />
+                <h4 class="text-sm font-semibold">AI 综合判断</h4>
+                <RBadge v-if="aiJudgment.confidence > 0.7" variant="default" size="sm">置信度 {{ (aiJudgment.confidence * 100).toFixed(0) }}%</RBadge>
+              </div>
+              <p class="text-sm text-text-secondary mb-3">{{ aiJudgment.judgmentText }}</p>
+              <div v-if="aiContradiction" class="p-3 bg-amber-50 rounded-lg text-xs text-amber-700">
+                ⚠️ AI自我质疑：{{ aiContradiction.alternative_explanation }}
+              </div>
+            </div>
+            <div v-if="aiObservations.length" class="rounded-xl bg-card text-card-foreground shadow-soft p-6">
+              <div class="flex items-center gap-2 mb-3">
+                <Eye class="h-4 w-4 text-amber-500" />
+                <h4 class="text-sm font-semibold">AI 关注事项</h4>
+                <RBadge size="sm">{{ aiObservations.length }}</RBadge>
+              </div>
+              <div class="space-y-2">
+                <div v-for="(obs, i) in aiObservations" :key="i" class="flex items-start gap-2 p-2 rounded-lg" :class="obs.severity === 'CRITICAL' ? 'bg-red-50' : obs.severity === 'WARNING' ? 'bg-amber-50' : 'bg-blue-50'">
+                  <AlertTriangle v-if="obs.severity === 'CRITICAL'" class="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
+                  <div><p class="text-sm font-medium">{{ obs.title }}</p><p class="text-xs text-text-secondary">{{ obs.body }}</p></div>
+                </div>
+              </div>
+            </div>
+            <div v-if="!aiJudgment && !aiObservations.length" class="rounded-xl bg-card text-card-foreground shadow-soft p-6 text-center">
+              <p class="text-sm text-text-placeholder">AI 正在分析本岗位数据，积累足够信号后将自动生成洞察。</p>
+            </div>
+          </div>
+        </RTabsContent>
+
       </RTabs>
     </template>
 
-    <RDialog v-model:open="closeDialogVisible">
-      <RDialogContent class="max-w-md">
-        <RDialogHeader><RDialogTitle>关闭在招职位</RDialogTitle></RDialogHeader>
-        <FormField label="关闭原因">
-          <RTextarea v-model="closeReason" :rows="3" placeholder="请输入关闭原因" />
-        </FormField>
-        <RDialogFooter>
-          <RButton variant="outline" @click="closeDialogVisible = false">取消</RButton>
-          <RButton @click="confirmClose">确定关闭</RButton>
-        </RDialogFooter>
-      </RDialogContent>
+    <RDialog :model-value="closeDialogVisible" title="关闭在招职位" @update:model-value="closeDialogVisible = $event">
+      <FormField label="关闭原因">
+        <RTextarea v-model="closeReason" :rows="3" placeholder="请输入关闭原因" />
+      </FormField>
+      <template #footer>
+        <RButton variant="outline" @click="closeDialogVisible = false">取消</RButton>
+        <RButton @click="confirmClose">确定关闭</RButton>
+      </template>
     </RDialog>
 </PageShell>
 </template>
@@ -208,7 +188,7 @@ import PageShell from '@/components/Layout/PageShell.vue'
 import ObjectHeader from '@/components/Layout/ObjectHeader.vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, Loader2, Clock, Sparkles } from 'lucide-vue-next'
+import { ArrowLeft, Loader2, Sparkles, Eye, AlertTriangle } from 'lucide-vue-next'
 import { toast } from '@/lib/notify'
 import { confirm } from '@/lib/confirm'
 import { elTagTypeToBadge } from '@/lib/badgeVariants'
@@ -223,15 +203,16 @@ import JobHiringSummary from './JobHiringSummary.vue'
 import SourcingMethodWizard from '@/components/job/SourcingMethodWizard.vue'
 import JobAuditTimeline from '@/components/job/JobAuditTimeline.vue'
 import {
-  RButton, RBadge, RTabs, RTabsList, RTabsTrigger, RTabsContent,
+  RButton, RBadge, RTextarea,
+  RTabs, RTabsList, RTabsTrigger, RTabsContent,
   RTable, RTableHead, RTableBody, RTableRow, RTableTh, RTableCell,
-  RDialog, RDialogContent, RDialogHeader, RDialogTitle, RDialogFooter, RTextarea,
+  RDialog,
 } from '@/components/ui'
 import { ACTIONS, JOB_WORKSPACE_TABS, OBJECTS, jobStatusLabel, pipelineStageLabel } from '@/constants/businessLabels'
 import { type RequirementItem, fromApiTag, IMPORTANCE_LABEL, REQUIREMENT_TYPE_LABEL } from '@/utils/jdRequirements'
 import { parseMatchDetail, tierTagType } from '@/utils/matchVerdict'
 import { activateJob, closeJob, getJobDetail, getTags, pauseJob } from '@/api/modules/job'
-import { getCyclePrediction, type CyclePrediction } from '@/api/modules/brain'
+import { getJudgment, getObservations } from '@/api/modules/brain'
 import { getPipelineBoard } from '@/api/modules/pipeline'
 import { getWorkflowDetail, getWorkflowList } from '@/api/modules/agent'
 
@@ -240,8 +221,6 @@ const router = useRouter()
 
 const loading = ref(false)
 const job = ref<any>(null)
-const cyclePrediction = ref<CyclePrediction | null>(null)
-const cycleLoading = ref(false)
 const activeTab = ref('overview')
 const sourcingSub = ref('task')
 const candidatesSub = ref('kanban')
@@ -251,33 +230,17 @@ const boardItems = ref<any[]>([])
 const sourcedCount = ref(0)
 const requirements = ref<RequirementItem[]>([])
 const closeDialogVisible = ref(false)
-
-// Cycle prediction computed
-const cycleRiskIconColor = computed(() => {
-  const d = cyclePrediction.value?.estimatedDays || 0
-  if (!d) return 'text-muted-foreground'
-  if (d <= 30) return 'text-success'
-  if (d <= 45) return 'text-warning'
-  return 'text-destructive'
-})
-const cycleRiskTextColor = computed(() => {
-  const d = cyclePrediction.value?.estimatedDays || 0
-  if (!d) return 'text-foreground'
-  if (d <= 30) return 'text-success'
-  if (d <= 45) return 'text-warning'
-  return 'text-destructive'
-})
-
-async function loadCyclePrediction() {
-  if (!job.value?.id) return
-  cycleLoading.value = true
-  try {
-    const res = await getCyclePrediction(job.value.id)
-    cyclePrediction.value = res.data
-  } catch { cyclePrediction.value = null } finally { cycleLoading.value = false }
-}
 const closeReason = ref('')
+const aiJudgment = ref<any>(null)
+const aiObservations = ref<any[]>([])
+const aiContradiction = ref<any>(null)
 const kanbanRef = ref<InstanceType<typeof PipelineKanban> | null>(null)
+const aiHealthBorder = computed(() => {
+  const t = aiJudgment.value?.judgmentText || ''
+  if (t.includes('枯')) return 'border-red-200'
+  if (t.includes('缓慢')) return 'border-amber-200'
+  return 'border-green-200'
+})
 const campaignStats = ref<Record<string, number> | null>(null)
 
 const sourcingSubOptions = [{ label: OBJECTS.platformTask, value: 'task' }, { label: OBJECTS.stagingPool, value: 'pool' }]
@@ -341,6 +304,19 @@ function parseTagsFromJobField(raw: unknown): RequirementItem[] {
   return []
 }
 
+async function loadAiInsight(jobId: number) {
+  try {
+    const jRes = await getJudgment('JOB', jobId).catch(() => ({ data: null }))
+    aiJudgment.value = (jRes as any).data
+    if (aiJudgment.value?.contradiction) {
+      try { aiContradiction.value = JSON.parse(aiJudgment.value.contradiction) } catch {}
+    }
+    const oRes = await getObservations().catch(() => ({ data: null }))
+    const obs = (oRes as any).data
+    if (obs) aiObservations.value = [...(obs.critical||[]),...(obs.warnings||[])].filter((o:any)=>{
+      try{return JSON.parse(o.relatedObjects||'[]').some((r:any)=>r.type==='JOB'&&r.id===jobId)}catch{return false}})
+  } catch {}
+}
 async function loadCampaignStats(jobId: number) {
   try { const wfRes: any = await getWorkflowList({ jobId }); const workflows = wfRes.data || []; const active = workflows.find((w: any) => w.status === 'RUNNING' || w.status === 'PAUSED') || workflows[0]; if (!active?.id) { campaignStats.value = null; return }; const detailRes: any = await getWorkflowDetail(active.id); campaignStats.value = detailRes?.data?.stats || active.stats || null } catch { campaignStats.value = null }
 }
@@ -358,7 +334,8 @@ async function loadJob(jobId: number) {
     const { data } = await getJobDetail(jobId); job.value = data
     try { const tagRes: any = await getTags(jobId); const raw = tagRes.data ?? tagRes; requirements.value = (Array.isArray(raw) ? raw : []).map((t: Record<string, unknown>) => fromApiTag(t)) } catch { requirements.value = [] }
     if (!requirements.value.length) requirements.value = parseTagsFromJobField(data?.tags)
-    await loadBoardOnly(); await loadCampaignStats(jobId); loadCyclePrediction()
+    await loadBoardOnly(); await loadCampaignStats(jobId)
+    loadAiInsight(jobId)
   } finally { loading.value = false }
 }
 

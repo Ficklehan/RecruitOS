@@ -1,6 +1,6 @@
 package com.recruitos.brain.domain;
 
-import java.io.Serializable; import java.util.List;
+import java.io.Serializable; import java.util.List; import java.util.Map;
 
 /** 触点6：AI Offer谈判策略 */
 public class OfferStrategy implements Serializable {
@@ -9,6 +9,10 @@ public class OfferStrategy implements Serializable {
     private SuggestedRange suggestedRange; private List<CompComponent> components;
     private List<String> negotiationTips; private List<RiskItem> risks;
     private String strategySummary; private Double confidence;
+
+    // v2: scenario simulation
+    private List<Map<String, Object>> competingScenarios;
+    private List<Map<String, Object>> strategyOptions;
 
     public static class SuggestedRange implements Serializable {
         private int min; private int mid; private int max; private String currency;
@@ -40,4 +44,6 @@ public class OfferStrategy implements Serializable {
     public List<RiskItem> getRisks() { return risks; } public void setRisks(List<RiskItem> r) { risks = r; }
     public String getStrategySummary() { return strategySummary; } public void setStrategySummary(String s) { strategySummary = s; }
     public Double getConfidence() { return confidence; } public void setConfidence(Double c) { confidence = c; }
+    public List<Map<String, Object>> getCompetingScenarios() { return competingScenarios; } public void setCompetingScenarios(List<Map<String, Object>> s) { competingScenarios = s; }
+    public List<Map<String, Object>> getStrategyOptions() { return strategyOptions; } public void setStrategyOptions(List<Map<String, Object>> o) { strategyOptions = o; }
 }

@@ -20,7 +20,7 @@ const emit = defineEmits<{
   'update:modelValue': [value: number]
 }>()
 
-const totalPages = computed(() => Math.max(1, Math.ceil(props.total / props.pageSize)))
+const totalPages = computed(() => Math.max(1, Math.ceil(Number(props.total) / Number(props.pageSize))))
 
 const pages = computed(() => {
   const result: (number | '...')[] = []
@@ -46,7 +46,7 @@ function goTo(page: number) {
 </script>
 
 <template>
-  <div v-if="total > 0" :class="cn('flex items-center gap-1', props.class)">
+  <div v-if="Number(total) > 0" :class="cn('flex items-center gap-1', props.class)">
     <button
       :class="cn('w-8 h-8 flex items-center justify-center rounded-[var(--r-radius-sm)] text-[13px] transition-colors', modelValue <= 1 ? 'text-text-disabled cursor-not-allowed' : 'text-text-secondary hover:bg-bg-muted')"
       :disabled="modelValue <= 1"

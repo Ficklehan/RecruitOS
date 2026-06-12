@@ -100,6 +100,8 @@ export interface OfferStrategy {
   components: { type: string; amount: number; note: string }[]
   negotiationTips: string[]
   risks: { risk: string; severity: string }[]
+  competingScenarios: { scenario: string; competitor: string; theirOffer: string; ourSuggested: string; winProbability: string; recommendation: string; riskLevel: string }[]
+  strategyOptions: { name: string; totalComp: string; baseSalary: string; bonusPercent: string; signingBonus: string; options: string; pros: string; cons: string; targetCandidate: string }[]
   strategySummary: string; confidence: number
 }
 
@@ -211,29 +213,64 @@ export function logIgnoreReason(data: {
 }) { return request.post('/api/brain/ignore-reason', data) as Promise<ApiResult<void>> }
 
 
+// ================================================================
+// v8: 认知层 API
+// ================================================================
 
+export interface MenuAiStatus {
+  insightAlerts: number; insightAttention: number
+  insightObserve: number; totalPending: number
+}
+export function getMenuAiStatus() {
+  return request.get('/api/cognitive/menu-status') as Promise<ApiResult<MenuAiStatus>>
+}
 
-// ===== Batch APIs =====
-export interface BatchIntentResult {
-  results: Record<string, { intentScore: number; intentLevel: string; confidence: number; riskFactors?: any[]; interventionSuggestions?: string[]; updatedAt?: string }>
-  jobId: number; count: number
+export interface ObservationItem {
+  id: number; observationType: string; severity: string
+  title: string; body: string; relatedObjects: string
+  suggestedAction: string; actionTaken: string
+  createdAt: string; expiresAt: string
 }
-export function batchGetIntent(candidateIds: number[], jobId: number) {
-  return request.post('/api/brain/batch/intent', { candidateIds, jobId }) as Promise<ApiResult<BatchIntentResult>>
+export interface ObservationGroup {
+  critical: ObservationItem[]; warnings: ObservationItem[]
+  infos: ObservationItem[]; counts: Record<string, number>
 }
-// Decision logging
-export function logDecision(data: {
-  decisionType: string; targetId?: number; targetType?: string
-  decisionDetail?: Record<string, any>; confidence?: number
-  confirmedBy?: number
-}) { return request.post('/api/brain/decision-log', data) as Promise<ApiResult<void>> }
+export function getObservations() {
+  return request.get('/api/cognitive/observations') as Promise<ApiResult<ObservationGroup>>
+}
+export function actionObservation(id: number, action: string) {
+  return request.post(`/api/cognitive/observations/${id}/action`, { action }) as Promise<ApiResult<{success: boolean}>>
+}
+export function feedbackObservation(id: number, feedback: string) {
+  return request.post(`/api/cognitive/observations/${id}/feedback`, { feedback }) as Promise<ApiResult<{success: boolean}>>
+}
 
-// Strategy Proposals (M5)
-export interface StrategyProposal {
-  id: string; type: string; title: string; description: string
-  proposedAction: string; evidence?: Record<string, any>
-  confidence: number; createdAt: string
+export interface CognitiveJudgment {
+  id: number; judgmentType: string; judgmentText: string
+  judgmentJson: string; confidence: number; contradiction: string; createdAt: string
 }
-export function getStrategyProposals() {
-  return request.get('/api/brain/strategy-proposals') as Promise<ApiResult<StrategyProposal[]>>
+export function getJudgment(subjectType: string, subjectId: number) {
+  return request.get(`/api/cognitive/judgments/${subjectType}/${subjectId}`) as Promise<ApiResult<CognitiveJudgment>>
+}
+export function judgePipeline(jobId: number, pipelineData: Record<string, any>) {
+  return request.post(`/api/cognitive/judge/pipeline/${jobId}`, pipelineData) as Promise<ApiResult<Record<string, any>>>
+}
+
+export interface UserCognitiveModel {
+  decisionSpeed: number; riskTolerance: number; standardRigidity: number
+  scoringBiasJson: string; leniencyIndex: number; blindSpotsJson: string
+  totalDecisions: number; patternStability: number
+}
+export function getMyCognitiveModel() {
+  return request.get('/api/cognitive/my-model') as Promise<ApiResult<UserCognitiveModel>>
+}
+
+export function getTimeline(subjectType: string, subjectId: number) {
+  return request.get(`/api/cognitive/timeline/${subjectType}/${subjectId}`) as Promise<ApiResult<any[]>>
+}
+export function getLessons() {
+  return request.get('/api/cognitive/lessons') as Promise<ApiResult<any[]>>
+}
+export function getPatterns(patternType: string) {
+  return request.get(`/api/cognitive/patterns/${patternType}`) as Promise<ApiResult<any[]>>
 }

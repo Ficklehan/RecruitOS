@@ -223,7 +223,7 @@ function validateForm(): boolean {
 async function loadData() {
   const res: any = await getOfferList(queryParams)
   offerList.value = res.data?.list || res.data?.records || []
-  total.value = res.data?.total || 0
+  total.value = Number(res.data?.total) || 0
 }
 
 function handleSearch() {

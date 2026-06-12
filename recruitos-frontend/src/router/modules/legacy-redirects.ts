@@ -1,6 +1,13 @@
 import type { RouteRecordRaw } from 'vue-router'
 
 const legacyRedirects: RouteRecordRaw[] = [
+  // v8 新路径重定向
+  { path: '/jobs', redirect: '/planning/jobs' },
+  // 注意: /evaluate、/knowledge 由各自路由模块处理重定向，不要在这里覆盖
+  // 注意: /talent/agent-feed、/talent/search 是实际页面路由，不要重定向
+  // 注意: /insight/alerts 等由 insight.ts 处理，这里的重定向会造成循环
+
+  // 原有重定向
   { path: '/dashboard', redirect: '/workspace/dashboard' },
   { path: '/position/demand/create', redirect: '/planning/demands/create' },
   { path: '/position/demand/detail/:id', redirect: to => `/planning/demands/${to.params.id}` },
@@ -34,6 +41,7 @@ const legacyRedirects: RouteRecordRaw[] = [
     if (p.startsWith('safety')) return '/settings/compliance/safety'
     return '/talent/templates'
   }},
+  { path: '/agent/list', redirect: '/talent/channels' },
   { path: '/agent/:pathMatch(.*)*', redirect: to => `/talent/channels/${to.params.pathMatch}` },
   { path: '/evolution/proposals', redirect: '/planning/evolution/proposals' },
   { path: '/evolution/:pathMatch(.*)*', redirect: '/planning/evolution/proposals' },

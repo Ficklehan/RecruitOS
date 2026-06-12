@@ -104,7 +104,7 @@
 
     <div v-if="loading" class="py-8 text-center text-sm text-muted-foreground">加载中...</div>
 
-    <Dialog v-model:open="showPlan">
+    <Dialog v-model="showPlan">
       <DialogContent class="max-w-md">
         <DialogHeader>
           <DialogTitle>变更套餐</DialogTitle>

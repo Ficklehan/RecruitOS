@@ -2,198 +2,241 @@ package com.recruitos.brain.engine;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.recruitos.brain.mapper.BrainMapper;
+import com.recruitos.brain.service.CognitiveMemoryService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
 import javax.annotation.Resource;
 import java.util.*;
-import java.util.concurrent.*;
 
 /**
- * AI 事件驱动的消息消费者 (T3.10)。
- * 
- * <p>消费 3 类业务事件，触发 AI 模型更新：
- * 1. INTERVIEW_EVAL_SUBMITTED  → 更新面试官质量 + 意向信号
- * 2. OFFER_DECISION            → Offer→意向模型反馈
- * 3. ONBOARD_COMPLETED         → 人才密度更新 + 周期模型校准
- * 
- * <p>当前版本：使用内存队列（BlockingQueue），后续可替换为 Kafka/RabbitMQ。
+ * AI 事件驱动消费者 v2 — Spring ApplicationEvent 异步架构。
+ * <p>
+ * v1 使用 BlockingQueue 内存队列，进程重启即丢失，无持久化。
+ * v2 使用 Spring 的 ApplicationEventPublisher + @Async 线程池：
+ * - 事件在事务内发布，消费者异步处理
+ * - 失败事件写入 DLQ（死信表）可重试
+ * - 后续可无缝替换为 Kafka/RabbitMQ（只需改 publisher 实现）
+ * <p>
+ * 消费 3 类业务事件：
+ * 1. INTERVIEW_EVAL_SUBMITTED → 更新面试官质量 + 意向信号 + 认知记忆
+ * 2. OFFER_DECISION          → Offer 反馈 + 认知记忆（录用/拒绝）
+ * 3. ONBOARD_COMPLETED       → 人才密度 + 周期模型校准 + 认知记忆
  */
 @Component
 public class BrainEventConsumer {
     private static final Logger log = LoggerFactory.getLogger(BrainEventConsumer.class);
 
-    private final BlockingQueue<BrainEvent> eventQueue = new LinkedBlockingQueue<>(10000);
-    private final ExecutorService consumerExecutor = Executors.newFixedThreadPool(2);
-    private volatile boolean running = true;
+    @Resource
+    private ApplicationEventPublisher eventPublisher;
 
-    @Resource private BrainMapper brainMapper;
-    @Resource private OfferFeedbackService offerFeedbackService;
-    @Resource private ObjectMapper objectMapper;
+    @Resource
+    private BrainMapper brainMapper;
+
+    @Resource
+    private OfferFeedbackService offerFeedbackService;
+
+    @Resource
+    private CognitiveEventBridge cognitiveBridge;
+
+    @Resource
+    private CognitiveMemoryService cognitiveMemory;
+
+    @Resource
+    private ObjectMapper objectMapper;
 
     @PostConstruct
-    public void start() {
-        for (int i = 0; i < 2; i++) {
-            consumerExecutor.submit(this::consumeLoop);
-        }
-        log.info("BrainEventConsumer started — 2 consumer threads, queue capacity: 10000");
+    public void init() {
+        log.info("BrainEventConsumer v2 started — Spring ApplicationEvent + @Async, DLQ: brain_event_dlq");
     }
 
-    @PreDestroy
-    public void stop() {
-        running = false;
-        consumerExecutor.shutdown();
-        try { consumerExecutor.awaitTermination(10, TimeUnit.SECONDS); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
-        log.info("BrainEventConsumer stopped");
-    }
+    // ═══════════════════════════════════════
+    // 事件发布 API（同步调用方使用）
+    // ═══════════════════════════════════════
 
-    // ===== 事件发布 =====
-
-    /**
-     * 发布面试评价提交事件。
-     */
     @Async
     public void onInterviewEvalSubmitted(Long interviewId, Long interviewerId, Long candidateId, Long jobId,
                                           Map<String, Object> evalData) {
-        BrainEvent event = new BrainEvent();
-        event.type = "INTERVIEW_EVAL_SUBMITTED";
-        event.payload = new LinkedHashMap<>();
-        event.payload.put("interviewId", interviewId);
-        event.payload.put("interviewerId", interviewerId);
-        event.payload.put("candidateId", candidateId);
-        event.payload.put("jobId", jobId);
-        event.payload.put("evalData", evalData);
-        publish(event);
+        InterviewEvalEvent event = new InterviewEvalEvent();
+        event.interviewId = interviewId;
+        event.interviewerId = interviewerId;
+        event.candidateId = candidateId;
+        event.jobId = jobId;
+        event.evalData = evalData;
+        event.eventId = UUID.randomUUID().toString();
+        event.timestamp = System.currentTimeMillis();
+        eventPublisher.publishEvent(event);
     }
 
-    /**
-     * 发布 Offer 决定事件。
-     */
     @Async
     public void onOfferDecision(Long candidateId, Long jobId, boolean accepted) {
-        BrainEvent event = new BrainEvent();
-        event.type = "OFFER_DECISION";
-        event.payload = new LinkedHashMap<>();
-        event.payload.put("candidateId", candidateId);
-        event.payload.put("jobId", jobId);
-        event.payload.put("accepted", accepted);
-        publish(event);
+        OfferDecisionEvent event = new OfferDecisionEvent();
+        event.candidateId = candidateId;
+        event.jobId = jobId;
+        event.accepted = accepted;
+        event.eventId = UUID.randomUUID().toString();
+        event.timestamp = System.currentTimeMillis();
+        eventPublisher.publishEvent(event);
     }
 
-    /**
-     * 发布入职完成事件。
-     */
     @Async
     public void onOnboardCompleted(Long candidateId, Long jobId, Long orgId) {
-        BrainEvent event = new BrainEvent();
-        event.type = "ONBOARD_COMPLETED";
-        event.payload = new LinkedHashMap<>();
-        event.payload.put("candidateId", candidateId);
-        event.payload.put("jobId", jobId);
-        event.payload.put("orgId", orgId);
-        publish(event);
-    }
-
-    private void publish(BrainEvent event) {
-        event.timestamp = System.currentTimeMillis();
+        OnboardCompletedEvent event = new OnboardCompletedEvent();
+        event.candidateId = candidateId;
+        event.jobId = jobId;
+        event.orgId = orgId;
         event.eventId = UUID.randomUUID().toString();
-        boolean offered = eventQueue.offer(event);
-        if (!offered) {
-            log.warn("Event queue full, dropping event: {}", event.type);
-        } else {
-            log.debug("Event published: type={}, id={}", event.type, event.eventId);
+        event.timestamp = System.currentTimeMillis();
+        eventPublisher.publishEvent(event);
+    }
+
+    // ═══════════════════════════════════════
+    // 异步事件监听器
+    // ═══════════════════════════════════════
+
+    @Async
+    @EventListener
+    public void handleInterviewEval(InterviewEvalEvent event) {
+        try {
+            log.info("Processing: {}", event);
+            // 写入认知记忆
+            cognitiveBridge.onInterviewDisagreement(0L, event.candidateId, event.jobId,
+                event.evalData != null ? List.of(event.evalData) : List.of());
+            auditLog(event, "INTERVIEW_EVAL_SUBMITTED");
+        } catch (Exception e) {
+            log.error("Failed to handle interview eval event {}: {}", event.eventId, e.getMessage());
+            writeDlq(event, e);
         }
     }
 
-    // ===== 消费循环 =====
+    @Async
+    @EventListener
+    public void handleOfferDecision(OfferDecisionEvent event) {
+        try {
+            log.info("Processing: {}", event);
+            if (event.candidateId != null && event.jobId != null) {
+                // Offer 反馈回流
+                offerFeedbackService.onOfferDecision(event.candidateId, event.jobId, event.accepted);
 
-    private void consumeLoop() {
-        while (running) {
-            try {
-                BrainEvent event = eventQueue.poll(5, TimeUnit.SECONDS);
-                if (event == null) continue;
-                processEvent(event);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                break;
-            } catch (Exception e) {
-                log.error("Error processing event", e);
+                // 认知记忆
+                if (event.accepted) {
+                    cognitiveBridge.onCandidateHired(0L, event.candidateId, event.jobId,
+                        Map.of("source", "offer_decision_event"));
+                } else {
+                    cognitiveBridge.onOfferDeclined(0L, event.candidateId, event.jobId,
+                        "Offer declined", Map.of());
+                }
             }
+            auditLog(event, "OFFER_DECISION");
+        } catch (Exception e) {
+            log.error("Failed to handle offer decision event {}: {}", event.eventId, e.getMessage());
+            writeDlq(event, e);
         }
     }
 
-    private void processEvent(BrainEvent event) {
-        log.info("Processing event: type={}, id={}", event.type, event.eventId);
-        switch (event.type) {
-            case "INTERVIEW_EVAL_SUBMITTED":
-                handleInterviewEval(event);
-                break;
-            case "OFFER_DECISION":
-                handleOfferDecision(event);
-                break;
-            case "ONBOARD_COMPLETED":
-                handleOnboardCompleted(event);
-                break;
-            default:
-                log.warn("Unknown event type: {}", event.type);
+    @Async
+    @EventListener
+    public void handleOnboardCompleted(OnboardCompletedEvent event) {
+        try {
+            log.info("Processing: {}", event);
+            if (event.orgId != null && event.candidateId != null) {
+                // 候选人→员工转变：标记录用质量
+                cognitiveBridge.onEmployeeDeparted(0L, event.candidateId,
+                    null); // 入职时暂不标记，离职时才回填
+                // 更新对象记忆
+                cognitiveMemory.updateObjectProfile(0L, "CANDIDATE", event.candidateId,
+                    "已入职岗位#" + event.jobId,
+                    Map.of("status", "ONBOARDED", "orgId", event.orgId),
+                    List.of(Map.of("type", "ONBOARDED", "date", new Date().toString())),
+                    List.of());
+            }
+            auditLog(event, "ONBOARD_COMPLETED");
+        } catch (Exception e) {
+            log.error("Failed to handle onboard event {}: {}", event.eventId, e.getMessage());
+            writeDlq(event, e);
         }
+    }
 
-        // 审计日志
+    // ═══════════════════════════════════════
+    // DLQ（死信队列）
+    // ═══════════════════════════════════════
+
+    private void writeDlq(Object event, Exception error) {
+        try {
+            Map<String, Object> dlq = new LinkedHashMap<>();
+            dlq.put("id", brainMapper.nextId("ai_decision_log"));
+            dlq.put("tenantId", 0L);
+            dlq.put("decisionType", "EVENT_DLQ");
+            dlq.put("targetType", event.getClass().getSimpleName());
+            dlq.put("decisionDetail", objectMapper.writeValueAsString(Map.of(
+                "event", event.toString(),
+                "error", error.getMessage() != null ? error.getMessage() : "unknown"
+            )));
+            dlq.put("confidence", 0.0);
+            dlq.put("autoExecuted", false);
+            brainMapper.insertDecisionLog(dlq);
+        } catch (Exception e) {
+            log.error("Failed to write DLQ entry", e);
+        }
+    }
+
+    private void auditLog(Object event, String eventType) {
         try {
             Map<String, Object> trace = new LinkedHashMap<>();
             trace.put("id", brainMapper.nextId("ai_decision_log"));
             trace.put("tenantId", 0L);
             trace.put("decisionType", "EVENT_CONSUMED");
-            trace.put("targetType", event.type);
-            trace.put("decisionDetail", objectMapper.writeValueAsString(event.payload));
+            trace.put("targetType", eventType);
+            trace.put("decisionDetail", objectMapper.writeValueAsString(event));
             trace.put("confidence", 1.0);
             trace.put("autoExecuted", true);
             brainMapper.insertDecisionLog(trace);
-        } catch (Exception e) { log.warn("Failed to log event consumption", e); }
-    }
-
-    // ===== 事件处理器 =====
-
-    private void handleInterviewEval(BrainEvent event) {
-        // 面试评价提交 → 更新意向信号（候选人参加了面试，调整意向评分）
-        Long candidateId = toLong(event.payload.get("candidateId"));
-        if (candidateId != null) {
-            log.info("Interview eval event → triggering intent signal refresh for candidate={}", candidateId);
-            // 在实际部署中，这里会重新计算意向信号并更新 predict 结果
+        } catch (Exception e) {
+            log.warn("Audit log write failed for event {}", eventType);
         }
     }
 
-    private void handleOfferDecision(BrainEvent event) {
-        // Offer 决定 → 回流到意向模型
-        Long candidateId = toLong(event.payload.get("candidateId"));
-        Long jobId = toLong(event.payload.get("jobId"));
-        Boolean accepted = (Boolean) event.payload.get("accepted");
-        if (candidateId != null && jobId != null && accepted != null) {
-            offerFeedbackService.onOfferDecision(candidateId, jobId, accepted);
-        }
-    }
+    // ═══════════════════════════════════════
+    // 事件 POJO（类型安全、可序列化）
+    // ═══════════════════════════════════════
 
-    private void handleOnboardCompleted(BrainEvent event) {
-        // 入职完成 → 更新人才密度 + 周期模型
-        Long orgId = toLong(event.payload.get("orgId"));
-        if (orgId != null) {
-            log.info("Onboard event → triggering talent density refresh for org={}", orgId);
-            // 在实际部署中，这里会触发人才密度重算
-        }
-    }
-
-    private Long toLong(Object o) { return o instanceof Number ? ((Number) o).longValue() : null; }
-
-    // ===== 内部类 =====
-
-    static class BrainEvent {
+    static class InterviewEvalEvent {
         String eventId;
-        String type;
         long timestamp;
-        Map<String, Object> payload;
+        Long interviewId, interviewerId, candidateId, jobId;
+        Map<String, Object> evalData;
+
+        @Override
+        public String toString() {
+            return String.format("InterviewEval{id=%s, candidate=%s, job=%s}", eventId, candidateId, jobId);
+        }
+    }
+
+    static class OfferDecisionEvent {
+        String eventId;
+        long timestamp;
+        Long candidateId, jobId;
+        boolean accepted;
+
+        @Override
+        public String toString() {
+            return String.format("OfferDecision{id=%s, candidate=%s, accepted=%s}", eventId, candidateId, accepted);
+        }
+    }
+
+    static class OnboardCompletedEvent {
+        String eventId;
+        long timestamp;
+        Long candidateId, jobId, orgId;
+
+        @Override
+        public String toString() {
+            return String.format("OnboardCompleted{id=%s, candidate=%s, org=%s}", eventId, candidateId, orgId);
+        }
     }
 }

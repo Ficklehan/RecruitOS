@@ -20,7 +20,7 @@ public class RpaProperties {
     private boolean headless = false;
 
     /** RPA 失败时是否回退模拟数据 */
-    private boolean fallbackSimulated = false;
+    private boolean fallbackSimulated = true;
 
     /** 会话与下载文件根目录 */
     private String sessionDir = "./data/rpa-sessions";

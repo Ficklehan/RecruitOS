@@ -50,7 +50,7 @@ onMounted(async () => {
   else {
     const { data } = await getJobList({ pageNum: 1, pageSize: 100, status: 'ACTIVE' })
     const jobs = data?.list || data?.records || []
-    if (jobs.length) selectedJobId.value = jobs[0].id
+    if (jobs.length) selectedJobId.value = Number(jobs[0].id)
   }
 })
 </script>

@@ -25,7 +25,7 @@
             class="kanban-card"
             @click="openCandidate(item)"
           >
-            <div class="card-name flex items-center gap-2">{{ item.candidateName }}<IntentIndicator :intent="intentMap[item.candidateId]" :loading="intentLoading[item.candidateId]" :candidate-id="item.candidateId" @click="openIntentPage" /></div>
+            <div class="card-name flex items-center gap-2">{{ item.candidateName }}<IntentIndicator :intent="intentMap[item.candidateId]" :loading="intentLoading[item.candidateId]" /></div>
             <div class="card-meta">{{ item.candidateCompany || item.candidateTitle || '—' }}</div>
             <div class="card-match">
               <MatchVerdict
@@ -36,9 +36,6 @@
               />
             </div>
             <div class="card-actions" @click.stop>
-              <Button size="sm" variant="link" @click="openCopilotForCard(item)" title="AI Co-Pilot">
-                <Sparkles class="h-3.5 w-3.5 text-primary" />
-              </Button>
               <Button
                 v-if="col.stage === 'SOURCED'"
                 size="sm"
@@ -90,19 +87,13 @@
         </div>
       </SheetContent>
     </Sheet>
-  <AiCoPilotDrawer
-    :open="copilotOpen"
-    context-page="pipeline"
-    :context-data="copilotItem ? JSON.stringify({ candidateName: copilotItem.candidateName, jobId: copilotItem.jobId, stage: copilotItem.stage }) : ''"
-    @close="copilotOpen = false"
-  />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { Loader2, Sparkles } from 'lucide-vue-next'
+import { Loader2 } from 'lucide-vue-next'
 import { toast } from '@/lib/notify'
 import { Button, Badge, Sheet, SheetContent, DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui'
 import MatchVerdict from '@/components/match/MatchVerdict.vue'
@@ -111,7 +102,7 @@ import EmptyStateCta from '@/components/common/EmptyStateCta.vue'
 import CandidateWorkspace from '@/views/candidate/CandidateWorkspace.vue'
 import { ACTIONS, PIPELINE_STAGE, pipelineStageLabel } from '@/constants/businessLabels'
 
-import { getCandidateIntent, batchGetIntent, type CandidateIntent } from "@/api/modules/brain"
+import { getCandidateIntent, type CandidateIntent } from "@/api/modules/brain"
 import { advancePipelineStage, getPipelineBoard } from '@/api/modules/pipeline'
 
 const props = defineProps<{ jobId: number | null }>()
@@ -123,8 +114,6 @@ const board = ref<any>({ columns: [] })
 const drawerVisible = ref(false)
 const drawerCandidateId = ref<number | null>(null)
 const drawerCandidateName = ref('')
-const copilotOpen = ref(false)
-const copilotItem = ref<any>(null)
 const intentMap = ref<Record<number, CandidateIntent | null>>({})
 const intentLoading = ref<Record<number, boolean>>({})
 const drawerTitle = computed(() => drawerCandidateName.value || '候选人详情')
@@ -177,8 +166,6 @@ async function loadBoard() {
   }
 }
 
-function openCopilotForCard(item: any) { copilotItem.value = item; copilotOpen.value = true }
-function openIntentPage(cid: number) { router.push(`/ai/intent/${cid}`) }
 function openCandidate(item: any) {
   drawerCandidateId.value = item.candidateId
   drawerCandidateName.value = item.candidateName || ''
@@ -204,33 +191,17 @@ async function advance(item: any, stage: string) {
 
 async function loadIntents() {
   const columns = board.value.columns || []
-  const allIds: number[] = []
   for (const col of columns) {
     for (const item of (col.items || [])) {
-      if (item.candidateId) allIds.push(item.candidateId)
+      const cid = item.candidateId
+      if (!cid) continue
+      intentLoading.value[cid] = true
+      try {
+        const data = await getCandidateIntent(cid, props.jobId || 0)
+        intentMap.value[cid] = data.data
+      } catch { intentMap.value[cid] = null }
+      finally { intentLoading.value[cid] = false }
     }
-  }
-  if (allIds.length === 0 || !props.jobId) return
-  allIds.forEach(id => { intentLoading.value[id] = true })
-  try {
-    const res: any = await batchGetIntent(allIds, props.jobId)
-    const results = res?.data?.results || (res as any)?.results || {}
-    allIds.forEach(id => {
-      const entry = results[String(id)]
-      if (entry) {
-        intentMap.value[id] = {
-          candidateId: id, candidateName: '', jobId: props.jobId!, jobTitle: '',
-          intentScore: entry.intentScore, intentLevel: entry.intentLevel,
-          confidence: entry.confidence, riskFactors: entry.riskFactors || [],
-          interventionSuggestions: entry.interventionSuggestions || [], updatedAt: entry.updatedAt || '',
-        }
-      } else {
-        intentMap.value[id] = null
-      }
-      intentLoading.value[id] = false
-    })
-  } catch {
-    allIds.forEach(id => { intentMap.value[id] = null; intentLoading.value[id] = false })
   }
 }
 

@@ -1,5 +1,6 @@
 package com.recruitos.brain.engine;
 
+import com.recruitos.brain.aggregator.BrainDataAggregator;
 import com.recruitos.brain.domain.DemandDiagnosis;
 import com.recruitos.common.llm.LlmChatRequest;
 import com.recruitos.common.llm.LlmClient;
@@ -17,6 +18,7 @@ import java.util.*;
 public class DemandDiagnosisEngine {
     private static final Logger log = LoggerFactory.getLogger(DemandDiagnosisEngine.class);
     @Resource private LlmClient llmClient;
+    @Resource private BrainDataAggregator aggregator;
 
     public DemandDiagnosis analyze(String businessObjective, Long departmentId) {
         DemandDiagnosis diag = new DemandDiagnosis();
@@ -32,7 +34,7 @@ public class DemandDiagnosisEngine {
         diag.setCapabilityGaps(gaps);
 
         // Step 3: 团队现状模拟（基于部门推断）
-        diag.setCurrentTeam(buildMockTeam(departmentId));
+        diag.setCurrentTeam(buildRealTeam(departmentId));
 
         // Step 4: 生成招聘建议
         DemandDiagnosis.HireRecommendation rec = buildRecommendation(gaps, businessObjective);
@@ -126,13 +128,41 @@ public class DemandDiagnosisEngine {
         return warnings;
     }
 
-    private List<DemandDiagnosis.TeamMemberBrief> buildMockTeam(Long deptId) {
+    private List<DemandDiagnosis.TeamMemberBrief> buildRealTeam(Long deptId) {
         List<DemandDiagnosis.TeamMemberBrief> team = new ArrayList<>();
-        DemandDiagnosis.TeamMemberBrief m1 = new DemandDiagnosis.TeamMemberBrief();
-        m1.setName("工程师A"); m1.setLevel("P6"); m1.setSkills(Arrays.asList("Java", "Spring Boot", "MySQL")); m1.setHasGapSkill(true);
-        DemandDiagnosis.TeamMemberBrief m2 = new DemandDiagnosis.TeamMemberBrief();
-        m2.setName("工程师B"); m2.setLevel("P6"); m2.setSkills(Arrays.asList("Python", "Django", "Redis")); m2.setHasGapSkill(true);
-        team.add(m1); team.add(m2);
+        try {
+            // 从标签系统获取真实团队数据
+            Map<String, Object> teamData = aggregator.fetchTeamData(deptId);
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> members = (List<Map<String, Object>>) teamData.get("members");
+            if (members != null) {
+                for (Map<String, Object> m : members) {
+                    DemandDiagnosis.TeamMemberBrief member = new DemandDiagnosis.TeamMemberBrief();
+                    member.setName((String) m.getOrDefault("memberName", "未知"));
+                    member.setLevel((String) m.getOrDefault("memberLevel", "P5"));
+                    @SuppressWarnings("unchecked")
+                    List<Map<String, Object>> tags = (List<Map<String, Object>>) m.get("tags");
+                    List<String> skillNames = new ArrayList<>();
+                    if (tags != null) {
+                        for (Map<String, Object> tag : tags) {
+                            skillNames.add((String) tag.get("name"));
+                        }
+                    }
+                    member.setSkills(skillNames.isEmpty() ? List.of("通用能力") : skillNames);
+                    member.setHasGapSkill(false); // 需要后续与需求对比
+                    team.add(member);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Fetching real team data failed, using minimal fallback", e);
+        }
+        // 兜底
+        if (team.isEmpty()) {
+            DemandDiagnosis.TeamMemberBrief fallback = new DemandDiagnosis.TeamMemberBrief();
+            fallback.setName("团队成员"); fallback.setLevel("P6");
+            fallback.setSkills(List.of("通用技能")); fallback.setHasGapSkill(true);
+            team.add(fallback);
+        }
         return team;
     }
 

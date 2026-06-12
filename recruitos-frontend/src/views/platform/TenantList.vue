@@ -90,7 +90,7 @@
           </tbody>
         </table>
         <div v-if="!tenantList.length && !loading" class="empty-state">
-          <Building2 class="h-12 w-12 text-muted-foreground/40" />
+          <Building2 class="h-12 w-12 text-text-placeholder" />
           <p>暂无租户数据</p>
         </div>
       </div>
@@ -105,7 +105,7 @@
       </div>
     </div>
 
-    <Dialog v-model:open="showCreate">
+    <Dialog v-model="showCreate">
       <DialogContent class="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>创建租户</DialogTitle>
@@ -155,7 +155,7 @@
       </DialogContent>
     </Dialog>
 
-    <Dialog v-model:open="showPlan">
+    <Dialog v-model="showPlan">
       <DialogContent class="max-w-md">
         <DialogHeader>
           <DialogTitle>变更套餐</DialogTitle>
@@ -273,7 +273,7 @@ async function loadData() {
   try {
     const res: any = await getPlatformTenantList({ pageNum: pageNum.value, pageSize: pageSize.value, keyword: keyword.value || undefined })
     tenantList.value = res.data?.list || []
-    total.value = res.data?.total || 0
+    total.value = Number(res.data?.total) || 0
   } catch {}
   loading.value = false
 }

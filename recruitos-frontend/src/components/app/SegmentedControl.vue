@@ -11,7 +11,7 @@ const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 </script>
 
 <template>
-  <div :class="['inline-flex rounded-xl bg-muted/50 p-1', $props.class]">
+  <div :class="['inline-flex rounded-xl bg-bg-muted p-1', $props.class]">
     <Button
       v-for="opt in options"
       :key="opt.value"

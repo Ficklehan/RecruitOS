@@ -467,7 +467,7 @@ async function onAccountStatusToggle(acc: any, active: boolean) {
 
 function getAccountRowActions(acc: any) {
   return [
-    { command: 'edit', label: '编辑', icon: 'Edit', type: 'primary' },
+    { command: 'edit', label: '编辑', icon: 'Edit', type: 'default' as const },
     { command: 'login', label: '平台登录', icon: 'Setting' },
     { command: 'log', label: '查看日志', icon: 'View' },
   ]

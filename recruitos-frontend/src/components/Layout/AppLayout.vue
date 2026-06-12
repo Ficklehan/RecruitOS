@@ -36,8 +36,8 @@ function closeMobileSidebar() {
   <div class="min-h-screen bg-bg-page">
     <TopNav :sidebar-collapsed="sidebarCollapsed" @toggle-sidebar="toggleSidebar" />
     <Sidebar
-      v-if="!isMobile"
-      :collapsed="sidebarCollapsed"
+      v-if="!isMobile || !sidebarCollapsed"
+      :collapsed="isMobile ? false : sidebarCollapsed"
     />
     <main
       :class="cn(

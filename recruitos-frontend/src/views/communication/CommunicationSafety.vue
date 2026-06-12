@@ -295,7 +295,7 @@ function highlightKeywords(content: string, keywords: string[]): string {
 
 function getRowActions(_row: SafetyRecord) {
   return [
-    { command: 'view', label: '查看详情', icon: 'View', type: 'primary', primary: true },
+    { command: 'view', label: '查看详情', icon: 'View', type: 'default' as const, primary: true },
     { command: 'edit', label: '复审', icon: 'Edit' },
   ]
 }

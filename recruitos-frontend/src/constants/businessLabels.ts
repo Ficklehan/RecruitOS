@@ -26,6 +26,7 @@ export const OBJECTS = {
 
 /** 职位工作台 4 业务 Tab */
 export const JOB_WORKSPACE_TABS = {
+  ai: 'AI 洞察',
   overview: '总览',
   sourcing: '找人',
   candidates: '管人',

@@ -31,7 +31,7 @@ export function parseResume(id: number | string) {
 
 // 更新简历
 export function updateResume(id: number | string, data: any) {
-  return request.post(`/api/resume/${id}/parse`, data)
+  return request.put(`/api/resume/${id}`, data)
 }
 
 // 删除简历

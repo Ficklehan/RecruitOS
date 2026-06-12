@@ -56,7 +56,7 @@
     />
 
     <template #below>
-      <Dialog v-model:open="dialogVisible">
+      <Dialog v-model="dialogVisible">
         <DialogContent class="max-w-lg">
           <DialogHeader>
             <DialogTitle>{{ isEdit ? '编辑供应商' : '添加供应商' }}</DialogTitle>

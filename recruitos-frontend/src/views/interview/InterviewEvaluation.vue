@@ -55,7 +55,7 @@
         <div
           v-for="(q, idx) in aiQuestions"
           :key="idx"
-          class="flex items-start gap-3 p-3 rounded-lg bg-muted/50"
+          class="flex items-start gap-3 p-3 rounded-lg bg-bg-muted"
         >
           <span class="text-xs font-bold text-primary shrink-0 mt-0.5">{{ idx + 1 }}</span>
           <div class="min-w-0 flex-1">

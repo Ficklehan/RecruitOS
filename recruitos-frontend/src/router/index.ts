@@ -13,6 +13,10 @@ import legacyRedirects from './modules/legacy-redirects'
 import screeningRoutes from './modules/screening'
 import aiToolsRoutes from './modules/ai-tools'
 import aiRoutes from './modules/ai'
+import jobsRoutes from './modules/jobs'
+import evaluateRoutes from './modules/evaluate'
+import knowledgeRoutes from './modules/knowledge'
+import portalRoutes from './modules/portal'
 
 const LoginRoute: RouteRecordRaw = {
   path: '/login',
@@ -64,6 +68,10 @@ const routes: RouteRecordRaw[] = [
   ...insightRoutes,
   ...aiToolsRoutes,
   ...aiRoutes,
+  ...jobsRoutes,
+  ...evaluateRoutes,
+  ...knowledgeRoutes,
+  ...portalRoutes,
   ...settingsRoutes,
   ...platformRoutes,
   ...legacyRedirects,

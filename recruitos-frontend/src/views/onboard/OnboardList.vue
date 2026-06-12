@@ -235,7 +235,7 @@ async function loadData() {
     hrManager: row.hrName || row.hrManager,
     onboardDate: row.onboardDate || '',
   }))
-  total.value = res.data?.total || onboardList.value.length
+  total.value = Number(res.data?.total) || onboardList.value.length
 }
 
 function handleSearch() {

@@ -335,7 +335,7 @@ async function loadList() {
       pageSize: pageSize.value,
     })
     rows.value = res.data?.list || []
-    total.value = res.data?.total || 0
+    total.value = Number(res.data?.total) || 0
   } finally {
     loading.value = false
   }

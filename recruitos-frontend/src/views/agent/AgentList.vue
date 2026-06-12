@@ -451,7 +451,7 @@ async function handleCreateSubmit() {
 
 function getRowActions(_row: any) {
   return [
-    { command: 'view', label: '查看详情', icon: 'View', type: 'primary', primary: true },
+    { command: 'view', label: '查看详情', icon: 'View', type: 'default' as const, primary: true },
     { command: 'edit', label: '编辑', icon: 'Edit' },
     { command: 'delete', label: '删除', icon: 'Delete', divided: true },
   ]
@@ -472,7 +472,7 @@ async function loadData() {
       keyword: queryParams.keyword || undefined,
     })
     taskList.value = res.data?.list || res.data?.records || res.data || []
-    total.value = res.data?.total || taskList.value.length
+    total.value = Number(res.data?.total) || taskList.value.length
   } catch {
     taskList.value = []
     total.value = 0

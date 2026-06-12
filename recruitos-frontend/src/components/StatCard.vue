@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, type Component } from 'vue'
 import { cn } from '@/lib/utils'
 import { RCard } from '@/components/ui'
+import type { Component } from 'vue'
 
 interface Props {
   label: string
@@ -17,7 +17,7 @@ const props = defineProps<Props>()
 <template>
   <RCard padding="md" :class="cn('flex items-center gap-3', props.class)">
     <div v-if="icon" class="w-10 h-10 rounded-[var(--r-radius)] bg-primary-light flex items-center justify-center shrink-0">
-      <component v-if="typeof icon !== 'string'" :is="icon" class="w-5 h-5" :style="color ? { color } : {}" />
+      <component v-if="typeof icon !== 'string'" :is="icon" class="h-5 w-5" :style="color ? { color } : {}" />
       <span v-else class="text-[18px]" :style="color ? { color } : {}">{{ icon }}</span>
     </div>
     <div class="flex-1 min-w-0">

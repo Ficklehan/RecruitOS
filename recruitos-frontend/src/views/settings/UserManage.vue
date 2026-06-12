@@ -243,7 +243,7 @@ async function loadUsers() {
       list = list.filter((u: any) => u.status === searchForm.status)
     }
     userList.value = list
-    total.value = res.data?.total || list.length
+    total.value = Number(res.data?.total) || list.length
     pagination.total = total.value
   } finally {
     loading.value = false
@@ -314,7 +314,7 @@ onMounted(async () => {
 
 function getRowActions(_row: any) {
   return [
-    { command: 'edit', label: '编辑', icon: 'Edit', type: 'primary', primary: true },
+    { command: 'edit', label: '编辑', icon: 'Edit', type: 'default' as const, primary: true },
     { command: 'resetPwd', label: '重置密码', icon: 'Key' },
     { command: 'delete', label: '删除', icon: 'Delete', divided: true },
   ]

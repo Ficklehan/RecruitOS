@@ -32,7 +32,7 @@ const innerDot = computed(() => cn(
 
 <template>
   <label class="inline-flex items-center gap-2 cursor-pointer" :class="cn('disabled:opacity-50 disabled:cursor-not-allowed', props.class)">
-    <div :class="dotClasses" @click="!disabled && props.value != null && emit('update:modelValue', props.value)">
+    <div :class="dotClasses" @click="!disabled && value !== undefined && emit('update:modelValue', value)">
       <div :class="innerDot" />
     </div>
     <slot />

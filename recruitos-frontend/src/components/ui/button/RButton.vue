@@ -3,8 +3,8 @@ import { computed } from 'vue'
 import { cn } from '@/lib/utils'
 
 interface Props {
-  variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'outline' | 'link' | 'destructive' | 'default'
-  size?: 'sm' | 'md' | 'lg' | 'icon'
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'outline' | 'default' | 'link' | 'destructive'
+  size?: 'sm' | 'md' | 'lg' | 'icon' | 'xs'
   disabled?: boolean
   loading?: boolean
   class?: string
@@ -22,13 +22,14 @@ const variantClasses = {
   secondary: 'bg-bg-muted text-text-regular hover:bg-bg-hover active:scale-[0.98]',
   ghost: 'bg-transparent text-text-secondary hover:bg-bg-hover active:scale-[0.98]',
   danger: 'bg-danger text-white hover:bg-red-600 active:scale-[0.98]',
-  destructive: 'bg-danger text-white hover:bg-red-600 active:scale-[0.98]',
   outline: 'bg-transparent text-text-regular border border-border hover:bg-bg-hover active:scale-[0.98]',
+  default: 'bg-bg-card text-text-regular border border-border hover:bg-bg-hover active:scale-[0.98]',
   link: 'bg-transparent text-primary hover:underline p-0 h-auto',
-  default: 'bg-bg-muted text-text-regular hover:bg-bg-hover active:scale-[0.98]',
+  destructive: 'bg-danger text-white hover:bg-red-600 active:scale-[0.98]',
 }
 
 const sizeClasses = {
+  xs: 'h-6 px-2 text-[11px] gap-1 rounded-[var(--r-radius-sm)]',
   sm: 'h-8 px-3 text-[13px] gap-1.5 rounded-[var(--r-radius-sm)]',
   md: 'h-9 px-4 text-[14px] gap-2 rounded-[var(--r-radius)]',
   lg: 'h-10 px-6 text-[14px] gap-2 rounded-[var(--r-radius)]',

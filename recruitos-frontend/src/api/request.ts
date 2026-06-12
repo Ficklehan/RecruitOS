@@ -36,7 +36,8 @@ function redirectToLogin(silent?: boolean) {
   if (redirectingToLogin || router.currentRoute.value.path === '/login') return
   redirectingToLogin = true
   showErrorOnce('401', '登录已过期，请重新登录', silent)
-  router.push('/login').finally(() => {
+  const currentPath = router.currentRoute.value.fullPath
+  router.push({ path: '/login', query: { redirect: currentPath } }).finally(() => {
     redirectingToLogin = false
   })
 }

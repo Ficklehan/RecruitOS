@@ -116,7 +116,7 @@
         </template>
 
         <div v-else class="empty-chat">
-          <MessagesSquare class="h-16 w-16 text-muted-foreground/40" />
+          <MessagesSquare class="h-16 w-16 text-text-placeholder/40" />
           <p>请从左侧选择一个对话</p>
         </div>
       </div>

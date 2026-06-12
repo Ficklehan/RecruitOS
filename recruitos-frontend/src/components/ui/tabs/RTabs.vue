@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, provide, computed, type Ref } from 'vue'
+import { ref, provide, computed } from 'vue'
 import { cn } from '@/lib/utils'
 
 interface Props {
@@ -10,12 +10,12 @@ interface Props {
 const props = defineProps<Props>()
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 
-const activeTab = computed<string>({
-  get: () => props.modelValue || '',
-  set: (v: string) => emit('update:modelValue', v),
+const activeTab = computed({
+  get: () => props.modelValue,
+  set: (v) => { if (v !== undefined) emit('update:modelValue', v) },
 })
 
-provide<Ref<string>>('activeTab', activeTab as any)
+provide('activeTab', activeTab)
 </script>
 
 <template>

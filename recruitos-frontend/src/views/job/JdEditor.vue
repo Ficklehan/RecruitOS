@@ -122,7 +122,7 @@
                       :options="requirementTypeOptions"
                       :disabled="row.locked"
                       class="h-8"
-                      @update:model-value="(v) => { row.requirementType = String(v) as any; onRequirementChange(row) }"
+                      @update:model-value="(v) => { row.requirementType = String(v) as RequirementType; onRequirementChange(row) }"
                     />
                   </TableCell>
                   <TableCell>
@@ -131,7 +131,7 @@
                       :options="importanceOptions"
                       :disabled="row.locked"
                       class="h-8"
-                      @update:model-value="(v) => { row.importance = String(v) as any; onRequirementChange(row) }"
+                      @update:model-value="(v) => { row.importance = String(v) as ImportanceLevel; onRequirementChange(row) }"
                     />
                   </TableCell>
                   <TableCell class="text-center">
@@ -192,6 +192,8 @@ import EmptyStateCta from '@/components/common/EmptyStateCta.vue'
 import { OBJECTS, jobStatusLabel } from '@/constants/businessLabels'
 import {
   type RequirementItem,
+  type RequirementType,
+  type ImportanceLevel,
   fromApiTag,
   toApiTag,
   applyRequirementChange,

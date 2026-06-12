@@ -373,7 +373,7 @@ async function loadData() {
     })
     const rows = res.data?.list || res.data?.records || []
     talentList.value = rows.map(mapTalent)
-    total.value = res.data?.total || 0
+    total.value = Number(res.data?.total) || 0
   } catch {
     toast.error('加载人才库失败')
     talentList.value = []

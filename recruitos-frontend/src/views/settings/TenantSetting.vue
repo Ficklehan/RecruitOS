@@ -37,7 +37,7 @@
         </FormField>
         <FormField label="自定义域名">
           <div class="flex">
-            <span class="inline-flex items-center rounded-l-xl bg-muted/80 px-3 text-sm text-muted-foreground">https://</span>
+            <span class="inline-flex items-center rounded-l-xl bg-bg-muted px-3 text-sm text-text-secondary">https://</span>
             <RInput v-model="formData.domain" placeholder="hr.yourcompany.com" class="rounded-l-none" />
           </div>
         </FormField>

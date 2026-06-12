@@ -6,12 +6,14 @@ import { CheckCircle, XCircle, AlertTriangle, Info, X } from 'lucide-vue-next'
 const icons = {
   success: CheckCircle,
   destructive: XCircle,
+  warning: AlertTriangle,
   default: Info,
 }
 
 const colors = {
   success: 'bg-success-light text-success border-success/20',
   destructive: 'bg-danger-light text-danger border-danger/20',
+  warning: 'bg-warning-light text-warning border-warning/20',
   default: 'bg-info-light text-info border-info/20',
 }
 </script>

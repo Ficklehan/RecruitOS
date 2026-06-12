@@ -105,18 +105,20 @@
               <RButton variant="outline" class="rail-btn" @click="advanceActiveJob('INTERVIEWING')">安排面试</RButton>
               <RButton variant="destructive" class="rail-btn" @click="handleReject">标记不合适</RButton>
               <RDropdown>
-                <DropdownMenuTrigger>
+                <template #trigger>
                   <RButton variant="outline" class="rail-btn w-full">更多操作</RButton>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem v-if="pendingFeedbackInterview" @click="feedbackDrawerVisible = true">
+                </template>
+                <div class="w-[180px] py-1">
+                  <button v-if="pendingFeedbackInterview" class="w-full px-3 py-2 text-[13px] text-left hover:bg-bg-hover transition-colors" @click="feedbackDrawerVisible = true">
                     提交面试反馈
-                  </DropdownMenuItem>
-                  <DropdownMenuItem v-if="canPrepareOffer" @click="openOfferDialog">
+                  </button>
+                  <button v-if="canPrepareOffer" class="w-full px-3 py-2 text-[13px] text-left hover:bg-bg-hover transition-colors" @click="openOfferDialog">
                     准备录用通知
-                  </DropdownMenuItem>
-                  <DropdownMenuItem @click="handleReserve">储备至人才库</DropdownMenuItem>
-                </DropdownMenuContent>
+                  </button>
+                  <button class="w-full px-3 py-2 text-[13px] text-left hover:bg-bg-hover transition-colors" @click="handleReserve">
+                    储备至人才库
+                  </button>
+                </div>
               </RDropdown>
             </div>
 
@@ -206,7 +208,7 @@ import {
   RButton, RBadge, RSelect, RTabs, RTabsList, RTabsTrigger, RTabsContent,
   RDialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
   RInput, RTextarea,
-  RDropdown, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
+  RDropdown,
 } from '@/components/ui'
 import { pipelineStageLabel, educationLabel } from '@/constants/businessLabels'
 import { normalizeResumeData, type NormalizedResume } from '@/utils/resumeParser'

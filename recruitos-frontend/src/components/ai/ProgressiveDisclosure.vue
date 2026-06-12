@@ -37,7 +37,7 @@
       </div>
 
       <!-- Action buttons -->
-      <div v-if="$slots.actions || (actions && actions.length)" class="pd-actions">
+      <div v-if="actions?.length" class="pd-actions">
         <slot name="actions">
           <button v-for="action in actions" :key="action.label"
             class="pd-action-btn" :class="action.variant"
@@ -53,20 +53,17 @@
 <script setup lang="ts">
 import { ref, computed, useSlots } from 'vue'
 
-const slots = useSlots()
-
-const props = withDefaults(defineProps<{
+const props = defineProps<{
   title?: string
   badge?: string
   badgeClass?: string
   actions?: { label: string; variant?: string; onClick: () => void }[]
-}>(), {
-  actions: () => [],
-})
+}>()
 
 const expanded = ref(false)
 const showAdvanced = ref(false)
 
+const slots = useSlots()
 const hasLayer3 = computed(() => !!slots.layer3)
 </script>
 

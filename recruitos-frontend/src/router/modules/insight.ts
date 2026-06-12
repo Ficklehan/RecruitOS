@@ -6,14 +6,37 @@ const insightRoutes: RouteRecordRaw[] = [
   {
     path: '/insight',
     component: AppLayout,
-    redirect: '/insight/funnel',
-    meta: { title: '数据洞察', permission: 'insight' },
+    redirect: '/insight/alerts',
+    meta: { title: '洞察', permission: 'insight' },
     children: [
+      // v8: AI主动推送 三级洞察
+      {
+        path: 'alerts',
+        name: 'InsightAlerts',
+        component: () => import('@/views/insight/InsightAlerts.vue'),
+        meta: { title: '需要处理', permission: 'insight:funnel', icon: 'AlertTriangle' },
+        props: { severity: 'CRITICAL' },
+      },
+      {
+        path: 'attention',
+        name: 'InsightAttention',
+        component: () => import('@/views/insight/InsightAlerts.vue'),
+        meta: { title: '值得关注', permission: 'insight:funnel', icon: 'Eye' },
+        props: { severity: 'WARNING' },
+      },
+      {
+        path: 'observe',
+        name: 'InsightObserve',
+        component: () => import('@/views/insight/InsightAlerts.vue'),
+        meta: { title: '长期观察', permission: 'insight:funnel', icon: 'TrendingUp' },
+        props: { severity: 'INFO' },
+      },
+      // 传统分析
       {
         path: 'funnel',
         name: 'InsightFunnel',
         component: () => import('@/views/analytics/AnalyticsFunnel.vue'),
-        meta: { title: '招聘漏斗', permission: 'insight:funnel', icon: 'Filter' },
+        meta: { title: '招聘漏斗', permission: 'insight:funnel', icon: 'Funnel' },
       },
       {
         path: 'cycle',
@@ -25,7 +48,7 @@ const insightRoutes: RouteRecordRaw[] = [
         path: 'roi',
         name: 'InsightRoi',
         component: () => import('@/views/analytics/AnalyticsRoi.vue'),
-        meta: { title: '渠道ROI', permission: 'insight:roi', icon: 'Coin' },
+        meta: { title: '渠道ROI', permission: 'insight:roi', icon: 'Coins' },
       },
       {
         path: 'interviewer',

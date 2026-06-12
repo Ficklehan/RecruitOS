@@ -87,6 +87,12 @@
             </RBadge>
             <span v-else class="text-muted-foreground">—</span>
           </RTableCell>
+          <RTableCell class="text-center">
+            <span v-if="aiHealthMap.get(row.id) === 'critical'" class="text-red-500 text-xs font-semibold">🔥 枯竭</span>
+            <span v-else-if="aiHealthMap.get(row.id) === 'warning'" class="text-amber-500 text-xs">⚠️</span>
+            <span v-else-if="aiHealthMap.get(row.id) === 'healthy'" class="text-green-500 text-xs">✅</span>
+            <span v-else class="text-text-placeholder text-xs">—</span>
+          </RTableCell>
           <RTableCell class="text-muted-foreground">{{ row.createdAt }}</RTableCell>
           <RTableCell class="text-center">
             <RowActions :actions="getRowActions(row) as any" @action="(cmd) => handleRowCommand(cmd, row)" />
@@ -154,10 +160,12 @@ import { jobStatusLabel } from '@/constants/businessLabels'
 import { jobStatusBadge } from '@/lib/badgeVariants'
 import { toast } from '@/lib/notify'
 import { getJobList, activateJob, pauseJob, closeJob } from '@/api/modules/job'
+import { getJudgment } from '@/api/modules/brain'
 import { resolveJobRecruitStatuses, type JobRecruitStatus } from '@/utils/jobRecruitStatus'
 
 const router = useRouter()
 const recruitStatusMap = ref(new Map<number, JobRecruitStatus | null>())
+const aiHealthMap = ref(new Map<number, string>())
 
 const queryParams = reactive({
   title: '',
@@ -220,8 +228,23 @@ function openConfirm(title: string, message: string, onConfirm: () => void, dest
 async function loadData() {
   const res: any = await getJobList(queryParams)
   jobList.value = res.data?.list || res.data?.records || []
-  total.value = res.data?.total || 0
+  total.value = Number(res.data?.total) || 0
   recruitStatusMap.value = await resolveJobRecruitStatuses(jobList.value)
+
+  const healthMap = new Map<number, string>()
+  for (const row of jobList.value) {
+    try {
+      const res = await getJudgment('JOB', row.id).catch(() => null)
+      const data = (res as any)?.data
+      if (data?.judgmentText) {
+        const t = data.judgmentText
+        if (t.includes('枯') || t.includes('危险')) healthMap.set(row.id, 'critical')
+        else if (t.includes('缓慢') || t.includes('不足')) healthMap.set(row.id, 'warning')
+        else healthMap.set(row.id, 'healthy')
+      }
+    } catch {}
+  }
+  aiHealthMap.value = healthMap
 }
 
 function handleSearch() {

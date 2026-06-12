@@ -295,7 +295,7 @@ async function loadData() {
     }
     const res: any = await getAgentLogList(params)
     logList.value = res.data?.list || res.data?.records || res.data || []
-    total.value = res.data?.total || logList.value.length
+    total.value = Number(res.data?.total) || logList.value.length
   } catch {
     logList.value = []
     total.value = 0

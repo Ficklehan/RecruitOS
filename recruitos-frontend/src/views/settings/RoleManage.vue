@@ -143,7 +143,7 @@ const PermTreeNode = defineComponent({
     const isChecked = () => props.checkedIds.includes(props.node.id)
     return () => h('div', { class: 'perm-node' }, [
       h('div', {
-        class: 'flex items-center gap-2 py-1.5 rounded hover:bg-muted/50',
+        class: 'flex items-center gap-2 py-1.5 rounded hover:bg-bg-hover',
         style: { paddingLeft: `${props.depth * 16}px` },
       }, [
         hasChildren()
@@ -352,7 +352,7 @@ onMounted(async () => {
 
 function getRowActions(_row: any) {
   return [
-    { command: 'permission', label: '权限配置', icon: 'Lock', type: 'primary', primary: true },
+    { command: 'permission', label: '权限配置', icon: 'Lock', type: 'default' as const, primary: true },
     { command: 'edit', label: '编辑', icon: 'Edit' },
     { command: 'delete', label: '删除', icon: 'Delete', divided: true },
   ]

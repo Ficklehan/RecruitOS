@@ -16,6 +16,18 @@ const talentRoutes: RouteRecordRaw[] = [
         meta: { title: '人才库', permission: 'talent:pool', icon: 'Files' },
       },
       {
+        path: 'agent-feed',
+        name: 'TalentAgentFeed',
+        component: () => import('@/views/talent/AgentFeed.vue'),
+        meta: { title: 'AI 推荐', permission: 'talent:pool', icon: 'Sparkles' },
+      },
+      {
+        path: 'search',
+        name: 'TalentSearch',
+        component: () => import('@/views/talent/ActiveSearch.vue'),
+        meta: { title: '主动搜索', permission: 'talent:resume', icon: 'Search' },
+      },
+      {
         path: 'resumes',
         name: 'TalentResumes',
         component: () => import('@/views/resume/ResumeList.vue'),

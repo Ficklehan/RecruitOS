@@ -1,6 +1,14 @@
 <script setup lang="ts">
+import { watch } from 'vue'
 import { confirmState, finishConfirm } from '@/lib/confirm'
 import ConfirmDialog from './ConfirmDialog.vue'
+
+// Resolve promise if dialog is closed without explicit confirm/cancel
+watch(() => confirmState.value.open, (open) => {
+  if (!open && confirmState.value.resolve) {
+    finishConfirm(false)
+  }
+})
 </script>
 
 <template>

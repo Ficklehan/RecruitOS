@@ -252,7 +252,7 @@ function handleResolveAlert(alert: Alert) {
 }
 
 function getRowActions(_row: JobHealth) {
-  return [{ command: 'view', label: '查看详情', icon: 'View', type: 'primary', primary: true }]
+  return [{ command: 'view', label: '查看详情', icon: 'View', type: 'default' as const, primary: true }]
 }
 
 function handleRowCommand(cmd: string, row: JobHealth) {

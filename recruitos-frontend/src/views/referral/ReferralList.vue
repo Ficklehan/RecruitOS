@@ -78,7 +78,7 @@
     />
 
     <template #below>
-      <Dialog v-model:open="dialogVisible">
+      <Dialog v-model="dialogVisible">
         <DialogContent class="max-w-lg">
           <DialogHeader>
             <DialogTitle>{{ isEdit ? '编辑内推' : '发起内推' }}</DialogTitle>

@@ -8,9 +8,13 @@ interface Props {
 }
 
 const props = defineProps<Props>()
-const activeTab = inject<import('vue').ComputedRef<string>>('activeTab')
+const activeTab = inject<import('vue').Ref<string>>('activeTab')
 
 const isActive = computed(() => activeTab?.value === props.value)
+
+function handleClick() {
+  if (activeTab) activeTab.value = props.value
+}
 
 const classes = computed(() => cn(
   'px-3 py-1.5 text-[13px] font-medium rounded-[var(--r-radius-sm)] cursor-pointer',
@@ -20,16 +24,10 @@ const classes = computed(() => cn(
     : 'text-text-secondary hover:text-text-primary',
   props.class,
 ))
-
-function setActive() {
-  if (activeTab && 'value' in activeTab) {
-    ;(activeTab as any).value = props.value
-  }
-}
 </script>
 
 <template>
-  <button type="button" :class="classes" @click="setActive">
+  <button type="button" :class="classes" @click="handleClick">
     <slot />
   </button>
 </template>

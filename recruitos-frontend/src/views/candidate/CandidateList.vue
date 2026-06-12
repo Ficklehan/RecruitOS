@@ -339,7 +339,7 @@ function handleRowCommand(cmd: string, row: any) {
 function validateForm(): boolean { formErrors.name = candidateForm.name ? '' : '请输入姓名'; formErrors.phone = candidateForm.phone ? '' : '请输入电话'; return !Object.values(formErrors).some(Boolean) }
 
 async function loadData() {
-  try { const res: any = await getCandidateList(queryParams); candidateList.value = res.data?.list || res.data?.records || []; total.value = res.data?.total || 0 } catch { candidateList.value = []; total.value = 0 }
+  try { const res: any = await getCandidateList(queryParams); candidateList.value = res.data?.list || res.data?.records || []; total.value = Number(res.data?.total) || 0 } catch { candidateList.value = []; total.value = 0 }
 }
 async function handleSearch() { queryParams.pageNum = 1; await loadData(); if (queryParams.jobId) loadAiScores() }
 function handleReset() { queryParams.name = ''; queryParams.status = undefined; queryParams.source = undefined; queryParams.jobId = null; aiScores.value = {}; handleSearch() }

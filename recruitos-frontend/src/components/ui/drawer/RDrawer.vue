@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { watch, onMounted, onUnmounted } from 'vue'
+import { computed, watch, onMounted, onUnmounted } from 'vue'
 import { cn } from '@/lib/utils'
 import { X } from 'lucide-vue-next'
 
 interface Props {
   modelValue?: boolean
+  open?: boolean
   title?: string
   side?: 'left' | 'right'
   width?: string
@@ -16,11 +17,17 @@ const props = withDefaults(defineProps<Props>(), {
   width: '400px',
 })
 
+const isOpen = computed(() => props.open ?? props.modelValue ?? false)
+
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
+  'update:open': [value: boolean]
 }>()
 
-function close() { emit('update:modelValue', false) }
+function close() {
+  emit('update:modelValue', false)
+  emit('update:open', false)
+}
 
 function handleKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape') close()
@@ -40,7 +47,7 @@ onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
       leave-from-class="opacity-100"
       leave-to-class="opacity-0"
     >
-      <div v-if="modelValue" class="fixed inset-0 z-[var(--r-z-drawer)]">
+      <div v-if="isOpen" class="fixed inset-0 z-[var(--r-z-drawer)]">
         <div class="absolute inset-0 bg-black/40" @click="close" />
         <Transition
           enter-active-class="transition-transform duration-300 ease-out"
@@ -51,7 +58,7 @@ onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
           :leave-to-class="side === 'right' ? 'translate-x-full' : '-translate-x-full'"
         >
           <div
-            v-if="modelValue"
+            v-if="isOpen"
             :class="cn(
               'absolute top-0 bottom-0 bg-bg-card r-shadow-xl flex flex-col',
               side === 'right' ? 'right-0' : 'left-0',

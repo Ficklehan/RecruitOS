@@ -297,7 +297,7 @@ async function handleDelete(row: Template) {
 
 function getRowActions(_row: Template) {
   return [
-    { command: 'edit', label: '编辑', icon: 'Edit', type: 'primary', primary: true },
+    { command: 'edit', label: '编辑', icon: 'Edit', type: 'default' as const, primary: true },
     { command: 'delete', label: '删除', icon: 'Delete', divided: true },
   ]
 }

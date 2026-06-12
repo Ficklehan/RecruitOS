@@ -1,4 +1,4 @@
-import { getMyApprovals } from './approval'
+import { getMyApprovals } from './demand'
 import { getInterviewList } from './interview'
 import { getOfferList } from './offer'
 import { getOnboardList } from './onboard'

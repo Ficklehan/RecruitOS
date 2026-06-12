@@ -41,5 +41,5 @@ export function rejectOfferByCandidate(id: number, reason: string) {
 }
 
 export function updateBgCheckStatus(id: number, status: string) {
-  return request.put(`/api/offer/${id}/bg-check`, null, { params: { status } })
+  return request.put(`/api/offer/${id}/bg-check`, { status })
 }

@@ -6,10 +6,10 @@
     </template>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      <StatCard label="待安排" :value="stats.pending" icon="Clock" color="$warning-color" />
-      <StatCard label="已安排" :value="stats.arranged" icon="Calendar" color="$primary-color" />
-      <StatCard label="进行中" :value="stats.inProgress" icon="VideoCamera" color="$success-color" />
-      <StatCard label="已完成" :value="stats.completed" icon="CircleCheck" color="$text-secondary" />
+      <StatCard label="待安排" :value="stats.pending" icon="Clock" color="#F59E0B" />
+      <StatCard label="已安排" :value="stats.arranged" icon="Calendar" color="#4F6BED" />
+      <StatCard label="进行中" :value="stats.inProgress" icon="VideoCamera" color="#16A34A" />
+      <StatCard label="已完成" :value="stats.completed" icon="CircleCheck" color="#6B7280" />
     </div>
 
     <div class="round-tabs">
@@ -166,10 +166,10 @@ const activeRound = ref('INITIAL')
 const stats = reactive({ pending: 0, arranged: 0, inProgress: 0, completed: 0 })
 
 const columns = [
-  { status: 'PENDING_ARRANGE', label: '待安排', color: '$warning-color' },
-  { status: 'ARRANGED', label: '已安排', color: '$primary-color' },
-  { status: 'IN_PROGRESS', label: '进行中', color: '$success-color' },
-  { status: 'COMPLETED', label: '已完成', color: '$text-secondary' },
+  { status: 'PENDING_ARRANGE', label: '待安排', color: '#F59E0B' },
+  { status: 'ARRANGED', label: '已安排', color: '#4F6BED' },
+  { status: 'IN_PROGRESS', label: '进行中', color: '#16A34A' },
+  { status: 'COMPLETED', label: '已完成', color: '#6B7280' },
 ]
 
 const interviewList = ref<any[]>([])

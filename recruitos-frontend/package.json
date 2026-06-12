@@ -20,10 +20,8 @@
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.0",
     "@vitejs/plugin-vue": "^5.0.0",
-    "autoprefixer": "^10.5.0",
     "clsx": "^2.1.1",
     "lucide-vue-next": "^0.577.0",
-    "postcss": "^8.5.15",
     "sass": "^1.70.0",
     "tailwind-merge": "^3.6.0",
     "tailwindcss": "^4.3.0",

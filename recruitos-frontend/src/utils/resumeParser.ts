@@ -199,7 +199,8 @@ export function normalizeResumeData(
 export function resumeFileUrl(fileUrl?: string): string {
   if (!fileUrl) return ''
   if (fileUrl.startsWith('http')) return fileUrl
-  return fileUrl
+  // Ensure relative paths start with / for proper URL resolution
+  return fileUrl.startsWith('/') ? fileUrl : `/${fileUrl}`
 }
 
 export function isPdfResume(resume: Pick<NormalizedResume, 'fileType' | 'fileUrl' | 'fileName'>): boolean {

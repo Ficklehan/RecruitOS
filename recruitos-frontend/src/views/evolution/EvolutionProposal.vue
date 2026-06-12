@@ -221,7 +221,7 @@ function jobTitle(jobId?: number) {
 
 function getRowActions(_row: any) {
   return [
-    { command: 'detail', label: '查看详情', icon: 'View', type: 'primary', primary: true },
+    { command: 'detail', label: '查看详情', icon: 'View', type: 'default' as const, primary: true },
     { command: 'confirm', label: '采纳', icon: 'CircleCheck' },
     { command: 'reject', label: '暂不采纳', icon: 'CircleClose', divided: true },
   ]
