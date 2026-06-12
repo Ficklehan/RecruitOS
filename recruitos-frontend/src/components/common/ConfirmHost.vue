@@ -4,8 +4,8 @@ import { confirmState, finishConfirm } from '@/lib/confirm'
 import ConfirmDialog from './ConfirmDialog.vue'
 
 // Resolve promise if dialog is closed without explicit confirm/cancel
-watch(() => confirmState.value.open, (open) => {
-  if (!open && confirmState.value.resolve) {
+watch(() => confirmState.open, (open) => {
+  if (!open && confirmState.resolve) {
     finishConfirm(false)
   }
 })

@@ -241,6 +241,22 @@ export function getObservations() {
 export function actionObservation(id: number, action: string) {
   return request.post(`/api/cognitive/observations/${id}/action`, { action }) as Promise<ApiResult<{success: boolean}>>
 }
+
+// Calibration decision logging
+export function logDecision(data: {
+  decisionType: string; targetId: number; targetType: string
+  decisionDetail: Record<string, any>; confidence?: number
+}) { return request.post('/api/brain/calibration/decision', data) as Promise<ApiResult<void>> }
+
+// Batch get candidate intent
+export function batchGetIntent(candidateIds: number[], jobId?: number) {
+  return request.post('/api/brain/intent/batch', { candidateIds, jobId }) as Promise<ApiResult<Record<number, CandidateIntent | null>>>
+}
+
+// Strategy proposals
+export function getStrategyProposals() {
+  return request.get('/api/brain/strategy-proposals') as Promise<ApiResult<any>>
+}
 export function feedbackObservation(id: number, feedback: string) {
   return request.post(`/api/cognitive/observations/${id}/feedback`, { feedback }) as Promise<ApiResult<{success: boolean}>>
 }
